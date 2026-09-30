@@ -81,7 +81,10 @@ Built only as far as the experiment needs, test first, each piece against its sp
 6. **Primitives** for the domain: Read (files and git porcelain output, as structure), Run (with
    arguments as separate values, never shell strings), Write/Edit, Say, Ask, Suppose, Sequence;
    each with effects, checks and, where possible, an inverse.
-7. **Learning**: the latent-variable structured perceptron with its caps, calibration on its own
+7. **Focus** over the current conversation and the workspace (design section 14b): the pre-chart
+   candidate set and needs-driven lookups, scored, budgeted and recorded. Past conversations and
+   long-term user facts come after the experiment.
+8. **Learning**: the latent-variable structured perceptron with its caps, calibration on its own
    data slice, and the replay gate on hand-checked items.
 
 **Lifting from Napkin**: worth reading or lifting, each piece reviewed against `AGENTS.md` before it

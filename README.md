@@ -13,5 +13,6 @@ The lineage: spoon, soup, napkin, and now noodle.
 - `docs/design.md`: the design, and why.
 - `PLAN.md`: the order of work.
 - `AGENTS.md`: the rules for anyone (or any agent) building it. Read it first.
+- `docs/specs/`: the phase 0 specs (data model, format, logical form, runtime, built-ins, testing).
 
-Status: design done, specs next. No runtime yet.
+Status: design done, specs drafted and in review. No runtime yet.
