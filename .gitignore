@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.sqlite
+*.sqlite-*
+.DS_Store
+.claude/
+
+# The session transcripts behind the design stay local (they include work-prompt summaries)
+docs/source/
