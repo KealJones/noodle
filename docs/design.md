@@ -420,6 +420,9 @@ the protected base (section 20): no learned reading may rewrite them.
 
 **Before the chart.**
 
+- **Gather the candidate set** (section 14b): a small, bounded set of names and things from the
+  conversation, recent conversations, the user's own words and the workspace, used below for
+  surroundings candidates, neighbour and kind features, and reference candidates.
 - **Set aside what is not language**: tool wrappers, pasted file headers, image tags, transcript
   markers, pasted content (into the content store).
 - **Segment** long messages into sentences and clauses, using facts on punctuation and on
@@ -438,7 +441,7 @@ the protected base (section 20): no learned reading may rewrite them.
     itself is kept as tone (emphasis, intensity). Keal: "noodle also needs to be able to handle my
     stupid bs like `sooooooo` and `looooollll`". Squeezing letter runs is character mechanics, the
     same for any language, so it is runtime mechanism, not an English rule;
-  - **from the surroundings**: names that exist right now (files in the folder, branches, things in
+  - **from the surroundings**: names in Focus's candidate set (files in the folder, branches, things in
     play), so "agent.md" where `agents.md` exists is the obvious reading;
   - and **the chart decides**: "taht" proposes *that* and *Taht* (a family name in Wikidata); *that*
     wins because it fits the sentence and is far more common, with no special rule.
@@ -641,7 +644,8 @@ Worked examples (the first ones to pass in the experiment):
 
 ## 12. Needs, plans and asking
 
-A reading can say what it needs. When a need is not met: try to get it; if that fails, ask; if
+A reading can say what it needs. When a need is not met: try to get it (through Focus, section 14b: the conversation, past
+conversations, the user's facts, the workspace, then Know); if that fails, ask; if
 that fails, stay unworked, honestly.
 
 **Implied wants.** A bad state said to a helper implies wanting the good state ("ci is failing"
@@ -668,6 +672,10 @@ unknown, and unknown is guarded.
 ## 14. The conversation is a structure
 
 - **The last few readings with their choice points** and scores.
+- **Past conversations**, kept in the graph as structure, not only the current one: their readings,
+  what was in play in them, and the holders and things they created (a list started on Tuesday, a
+  plan written last week), with the conversation and time they came from, so Focus (section 14b)
+  can search them.
 - **What is in play** (the list, the PR, the plan, the doc, the branch, the file just edited), with
   decay.
 - **The last proposal and question**, so "sounds good", "1", "5b" resolve.
@@ -690,6 +698,118 @@ unknown, and unknown is guarded.
 lookup, which rule or grant allowed an action.
 
 **Presuppositions are checked**; a failed premise is itself the answer.
+
+## 14b. Focus: what is relevant, and getting it
+
+The prototype called this Focus. The pieces of "what is relevant to this message" are used in
+sections 8, 12, 14, 16 and 21; this is the one mechanism that gathers them.
+
+Keal's framing:
+
+> "what Napkin called Focus or Attention, that did the pulling in of relevant data for each prompt
+> from files, prior conversation history, fetching web sources etc. to help inform, fill gaps ... so
+> you can like add to a list you started or have it do web research and tell you about that."
+
+**Focus is how the assistant decides what, beyond the message's own words, is relevant to it, and
+gets it.** It is not a retrieval step that runs before understanding and stuffs context in (that is
+how language-model systems work, and it would make relevance a guess made before the meaning is
+known). Here, **what a reading needs decides what is worth pulling in**, and everything pulled in is
+scored, budgeted, and recorded.
+
+**Where relevant things come from.**
+
+1. **The current conversation** (section 14): what is in play, the last proposal and question, the
+   event record, the assistant's own words understood into concepts.
+2. **Past conversations**: earlier conversations' readings, what was in play in them, and the
+   holders and things they created (a list started on Tuesday, a plan written last week, a branch
+   discussed yesterday). Stored in the graph like everything else, with the conversation and time
+   they came from.
+3. **Long-term facts about the user**: what the user told the assistant or the assistant learned
+   (their name, their projects, their own senses of words, their standing rules), with dates, since
+   they can go stale (section 21's freshness).
+4. **The workspace**: the files that exist, their names and kinds, the repository's state (branch,
+   changes, remotes), what was recently edited. Read only through pure primitives (Read, git
+   porcelain output as structure), so looking never changes anything.
+5. **The world**: through `Know` only (section 21): the graph first, then the live sources, in order
+   of trust.
+
+**Two phases.**
+
+**Before the chart: cheap, local, no network.** A small candidate set is gathered from sources 1 to
+4: things in play, names from recent conversations, the user's own words and senses, and the
+workspace's names (files, branches). It is used for:
+
+- spelling and surroundings candidates (section 8: "agent.md" where `agents.md` exists);
+- neighbour and kind features in the score (a branch name in play raises the git sense of "push");
+- reference candidates (section 16).
+
+It is bounded (a fixed number of candidates per source, most salient first) so understanding keeps
+its budget (section 24).
+
+**During evaluation: driven by needs.** When a chosen reading needs something the message did not
+say, Focus fetches it:
+
+- **a referent** ("the list I started", "that doc", "the PR from yesterday"): searched in the current
+  conversation, then past conversations, then the workspace, scored by kind, salience and recency;
+- **a fact** ("what's my manager's name?"): the long-term user facts, then Know;
+- **a state** ("what changed?", "is it pushed?"): the workspace, through pure primitives;
+- **knowledge** ("tell me about X", "what does Y cost?"): Know, across its sources.
+
+Only when every source fails does the need become a question to the user (section 12's order: get
+it, then ask, then stay unworked honestly).
+
+**Scoring and budget.**
+
+- Every candidate from Focus is scored with the same log-linear score as everything else (section
+  9), with features for its source (current conversation, past conversation, user facts, workspace,
+  world), its kind match, its salience in the event record, its recency, and its trust.
+- Each turn has a budget: a bounded number of lookups per source, a time limit for the network, and
+  a cap on how far back past conversations are searched unless the words ask for it ("the list from
+  last month").
+- A candidate that fits no need and no reference is dropped, not kept "in case".
+
+**Recorded.**
+
+Everything Focus pulled in, and why (which need or reference asked for it, which feature won), goes
+into the reasons log (section 14), so "why did you think I meant that list?" has an answer, and a
+correction ("no, the other list") can shift the features that chose it (section 17).
+
+**Worked examples.**
+
+| Said | What Focus does |
+|---|---|
+| "add eggs to the list I started Tuesday" | `Add(Eggs(), To(List(Started(By(Me()), On(Tuesday())))))`; Add wants a holder; the referent is searched in past conversations with the date restriction; the list found is used; the reasons log records the conversation it came from |
+| "add eggs" (a list is in play) | no need to search: the list in play fills the holder (section 16) |
+| "what changed?" | a state need; Focus reads the repository's status and diff (pure); the answer is built from that structure |
+| "look into sourdough starters and tell me about them" | a knowledge need; Focus asks Know across sources (Wikidata, Wiktionary, sister-project pages, the web), within the budget; the writing pipeline (section 25) turns what came back into an explanation, with its sources named |
+| "open the plan" | a referent of kind document; the most recent plan in play or in the workspace; if two are close, asked |
+| "remember I'm allergic to peanuts" | a long-term user fact, stored with its date and source; later "can I eat this?" finds it through Focus |
+
+**Research as a task.**
+
+"Research X and tell me about it" was not written anywhere. It is Focus plus writing:
+
+1. Know gathers facts about X from its sources, in order of trust, within the turn's budget (or a
+   larger budget when the user asks for depth).
+2. What comes back is understood into structure (section 2's principle), not pasted.
+3. The writing pipeline (section 25) orders the facts into an explanation, says which source each
+   came from, and says plainly what it could not find.
+
+**Trust and privacy.**
+
+- Past conversations and user facts are the user's own data: level 1 trust when the user said them,
+  never shared outside the machine.
+- Workspace files are read at the trust of their origin (section 20): the project's instruction file
+  at level 2, its AGENTS.md, READMEs and help text at level 3, other files of the user's own project
+  at level 2, and every file of a cloned or unfamiliar repository at level 3, so a file cannot
+  inject behaviour just by being found.
+- What Focus fetches from the world keeps its source's trust level.
+
+**In the experiment.**
+
+The experiment (section 29) needs sources 1 and 4 (the current conversation and the workspace, both
+captured in each fixture). Past-conversation memory and long-term user facts are out of its scope,
+except where a fixture's prior turns include them. Research as a task comes after a go.
 
 ## 15. Effects, goals and verification
 
@@ -721,6 +841,9 @@ output) through Read, as structure, not as language to understand; changes by ot
   pushable), salience from the event record (mentioned, acted on, just failed: "fix the test"
   means the one that failed) and recency are features in the score (section 9), like everything
   else.
+- **Candidates come from Focus** (section 14b): what is in play first; past conversations and the
+  workspace when the words or a need ask for them ("the list I started Tuesday", "that doc"),
+  scored by kind, salience and recency like any other candidate.
 - **Fragments fill holes**: a fragment ("github link", "look again?") fills the open need or choice
   point of the last reading whose kind it best matches; if its best match scores below a threshold set on the
   development set, it is a new message.
@@ -862,6 +985,7 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("commit", Senses())
   Fetch (inside Know only): cached per URL, throttled, retrying, one polite user agent
 ```
 
+- **Know is Focus's route to the world** (section 14b): Focus never fetches on its own.
 - **Imported sources** (WordNet, VerbNet, wordfreq, ConceptNet, ATOMIC, Kaikki) are loaded once
   into packs (section 22); **live sources** answer at run time through Know.
 - Sources are concepts with facts (what they answer, how they are reached, license, trust, whether
@@ -945,6 +1069,10 @@ model is a research problem in its own right. The honest scope is letters, plans
 explanations, lists, reviews, and transforming given text. A commit message is a template over the
 change's concepts (which files, what kind of change, the request it answers), and its constraint is
 that it names every changed file's area and the request; it is not free prose. For long invented stories and scripts, the assistant says what it cannot do.
+
+**Research as a task** ("research X and tell me about it") is Focus plus writing (section 14b):
+Know gathers, what comes back is understood into structure, and writing orders it into an
+explanation that names its sources and says what it could not find.
 
 ## 26. Evaluation
 
@@ -1033,13 +1161,19 @@ Keal:
    (would it be the same for chess, a jam website and the user's name? if not, it is learned).
 5. **The test strategy**: the corpus, the hand-check, the holdout, the replay gate, runtime tests.
 
+They are in `docs/specs/` (with the logical form as a sixth, per PLAN.md phase 0). Where a spec
+decides something this document left open, the spec says so; decisions that change this design
+are copied back here once Keal confirms them.
+
 ## 28. The runtime
 
 It does only this: store concepts, facts, readings, content blocks, the conversation structure and
 the event record, with provenance and trust; match patterns over lemmas and roles, and shape
 patterns over characters (the one small pattern interpreter shapes need), plus the character
 mechanics of spelling candidates (edit distance, squeezing repeated letters); build and prune the chart
-with its six steps; score readings in two stages; rewrite and run primitives; learn weights from
+with its six steps; gather what is relevant through Focus (section 14b: gather, score, budget,
+record), with what counts as relevant decided by readings' needs, never by rules in the runtime;
+score readings in two stages; rewrite and run primitives; learn weights from
 corrections and picks. Concepts have two kinds of content (facts and readings); the store also holds
 content blocks, the conversation structure, the event record and trust, as data.
 
@@ -1323,3 +1457,11 @@ precise rather than dropped.
   experiment's relaxation of trust is stated; quotation is a node type, not a mode; scope has
   constraints and enumeration; "until told" has semantics; calibration has its own data; user-taught
   links need two agreeing cases; blindness limits are stated.
+
+**Round 7** (after the review loop, from a question Keal asked):
+
+- Focus (section 14b) gathers what is relevant to a message: a cheap local candidate set before the
+  chart, and needs-driven lookups during evaluation, across the current conversation, past
+  conversations, the user's facts, the workspace, and the world through Know; scored, budgeted and
+  recorded. Past conversations are kept as structure; research is Focus plus writing. The
+  experiment uses only the current conversation and the workspace.
