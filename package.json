@@ -6,7 +6,8 @@
   "description": "An assistant that understands and acts without a language model, built as a graph of nested concepts (N-Con).",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node --test 'dist/**/*.test.js'"
+    "test": "pnpm build && node --test 'dist/**/*.test.js'",
+    "test:capture": "node --test scripts/capture.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
