@@ -92,7 +92,7 @@ analysis, so it develops and checks progress but never decides go.
 - **Checks** are the corpus README's, scored per case and per group. `reading-sketch` stays
   informational: the analysts' vocabulary is not Noodle's.
 - **Holdout**: 30 percent of the real prompts, split **by conversation**, never tuned on. The split is
-  a file (`~/.napkin/corpus/tests/split.json`) written once, before development starts, with a fixed
+  a file (`~/.noodle/experiment/split.json`) written once, before development starts, with a fixed
   seed, and never regenerated.
 - **Every change is checked against the corpus** (AGENTS.md rule 11): a change that helps one prompt
   and is not run on the development set is not done. The runner prints the before and after per
@@ -117,7 +117,7 @@ the concepts it would be expressed in are learned.
 
 ### 5.1 Gold format
 
-One JSON object per item, in `~/.napkin/corpus/experiment/gold.jsonl`:
+One JSON object per item, in `~/.noodle/experiment/gold.jsonl`:
 
 ```
 {
@@ -179,7 +179,7 @@ tool calls, standing in for the event record).
   7. Both assistants: Claude Code and Codex. The historical fixtures were drafted from Claude
      Code transcripts only, so Codex prompts have none.
   The hook is `scripts/capture.mjs` (tests: `pnpm test:capture`), registered as a `UserPromptSubmit`
-  hook in both assistants. It writes `~/.napkin/corpus/experiment/fixtures/<id>/` (`meta.json`,
+  hook in both assistants. It writes `~/.noodle/experiment/fixtures/<id>/` (`meta.json`,
   `turns.jsonl`, `untracked.tar.gz`) and one line per prompt to `captures.jsonl`, and takes about
   0.3 seconds. Pins are refs in the user's own repositories (never pushed by a plain push); bundling
   a fixture for the sandbox happens later, only for the prompts that are labelled.
@@ -294,5 +294,5 @@ curves, not one number.
 
 Keal (2026-10-01):
 
-- **Where the experiment's files live (1):** `~/.noodle/experiment/`, not `~/.napkin/corpus/`.
-  Still to do: move the data, and update AGENTS.md rule 11, `scripts/corpus.mjs` and the capture hook.
+- **Where the experiment's files live (1):** `~/.noodle/experiment/` (gold, fixtures and captures,
+  splits). The exploratory corpus and its labels stay in `~/.napkin/corpus/tests/`.
