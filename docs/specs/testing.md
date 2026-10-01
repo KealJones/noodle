@@ -178,6 +178,11 @@ tool calls, standing in for the event record).
      counts.
   7. Both assistants: Claude Code and Codex. The historical fixtures were drafted from Claude
      Code transcripts only, so Codex prompts have none.
+  The hook is `scripts/capture.mjs` (tests: `pnpm test:capture`), registered as a `UserPromptSubmit`
+  hook in both assistants. It writes `~/.napkin/corpus/experiment/fixtures/<id>/` (`meta.json`,
+  `turns.jsonl`, `untracked.tar.gz`) and one line per prompt to `captures.jsonl`, and takes about
+  0.3 seconds. Pins are refs in the user's own repositories (never pushed by a plain push); bundling
+  a fixture for the sandbox happens later, only for the prompts that are labelled.
 - **The sandbox** restores a fixture into a temporary directory with `HOME` set inside it,
   `GIT_CONFIG_NOSYSTEM=1`, a fixed author, committer and date, and the remote as a local path, so
   nothing reaches the network or the user's real repositories.
