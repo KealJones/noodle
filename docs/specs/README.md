@@ -12,9 +12,8 @@ reviewed, with their open questions answered or listed.
 | `built-ins.md` | the test, the primitives, the seed's eight parts, the structural concepts, how to add one | draft |
 | `testing.md` | unit tests and rule lints, the corpus, the replay gate, the gold and fixtures, splits, baselines, statistics, the freeze | draft |
 
-Each spec ends with its open questions. The ones that most change what gets built:
+Each spec ends with its open questions (and a Decided list once some are answered). The ones that most change what gets built:
 
-- Heard arguments carry roles only when a verb frame names them (`ncon.md` 1).
 - The chart's seven categories (`built-ins.md` 1).
 - About 130 structural names, not "a handful" (`built-ins.md` 4).
 - `Permit` as a new LF head for lifting `until=Told()` (`logical-form.md` 3).

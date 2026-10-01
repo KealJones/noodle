@@ -301,24 +301,29 @@ export and import; export then import gives the same store contents (ids aside).
 - Not a store of strings with meaning: labels, glosses and descriptions are blocks or are
   understood into structure.
 
+## Decided
+
+Keal (2026-09-30): the heard form's exact shape does not matter, as long as super messy English is
+consistently parsed into it. So the shape is chosen for consistency, and these are settled:
+
+- **Roles.** Heard arguments carry a role only when the Takes fact that filled them names one:
+  function words take positionally (`The(Beans())`, `To(My(List()))`), verbs take by the thematic
+  roles of their frames ("add milk to my shopping list" is
+  `Add(theme=Milk(), destination=To(My(List(Shopping()))))`). Roles are what let the passive,
+  questions and fronting reach the same expression as the plain order, which is the consistency
+  asked for. The text form prints the roles it has.
+- **Modifiers inside heads.** "shopping list" is `List(Shopping())` (the modifier is an argument of
+  its head, role `modifier`); "my list" is `My(List())` (determiners and possessives are heads).
+  Either shape would do; this one is kept because it is Napkin's and nothing gains from changing it.
+
 ## Open questions
 
-1. **Heard form and roles.** This spec has heard arguments carry a role only when the Takes fact
-   that filled them names one: function words take positionally (`The(Beans())`, `To(My(List()))`),
-   verbs take by the thematic roles of their frames, so "add milk to my shopping list" is heard as
-   `Add(theme=Milk(), destination=To(My(List(Shopping()))))`. The text form always prints the roles
-   it has. Confirm, or say whether heard forms should stay fully positional (closer to Napkin, but
-   then the passive cannot line up roles in the expression itself).
-2. **Modifiers inside heads.** Following Napkin, "shopping list" is heard as `List(Shopping())` (the
-   modifier becomes an argument of the head, role `modifier`) and "my list" as `My(List())` (the
-   determiner or possessive is the head). Keep both, or make determiners modifiers too
-   (`List(My())`) so every noun phrase is headed by its noun?
-3. **Name encoding for lemmas with symbols** (`HEAD`, `.gitignore`, `c++`). The rule above drops
+1. **Name encoding for lemmas with symbols** (`HEAD`, `.gitignore`, `c++`). The rule above drops
    symbols (`Gitignore`, `C`), which collides `c` and `c++`. Alternative: keep symbols spelled out
    (`CPlusPlus`) from a seed table, which is a word list. Or: names for such lemmas are opaque
    (`Word_381`), which is honest but unreadable in traces.
-4. **inSense migration.** When a sense is minted, do `inSense` facts move (rewrite) or stay and get
+2. **inSense migration.** When a sense is minted, do `inSense` facts move (rewrite) or stay and get
    linked? Moving is simpler to read; linking keeps facts immutable. This spec says move, recorded
    as retract plus assert.
-5. **The seed's trust level.** The seed sits outside the four levels. Is it its own level 0, or is it
+3. **The seed's trust level.** The seed sits outside the four levels. Is it its own level 0, or is it
    only "protected" (not writable) and otherwise level 1?
