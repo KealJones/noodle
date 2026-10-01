@@ -204,7 +204,7 @@ trusted.
 | Calibration | a slice of the exploratory labels, held apart | calibrating the ask threshold, the match threshold | training, go |
 | Holdout | 30 percent of real prompts, by conversation | checking development honestly | tuning, go |
 | Confirmatory | fresh prompts from the capture hook after the freeze, labelled blind | **go** | anything before scoring |
-| Paraphrases | written blind by someone who has not seen the seed | reported beside go | go |
+| No-name | real requests whose prompt does not name the command (exploratory labels), plus 15 paraphrases Keal wrote blind | reported beside go | go |
 | Negative | fresh prompts with git words that are not git acts | false-act rate, reported | go on its own |
 
 ### 6.3 Blind labelling and reliability
