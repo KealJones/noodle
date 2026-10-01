@@ -135,13 +135,13 @@ every `.ncon` file in the repository:
 4. **Errors have positions**: every parse error reports line and column and the form it was in; an
    invalid file never half-loads (a file imports atomically).
 
+Roles print wherever the data has them (`ncon.md`, Decided).
+
 ## Open questions
 
-1. **Roles in heard expressions.** Roles print wherever the data has them; heard expressions have
-   them only for arguments filled by a Takes fact that names a role (`ncon.md` open question 1).
-2. **Comments in the seed.** The seed wants explanations beside entries, but comments are not data,
+1. **Comments in the seed.** The seed wants explanations beside entries, but comments are not data,
    so a formatter pass loses them. Options: accept that the seed is hand-edited only, or add a
    `Note(Block(...))` fact for explanations that must survive. This spec does the first.
-3. **One file per seed part, or one per word?** One per part keeps counting simple (design section
+2. **One file per seed part, or one per word?** One per part keeps counting simple (design section
    6); one per word keeps "the rule lives on its word" visible in the file tree. This spec assumes
    one per part (`seed/<part>.ncon`).
