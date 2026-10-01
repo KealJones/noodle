@@ -161,6 +161,23 @@ tool calls, standing in for the event record).
   `turns.jsonl`.
 - Written by the **capture hook** (PLAN.md phase 1) for fresh prompts; drafted from transcripts for
   historical ones where the state can be reconstructed.
+- **What the capture hook records**, each point from a gap found drafting the historical fixtures
+  (of 481, only 81 have a likely starting commit and none has its uncommitted changes):
+  1. The commit: `git rev-parse HEAD` and the branch. Transcripts record the folder and branch
+     name but never the commit, which is most of why historical state cannot be rebuilt.
+  2. Uncommitted work, without changing anything: `git stash create` gives a commit of the index
+     and the working tree and leaves the stash list alone; untracked files go into a tarball.
+  3. A pin: `git update-ref refs/noodle/capture/<id>` on both commits, so they survive garbage
+     collection and deleted worktrees (74 historical commit ids no longer resolve).
+  4. The remote: `refs/remotes/*`, and `git ls-remote` when online, since push, pull and merge
+     results depend on it.
+  5. Both paths when the folder is a worktree: the worktree and its parent repository. Many
+     historical fixtures were lost with deleted worktrees.
+  6. Whether the message was typed: automated messages (scheduled heartbeats, harness blocks) are
+     marked at capture and never counted as prompts; 223 heartbeats had inflated the corpus
+     counts.
+  7. Both assistants: Claude Code and Codex. The historical fixtures were drafted from Claude
+     Code transcripts only, so Codex prompts have none.
 - **The sandbox** restores a fixture into a temporary directory with `HOME` set inside it,
   `GIT_CONFIG_NOSYSTEM=1`, a fixed author, committer and date, and the remote as a local path, so
   nothing reaches the network or the user's real repositories.
