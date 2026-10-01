@@ -1241,7 +1241,7 @@ Keal:
    language, not file syntax), a formatter, and round-trip tests.
 3. **The runtime rules**: what the runtime may and must not do (section 28), the six chart steps,
    the score interface, the primitives with effects and checks, the modes.
-4. **Built-in concepts**: what is built in (the seed's eight parts, the primitives, a handful of
+4. **Built-in concepts**: what is built in (the seed's eight parts, the primitives, about 130
    structural concepts), how to add one, and the test for whether something belongs there
    (would it be the same for chess, a jam website and the user's name? if not, it is learned).
 5. **The test strategy**: the corpus, the hand-check, the holdout, the replay gate, runtime tests.
@@ -1263,7 +1263,7 @@ corrections and picks. Concepts have two kinds of content (facts and readings); 
 content blocks, the conversation structure, the event record and trust, as data.
 
 It must not contain word lists, English wording, answer-shaping rules, special-cased concept names
-beyond a handful of structural ones, or grammar rules. Each is a fact or a reading on a word.
+beyond the structural ones (about 130, listed in `built-ins.md`), or grammar rules. Each is a fact or a reading on a word.
 
 ## 29. The smallest experiment
 

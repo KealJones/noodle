@@ -1,7 +1,8 @@
 # The test strategy
 
-Status: draft for review (PLAN.md phase 0, item 6). Design sections 26 and 29 are the source. This
-spec says what is tested, on which data, against what, and what keeps the scored system honest.
+Status: reviewed at checkpoint 0, 2026-10-01 (PLAN.md phase 0, item 6). Design sections 26 and 29
+are the source. This spec says what is tested, on which data, against what, and what keeps the
+scored system honest.
 
 ## 1. Layers
 

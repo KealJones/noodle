@@ -1,7 +1,8 @@
 # The runtime
 
-Status: draft for review (PLAN.md phase 0, item 4). Design sections 8, 9, 10, 13, 14, 15, 20, 21 and
-28 are the source. This spec says what the runtime does, step by step, and what it must never do.
+Status: reviewed at checkpoint 0, 2026-10-01 (PLAN.md phase 0, item 4). Design sections 8, 9, 10,
+13, 14, 15, 20, 21 and 28 are the source. This spec says what the runtime does, step by step, and
+what it must never do.
 
 ## 1. What the runtime is
 

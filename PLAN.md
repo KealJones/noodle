@@ -30,12 +30,20 @@ Nothing in `src/` beyond a stub until these exist and Keal has reviewed them (de
    Suppose and Sequence; the conversation structure and the event record; guards by effect class;
    trust levels and the protected base.
 5. **Built-in concepts** (`docs/specs/built-ins.md`): the seed's eight parts, the primitives, the
-   handful of structural concepts; how to add one; the test for whether something belongs there
+   structural concepts (about 130); how to add one; the test for whether something belongs there
    (same for chess, a jam website and the user's name? if not, it is learned).
 6. **The test strategy** (`docs/specs/testing.md`): runtime unit tests, the corpus, the hand-check,
    the fresh confirmatory set, the replay gate, and the frozen-system rule.
 
 **Checkpoint 0**: all six reviewed by Keal; open questions in them listed, not guessed.
+
+**Result (closed 2026-10-01)**: all six reviewed by Keal. Decided: roles and modifier shape in the
+heard form, corrections as a runtime operation (five speech acts), `Permit` as an LF head, about 130
+structural names with the time heads kept structural, and the experiment's files under
+`~/.noodle/experiment/`. The chart's categories are settled with the seed draft. Still open and
+listed at the end of each spec: `ncon.md` 1 to 3, `ncon-format.md` 1 and 2, `logical-form.md` 1, 4
+and 5, `runtime.md` 1 to 6, `built-ins.md` 1 to 3, `testing.md` 2 to 5. None blocks phase 1; each is
+answered when the work that needs it starts.
 
 ## Phase 1: week 1 (cheap tests that can end or redirect the project)
 

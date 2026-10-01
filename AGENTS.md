@@ -70,8 +70,9 @@ sections 0, 2 and 28, and `PLAN.md`, before anything else.
     why it is stuck (design section 23).
 11. **Measure, don't assume.** The corpus in `~/.napkin/corpus/tests/` is how progress is developed
     and checked (design section 26), against targets frozen before the system runs; the go decision
-    is made on fresh prompts collected after the freeze. A change that helps one prompt and is not checked against the corpus is
-    not done. Do not tune on the held-out part.
+    is made on fresh prompts collected after the freeze, whose gold, fixtures and splits live in
+    `~/.noodle/experiment/`. A change that helps one prompt and is not checked against the corpus
+    is not done. Do not tune on the held-out part.
 12. **Keep it dead simple.** Concepts have two kinds of content (facts and readings); the store
     also holds content blocks, the conversation, the event record and trust as data. A small set of
     primitives, a small runtime. If you are adding a new kind of thing to the data model, a new primitive, or a

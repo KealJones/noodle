@@ -1,8 +1,9 @@
 # Built-in concepts
 
-Status: draft for review (PLAN.md phase 0, item 5). Design sections 6, 10, 20 and 28 are the source.
-This spec lists everything that is built in (the primitives, the seed's eight parts, the structural
-concepts the runtime names), how to add one, and the test for whether something belongs here.
+Status: reviewed at checkpoint 0, 2026-10-01 (PLAN.md phase 0, item 5). Design sections 6, 10, 20
+and 28 are the source. This spec lists everything that is built in (the primitives, the seed's eight
+parts, the structural concepts the runtime names), how to add one, and the test for whether
+something belongs here.
 
 ## 1. The test
 
