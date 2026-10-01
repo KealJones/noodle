@@ -355,7 +355,8 @@ that matters.
    counted. A commit message is the summary-of-a-change shape, which is the same for any project,
    not a git-specific template.
 8. **English realizations**: the wordings the assistant says (an honest "I don't know", an offer
-   before a guarded act, the echo of a rule it heard, a result), as readings in Speaking, counted.
+   before a guarded act, the echo of a rule it heard, a result), as readings in Speaking, counted;
+   and the media realizations that turn a document into markdown or plain text (section 25).
 
 The **core meanings are a closed list**, published before stage 0, so "reduces to core meanings" has
 a fixed floor; a reduction that needs a word outside the list does not reduce.
@@ -454,6 +455,8 @@ the protected base (section 20): no learned reading may rewrite them.
     wins because it fits the sentence and is far more common, with no special rule.
 - **Shapes propose kinds** (five digits, `#` and digits, a path, a URL, `snake_case`, "5pm"), from
   facts on shape kinds (`ZipCode HasShape(Digits(5))`), sourced where a source has them.
+- **Markup is heard, not stripped** (section 25b): markdown's marks are tokens with entries in the
+  function-word lexicon, like punctuation, and the chart reads them as it reads quotation marks.
 
 **The chart.** Lexicalized, head-driven chart parsing: every rule is on a word (principle 12). The
 runtime's only universal combining steps are:
@@ -1071,7 +1074,8 @@ is for, how a change relates to a request) is understood like any other meaning.
 hand-written "code version" of each instruction.
 
 **Writing** is facts, an outline (genre shapes as loose defaults, never rigidly prescriptive), wording
-(readings in Speaking), and a check against the stated constraints. Generating good prose without a
+(readings in Speaking), and a check against the stated constraints. What Speaking produces is a document, not a string; markup and media are
+section 25b. Generating good prose without a
 model is a research problem in its own right. The honest scope is letters, plans, summaries,
 explanations, lists, reviews, and transforming given text. A commit message is a template over the
 change's concepts (which files, what kind of change, the request it answers), and its constraint is
@@ -1080,6 +1084,79 @@ that it names every changed file's area and the request; it is not free prose. F
 **Research as a task** ("research X and tell me about it") is Focus plus writing (section 14b):
 Know gathers, what comes back is understood into structure, and writing orders it into an
 explanation that names its sources and says what it could not find.
+
+## 25b. Markup, heard and spoken
+
+Markdown is how people stress, quote, list and link in text, and it is the chat's output format. So
+it is heard as language and spoken as structure, with no markdown parser in the runtime and no rule
+in code that says what a mark means. The inventory below is GitHub's
+([basic writing and formatting syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)).
+
+**One set of document heads, both ways.** `Paragraph`, `Heading(level)`, `List`, `Item`, `Task(done)`,
+`Contrast`, `Important`, `Withdrawn`, `Inserted`, `Quote`, `Callout(kind)`, `Code`, `CodeBlock(language)`,
+`Link(to)`, `Image(alt)`, `Note` (a footnote), `Break`. They are core meanings: hearing produces them
+and Speaking's output is made of them.
+
+**Hearing.** Each mark is an entry in the function-word lexicon; marks are as ambiguous as words and
+the chart decides the same way (`*` between numbers is multiplication, `_` inside `snake_case` is part
+of a name, `#` before digits is an issue reference), each a competing entry chosen by the score.
+
+| Mark | Heard as |
+|---|---|
+| `*x*`, `_x_` | `Contrast(x)`: this, as against the alternatives ("I didn't say *he* did it" denies it was him, not that it was done). Proposes which part `Not` and `Only` are about (section 11), as a scored feature. Also titles and terms, as competing entries |
+| `**x**`, `__x__` | `Important(x)`: do not miss this. Raises salience (section 14b) and the weight of a constraint it is on; still the same constraint |
+| `***x***` | `Important(Contrast(x))`: a different kind from either, not a degree |
+| `~~x~~`, `~x~` | `Withdrawn(x)`: a correction inside the message ("~~push~~ commit" asks for a commit), the operation of section 17 |
+| `<ins>x</ins>` | `Inserted(x)`: the added side of a correction |
+| `<sub>`, `<sup>` | part of the name or number they are in (H<sub>2</sub>O, x<sup>2</sup>), no tone |
+| `` `x` `` | a name or a mention (`Mention`, section 11): `` `agents.md` `` is an exact name, never a spelling candidate. A color (`` `#0969DA` ``) is a shape |
+| fenced code | set aside as content with its language (`SetsAside()`), never heard. Markdown inside a fence is content too: "make the README look like this" points at it, it does not stress anything |
+| `#` to `######` | `Heading(level)`: names what the lines under it are about |
+| `>` | `Quote`: someone else's words, opaque |
+| `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` | `Callout(kind)`, a competing entry on `>`: the writer's own words, flagged, not a quote |
+| `-`, `*`, `+`, `1.` | `Item`s of one `List`; "commit these:" followed by a list takes the list as its argument |
+| `- [ ]`, `- [x]` | `Task(done=false)`, `Task(done=true)`: a list of things to do and their state |
+| `[text](to)` | `Link(text, to)`: the text names the target. The target is a shape: a URL, a path relative to the file (a workspace candidate, section 14b), a `#section` anchor (a heading in the same document) |
+| bare URL, `@name`, `#123` | shapes: a URL, a person or team, an issue or pull request |
+| `![alt](src)` | `Image(alt)`: the alt text is heard, the image is a block |
+| `[^1]`, `[^1]: text` | `Note`: the text belongs to the place that cites it |
+| `:name:` | an emoji by name, tone |
+| `\*` | the escaped mark is a plain character, not a mark |
+| `<!-- -->` | hidden from the reader: set aside, never heard as said to the assistant |
+| blank line, two trailing spaces, `\` at line end, `<br/>` | `Paragraph` and `Break`: segment boundaries (section 8) |
+
+**Nesting by indent** (a list inside a list) is the one place markdown's structure is layout, not
+marks. Indentation is character mechanics, the same in any language, so the runtime records each
+line's indent as a fact on its first token, and the list entry takes items by it. Nothing else reads
+layout.
+
+**Speaking.** Wordings never contain markup. A realization says `Important(x)`, `Link(text, to)` or
+`CodeBlock(content, language)`, and a last step prints the document in the **medium** of where it
+goes: markdown for the chat and `.md` files, plain text for commit messages and terminals that do not
+render markdown. Each medium is a set of seed realizations of the document heads (about 20 for
+markdown, about 10 for plain text); the medium is a fact on the destination, never a guess from the
+words. In markdown:
+
+- **Content never becomes markup by accident.** Text from a block, a name or the user's words is
+  escaped where it would otherwise be read as a mark (`\*`), or printed as code.
+- **Names of things are code.** Files, branches, commands and identifiers print as `` `x` ``, so they
+  are copyable and never re-read as stress.
+- **Code shows source, not rendering.** `CodeBlock` prints its content verbatim in a fence longer
+  than any run of backticks inside it, with its language. That is how markdown is shown as markdown
+  (`CodeBlock(content, language=Markdown())`) instead of rendered: showing a README's source and
+  writing a README are different requests, so different documents. Inline `Code` uses enough
+  backticks, and pads with a space when the content starts or ends with one.
+- **Links.** `Link(text, to)` prints `[text](to)`; a link whose text is its target prints the bare
+  target; a workspace file prints as a path relative to where the output is read. In plain text a
+  link prints as "text (to)", or the bare target.
+- **Stress keeps its kind.** `Contrast` prints `*x*`, `Important` prints `**x**`, both print
+  `***x***`; in plain text stress prints nothing, since the words have to carry it.
+- **Callouts and tasks** print as GitHub's alerts and task lists, in plain text as a leading word
+  ("Warning:") and "[ ]" / "[x]".
+
+What a request asks to produce decides the document; the medium decides only how it is printed. A
+file written to disk is written in its own medium (a `.md` file as markdown source, never wrapped in
+a fence).
 
 ## 26. Evaluation
 
@@ -1336,7 +1413,11 @@ Also decided (after the review loop): the store is SQLite with N-Con as its text
 sense, named `Word#WhatItIs`, with hearing kept close to the words and senses chosen only when a
 reading needs one; definitions understood at import, domain vocabulary first; imported senses are
 candidates on a frequency prior; the seed is counted, with no hard cap; the config is
-`~/.noodle/config.json`; the source transcripts stay local.
+`~/.noodle/config.json`; the source transcripts stay local. Markdown is heard through seed entries on its
+marks and spoken through media realizations of document heads, which are core meanings (section
+25b); `*x*`, `**x**` and `***x***` are different kinds of stress (contrast, importance, both);
+strikethrough is a correction; the runtime records each line's indent as a fact on its first token,
+the only layout it reads, so nested lists are heard by their marks' entries.
 
 Open:
 
