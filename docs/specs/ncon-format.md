@@ -137,6 +137,14 @@ every `.ncon` file in the repository:
 
 Roles print wherever the data has them (`ncon.md`, Decided).
 
+"The same data" in rule 1 means after the file's defaults are filled in (the Pack's `from`,
+`status=Active()`) and metadata is put in its fixed order: the formatter drops a default the file
+already says and reorders metadata, so those two differences are not differences. Argument order
+elsewhere is data and is never changed.
+
+The formatter breaks a form over 100 columns one argument per line, with the closing parenthesis on
+its own line at the form's indent. A raw string with a newline always breaks its call.
+
 ## Open questions
 
 1. **Comments in the seed.** The seed wants explanations beside entries, but comments are not data,
