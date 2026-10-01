@@ -44,13 +44,13 @@ Run in parallel with the end of phase 0. Mostly Keal's work, with help.
 - **Keal: the labelling session** (prompt in the session notes; results in
   `~/.napkin/corpus/tests/`): verify the draft git labels, label every git-ish prompt and a sample
   of the rest, confirm fixtures, check 100 across the corpus, and, while he has not seen the seed,
-  write 30 blind paraphrases that do not use the command's word.
+  write blind paraphrases that do not use the command's word (stopped at 15; see design section 29).
 - **The seed draft** (`seed/`): the closed list of core meanings (each passing the "not
   domain-specific" check), the function-word lexicon, the lexical rules, the bridge, the initial
   weights, the default policies, the genre shapes, the English realizations. Every entry counted.
   Keal reviews it.
 - **Representability and convergence (the kill test)**: Keal hand-writes target reductions for 30
-  git documentation descriptions (with the glossary) and, blind to them, for 30 paraphrase requests;
+  git documentation descriptions (with the glossary) and, blind to them, for 30 real requests that do not name the command;
   the match relation is run on the hand-written pairs. **Stop or redesign if fewer than 70 percent
   can be expressed with the seed, or fewer than 60 percent match the right documentation reading.**
 - **The capture hook**: whenever Keal sends a prompt to a coding assistant, snapshot the working
@@ -139,9 +139,9 @@ experiment.
 ## Keal's tasks, in order
 
 1. Review the phase 0 specs as they land.
-2. The labelling session, including 30 blind paraphrases before seeing the seed.
+2. The labelling session, including blind paraphrases before seeing the seed (15 written).
 3. Review the seed draft.
-4. Hand-write the 30 documentation reductions and the 30 paraphrase reductions (phase 1 kill test).
+4. Hand-write the 30 documentation reductions and the 30 no-name request reductions (phase 1 kill test).
 5. Grade the stage 0 results and 50 bottomed-out senses.
 6. Keep using coding assistants as usual once the capture hook runs; label fresh prompts in batches.
 7. After a delay, re-label a random 20 percent, for reliability.

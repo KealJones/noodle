@@ -56,9 +56,9 @@ the seed is frozen**:
    27 single-act git requests in a labelled sample did not), so the understanding that matters is
    everything around the verb: which files, which branch, "everything except the plan", "don't push
    yet", "it", commit before push.
-   A second result, reported but not deciding: on paraphrases that do not name the command ("send
-   my stuff up"), written blind by someone who has not seen the seed, the right act is reached more
-   often than retrieval over the same documentation.
+   A second result, reported but not deciding: on real requests that do not name the command (mostly
+   carried by the conversation, "do it" after the assistant proposed a push), the right act is
+   reached more often than retrieval over the same documentation.
 2. Nothing is written by hand for the domain along the way; corrections create only the learned
    structure listed in section 17, counted.
 
@@ -182,6 +182,12 @@ Percent of items with each feature (model-tagged):
   pasted content; only 2 of the 27 single-act requests did not name the command. Projected: about 6
   single-act and 5 multi-act requests a week, and about 0.4 a week that do not name the command. In
   real use the command is named; what needs understanding is everything around it (section 29).
+- **The full labelling** (every git-ish prompt plus a random 100, labelled by Keal and model drafts
+  he spot-checked): of 216 requests with a git act, 173 name the command in the prompt, 33 name it
+  only in the four turns before (usually the assistant's own proposal, then "do it" or "go"), and 10
+  nowhere (mostly the default chain inferred, as in "ci failing"; genuinely different words only
+  about 3 times: "undo" twice, "use work trees"). Keal: he would not phrase these any other way.
+  When the name is missing, the conversation carries it, not a synonym.
 - The real prompts were written to language models; prompts to an assistant without one may be
   shorter and more command-like. The distribution shift runs both ways and is noted, not corrected.
 
@@ -1104,7 +1110,8 @@ explanation that names its sources and says what it could not find.
 - **Statistics**: comparisons between systems on the same items use a paired bootstrap on per-item
   correctness; the sample size needed for the go margin is computed before the experiment.
 - **The paraphrases were written by models**, so they test robustness to model-style rewording;
-  Keal-written paraphrases are added for the experiment's domain.
+  15 Keal-written paraphrases are added for the experiment's domain, and its no-name stratum comes
+  mainly from real requests (section 29).
 - **Reliability of the labels**: Keal re-labels a random 20 percent after a delay, and the agreement
   with his own first labels (kappa) is reported; agreement with the model drafts is reported too, as
   a check on the drafts, not as reliability.
@@ -1207,10 +1214,11 @@ fixture snapshots the remote's refs and objects at capture time into the sandbox
 
 **Week 1: representability, and capture.**
 
-- Keal writes by hand the target readings for 30 git documentation descriptions and 30 paraphrase
-  requests (without the command's name), using only the drafted seed's vocabulary and bridge. **If
+- Keal writes by hand the target readings for 30 git documentation descriptions and 30 real
+  requests whose prompt does not name the command (from the labelled exploratory set; the name, if
+  anywhere, is in the turns before, which come with the request), using only the drafted seed's vocabulary and bridge. **If
   under 70 percent can even be expressed, the seed design is fixed before any code.**
-- **Convergence, not only representability.** For the 30 paraphrase requests, Keal also writes the
+- **Convergence, not only representability.** For the 30 requests, Keal also writes the
   reductions **blind to the documentation reductions**, then the match of section 9 is run on the
   hand-written pairs. The kill test is top-1 match accuracy: **if under 60 percent of the requests
   match the right documentation reading, stop**: careful hand reductions do not converge, so
@@ -1238,7 +1246,8 @@ stated (the expected rate of pairs where the two systems disagree). With a 10-po
 and about 20 percent disagreeing pairs, it needs on the order of 170 items. At about 11 qualifying
 requests a week, that is about four months; if the pilot shows a slower rate, the domain widens to
 files in general before the freeze, not after. Requests without the command's name are about 0.4 a
-week in real use, too few to decide anything, so they are tested on the written paraphrase set.
+week in real use, too few to decide anything, so they are tested on the real ones in the
+exploratory labels (about 43) and on Keal's 15 written paraphrases, reported beside.
 
 **Baselines** (the arm and the baselines are told apart by stratum and by metric, and each baseline
 gets what it can use):
@@ -1275,9 +1284,11 @@ gets what it can use):
   in A and A+ zero-shot, which have no calibration.
 - **A negative set**: fresh prompts that contain git words but are not git acts ("push back on the
   reviewer", "commit to this approach"); the false-act rate is reported for every arm and baseline.
-- **The paraphrase set** (reported, not deciding): paraphrases of real requests that do not name
-  the command, written blind by someone who has not seen the seed (Keal later, or another person);
-  act accuracy against BM25 over the documentation.
+- **The no-name set** (reported, not deciding): real requests whose prompt does not name the
+  command, with their prior turns, from the exploratory labels, plus 15 paraphrases Keal wrote blind
+  before seeing the seed; act accuracy against BM25 over the documentation. Written paraphrases
+  stopped at 15: Keal names the command when he means it, so made-up rewordings test a phrasing he
+  does not use.
 - **Go**, decided on (b), end state, for **A+ trained**, on the confirmatory set of real requests:
   at least a pre-registered absolute floor of 60 percent (a level worth using); better than command-
   name match with the slot filler by at least the margin; not worse than the best trained classifier
