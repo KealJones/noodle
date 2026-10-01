@@ -7,7 +7,7 @@
 // refs, the worktree and its parent repository, the turns before, and whether a person typed it.
 //
 // It never blocks or changes a prompt: it prints nothing, always exits 0, and bounds every git call.
-// Everything it writes stays under ~/.napkin/corpus/experiment/ (private; never committed).
+// Everything it writes stays under ~/.noodle/experiment/ (private; never committed).
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
-const ROOT = process.env.NOODLE_CAPTURE_DIR ?? join(homedir(), '.napkin', 'corpus', 'experiment');
+const ROOT = process.env.NOODLE_CAPTURE_DIR ?? join(homedir(), '.noodle', 'experiment');
 const MAX_UNTRACKED_BYTES = 50 * 1024 * 1024;
 const PRIOR_TURNS = 8;
 
