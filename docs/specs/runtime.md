@@ -68,6 +68,12 @@ the seed lexicon). A boundary is a scored choice: at most two segmentations per 
 ranked by the stage-one score of their best parses. References across segments are resolved by the
 conversation structure, not inside one chart.
 
+**Line indent.** The runtime records each line's indent (its count of leading spaces, a tab counted
+as the seed's tab width) as an `Indent(n)` fact on the line's first token. It is character mechanics,
+the same in any language, like squeezing stretched letters, and the only layout the runtime reads.
+What indent means (a nested list item, a continued quote) is on the marks' entries (design section
+25b); nothing in code reads it.
+
 ### 3.3 Token candidates
 
 Each token gets a set of **candidates**, every one a competing edge in the chart, each with a
