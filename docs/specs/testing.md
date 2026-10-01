@@ -289,3 +289,10 @@ curves, not one number.
    Confirm the unit (conversation, or day).
 5. **The GitHub API mock.** Build one (PR items then score on end state), or score PRs on the act
    label only, as the design says?
+
+## Decided
+
+Keal (2026-10-01):
+
+- **Where the experiment's files live (1):** `~/.noodle/experiment/`, not `~/.napkin/corpus/`.
+  Still to do: move the data, and update AGENTS.md rule 11, `scripts/corpus.mjs` and the capture hook.

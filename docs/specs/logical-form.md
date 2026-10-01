@@ -229,3 +229,10 @@ first cases to pass (design section 11).
    unmarked constraints last until the task they came with is done?
 5. **`Only` on Things vs Rules.** "only the tests" (a Thing) and "only suggest" (a Rule) share a head.
    They are told apart by argument kind. Keep one head or split into two?
+
+## Decided
+
+Keal (2026-10-01):
+
+- **Corrections (2):** a runtime operation on the last reading, not a sixth act. The LF keeps five acts.
+- **Permit (3):** `Permit(a)` is an LF head in the protected base.

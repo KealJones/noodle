@@ -69,14 +69,14 @@ counts are printed by `pnpm seed:count` and published with the freeze.
 
 | Part | File | What | Estimate |
 |---|---|---|---|
-| 1. Core meanings | `seed/core.ncon` | the closed list of meanings everything bottoms out in, in the style of semantic primes and VerbNet predicates (someone, something, do, happen, have, be in, part of, cause, before, after, more, not, can, want, know, say, become, exist...). Each passes the test in section 1 | ~300 |
+| 1. Core meanings | `seed/core.ncon` | the closed list of meanings everything bottoms out in, in the style of semantic primes and VerbNet predicates (someone, something, do, happen, have, be in, part of, cause, before, after, more, not, can, want, know, say, become, exist...), and the document heads both hearing and speaking use (design section 25b). Each passes the test in section 1 | ~300 |
 | 2. Function-word lexicon | `seed/function-words.ncon` | closed-class words: their forms, categories, Takes, Modifies, Joins, FillsGap facts, and the readings that build the LF (section 4.4). Correction signals, tone words, aside markers, order words, clause openers | ~400 |
 | 3. The bridge | `seed/bridge.ncon` | patterns of core meanings (and VerbNet frames) to primitives: `Cause(Become(Contains($h, $x)))` to Store, `Cause(Not(Exist($x)))` to Remove, and the one general entry that a reading learned from a tool's documentation page becomes `Run` of that page's command. Names no domain command | ~50 |
 | 4. Lexical rules | `seed/lexical-rules.ncon` | the passive, questions, imperatives, fronting; the part-of-speech-to-category mapping for imported words | ~30 |
 | 5. Initial weights | `seed/weights.ncon` | the starting weight of every feature: sense frequency, words used, wanted kind, shape fit, and `ReachedAct` at 1; the rest 0 | ~10 |
 | 6. Default policies | `seed/policies.ncon` | standing rules at seed level: keep going until done, verify before claiming done, stop means no further steps (and the rest of design section 17's lessons that act as defaults) | ~20 |
 | 7. Genre shapes | `seed/genres.ncon` | loose outlines for writing: summary of a change (a commit message is one), a plan, a letter | ~10 |
-| 8. English realizations | `seed/realizations.ncon` | Speaking readings for what the assistant says: an honest "I don't know" per reason stuck, an offer before a guarded act, the echo of a heard rule, a result | ~60 |
+| 8. English realizations | `seed/realizations.ncon` | Speaking readings for what the assistant says: an honest "I don't know" per reason stuck, an offer before a guarded act, the echo of a heard rule, a result; and the media realizations that print a document as markdown or plain text (design section 25b) | ~60, plus ~20 for markdown and ~10 for plain text |
 
 - **No hard cap**; every part is counted, and a part that needs far more than its estimate is a
   finding, reported (design section 6).
@@ -195,3 +195,11 @@ The names in section 2.
 4. **Structural count.** About 130 names, not "a handful". Most are the LF's and the data model's
    heads, which the design already fixes. Is that acceptable, or should some (the time heads) move
    to the seed as ordinary concepts that only seed readings use?
+
+## Decided
+
+Keal (2026-10-01):
+
+- **Categories (1):** deferred to the seed draft. Nothing in the parser or runtime treats the list as closed.
+- **Structural count (4):** about 130 names accepted, time heads stay structural. The design's "a
+  handful" is to be reworded to the real count.
