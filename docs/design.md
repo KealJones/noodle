@@ -146,8 +146,9 @@ priorities, and they are validated by Keal's hand-check (section 26) before anyt
   COPA, MMLU, TruthfulQA, WiC, DROP, FLUTE, PIE, IFEval, MT-Bench, WildChat, Dolly, Alpaca.
 - **Test prompts** (120): prompts Keal typed while testing the prototype. Low weight.
 
-Denominators: 3,569 is every message Keal typed that was extracted; 3,449 of them are to coding
-assistants (the rest to the prototype); 700 were sampled for analysis. The benchmark analysis is
+Denominators: 3,346 is every message Keal typed that was extracted (223 automated Codex heartbeats,
+which contain no git words, are excluded); 3,226 of them are to coding assistants (the rest to the
+prototype); 700 were sampled for analysis. The benchmark analysis is
 background for the design as a whole, not input to the experiment.
 
 Percent of items with each feature (model-tagged):
@@ -171,8 +172,8 @@ Percent of items with each feature (model-tagged):
   partly, 44 not at all). That is a **model-estimated upper bound, unvalidated**; several of these
   benchmarks were built to defeat knowledge-base methods, which have historically scored near
   chance on them.
-- **Lists and reminders are almost absent from real use**: 8 of Keal's 3,449 prompts to coding
-  assistants. Files and git are common: 265 of those 3,449 mention a git word, 126 of them short. Many of those are
+- **Lists and reminders are almost absent from real use**: 8 of Keal's 3,226 prompts to coding
+  assistants. Files and git are common: 265 of those 3,226 mention a git word, 126 of them short. Many of those are
   compound or reach outside a small act set (merge, pull, checkout, pull requests), so the
   experiment's act set is widened to what the labelled data contains, and n is counted, not assumed
   (section 29).
