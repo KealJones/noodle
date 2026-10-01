@@ -1,8 +1,8 @@
 # The logical form
 
-Status: draft for review (PLAN.md phase 0, item 3). Design section 11 is the source. The logical
-form (LF) is written in N-Con (`ncon.md`); this spec says which heads it uses, what they take, how
-scope is left open and settled, and when two LFs are the same.
+Status: reviewed at checkpoint 0, 2026-10-01 (PLAN.md phase 0, item 3). Design section 11 is the
+source. The logical form (LF) is written in N-Con (`ncon.md`); this spec says which heads it uses,
+what they take, how scope is left open and settled, and when two LFs are the same.
 
 The LF is internal to Noodle. The experiment's gold is an executable act, not an LF (design section
 29; `testing.md`, section 5), so the LF can change without moving a frozen target.

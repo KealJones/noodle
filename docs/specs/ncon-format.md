@@ -1,6 +1,7 @@
 # The N-Con text format
 
-Status: draft for review (PLAN.md phase 0, item 2). The data it writes is `ncon.md`.
+Status: reviewed at checkpoint 0, 2026-10-01 (PLAN.md phase 0, item 2). The data it writes is
+`ncon.md`.
 
 A `.ncon` file is the readable, diffable text form of store contents: the seed, packs, exports and
 imports. A file format has a grammar; AGENTS.md's no-grammar rule is about language, not about this.

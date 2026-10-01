@@ -1,8 +1,8 @@
 # N-Con: the data model
 
-Status: draft for review (PLAN.md phase 0, item 1). Design sections 4, 5, 20 and 28 are the source;
-where this spec decides something the design left open, it says so, and open questions are listed
-at the end rather than guessed.
+Status: reviewed at checkpoint 0, 2026-10-01 (PLAN.md phase 0, item 1). Design sections 4, 5, 20 and
+28 are the source; where this spec decides something the design left open, it says so, and open
+questions are listed at the end rather than guessed.
 
 N-Con (nested concepts) is what Noodle hears into, reasons in, speaks from and acts on, and what its
 graph is written in. This file says what the data is. Its text form is `ncon-format.md`; the
