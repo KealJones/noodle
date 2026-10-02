@@ -76,9 +76,23 @@ export class Know {
         : [() => wikipedia(question), ...(topic ? [() => wikipediaTopic(topic)] : []), () => this.webFound(question)];
     for (const t of tries) {
       const found = await t();
-      if (found) return this.keep("answer", question, found);
+      if (found && this.about(found, topic)) return this.keep("answer", question, found);
     }
     return undefined;
+  }
+
+  /**
+   * Whether what came back is about what was asked: at least half of the question's own words
+   * (its topic) are in the page's title or opening. A page that shares none of them (an album
+   * titled like the question) is not an answer.
+   */
+  private about(f: Found, topic: string | undefined): boolean {
+    if (!topic) return true;
+    const words = topic.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
+    if (!words.length) return true;
+    const hay = `${f.title} ${f.text.slice(0, 400)}`.toLowerCase();
+    const hits = words.filter((w) => hay.includes(w.slice(0, Math.max(4, w.length - 2)))).length;
+    return hits * 2 >= words.length;
   }
 
   /** What a word means, from a dictionary. */

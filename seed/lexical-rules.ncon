@@ -27,8 +27,6 @@ Reading(on=Segment(), pattern=Act($e), becomes=Clause(Imperative(WithRoles($e, a
 // A clause can be a claim.
 Reading(on=Segment(), pattern=Clause($p), becomes=Clause(Declarative($p)))
 
-// A clause can be a question without inversion or a mark: "it's still broken" said as a question.
-Reading(on=Segment(), pattern=Clause($p), becomes=Clause(Interrogative($p)))
 
 // ---------------------------------------------------------------------------------------------
 // The passive: a form of "be" and a past participle. The subject is the theme; "by" names the

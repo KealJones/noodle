@@ -402,7 +402,7 @@ export class Evaluator {
     // 11b, phase 2; 14). The question's words are the query. In Suppose it answers from the cache
     // only; a lookup that would go out counts as reaching an answer.
     const know = this.world.know;
-    if (!know || !this.said) return this.stuck(lf, c("NoSource", p));
+    if (!know || !this.said) return this.stuck(lf);
     const topic = this.topicText() ?? this.topicOf(p);
     // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
     // explanation is found by the whole question, a description by the thing it is about.
@@ -419,7 +419,7 @@ export class Evaluator {
     } catch {
       // A source that fails is no answer, not an error to show.
     }
-    return this.stuck(lf, c("NoSource", p));
+    return this.stuck(lf);
   }
 
   private found(lf: Expr, k: { block: string; title: string; url: string; source: string }): Expr {

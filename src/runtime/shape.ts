@@ -42,6 +42,9 @@ export function shapeSource(e: Expr): string {
       if (t?.kind !== "string") throw new ShapeError("Literal takes a string");
       return esc(t.value);
     }
+    case "Capture":
+      // The part of a match that is its value (a code span's name, without its backticks).
+      return `(?<value>${args.map(shapeSource).join("")})`;
     case "Seq":
       return args.map((a) => `(?:${shapeSource(a)})`).join("");
     case "OneOf":
@@ -58,6 +61,19 @@ export function shapeSource(e: Expr): string {
 }
 
 const cache = new Map<string, RegExp>();
+
+/** The match of a shape at position i: its length, and the captured value if the shape has one. */
+export function matchShapeValue(shape: Expr, text: string, i: number): { len: number; value?: string } {
+  const src = shapeSource(shape);
+  let re = cache.get(src);
+  if (!re) {
+    re = new RegExp(src, "uy");
+    cache.set(src, re);
+  }
+  re.lastIndex = i;
+  const m = re.exec(text);
+  return m ? { len: m[0].length, value: m.groups?.value } : { len: 0 };
+}
 
 /** The longest match of the shape at position i of text, or 0 characters. Greedy, like the regex. */
 export function matchShape(shape: Expr, text: string, i: number): number {

@@ -41,7 +41,7 @@ export const STRUCTURAL = {
   },
   shapes: {
     why: "the shape interpreter reads them (runtime.md section 3.4)",
-    names: ["Digits", "Letter", "Digit", "Lower", "Upper", "Space", "Any", "Literal", "Seq", "OneOf", "Repeat", "Shortest"],
+    names: ["Digits", "Letter", "Digit", "Lower", "Upper", "Space", "Any", "Literal", "Seq", "OneOf", "Repeat", "Shortest", "Capture"],
   },
   logicalForm: {
     why: "evaluation has one rule per speech act and rule checking reads Not and Only (logical-form.md); protected base",
