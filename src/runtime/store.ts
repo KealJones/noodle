@@ -58,8 +58,6 @@ export interface LemmaHit {
   features: string[];
 }
 
-const READING_PARTS = ["pattern", "wants", "becomes", "needs", "effects", "checks", "mode", "direction"] as const;
-const META_NAMES = new Set(["from", "at", "status", "weight", "id"]);
 
 export class Store {
   private db: DatabaseSync;
@@ -376,4 +374,4 @@ function numberArg(form: Call, name: string): number | undefined {
   return e?.kind === "number" ? e.value : undefined;
 }
 
-export { META_NAMES, READING_PARTS, key, role };
+export { key, role };

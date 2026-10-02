@@ -157,17 +157,17 @@ export class Chart {
             word: cand.concept,
             formFeatures: cand.features,
             features: new Map(features),
-            step: "Word",
+            step: "word",
             back: [],
           }),
         );
       }
       for (const j of joins)
-        out.push(this.make({ start: cand.start, end: cand.end, category: "Join", expr: c(cand.concept), joins: j, word: cand.concept, formFeatures: cand.features, features: new Map(features), step: "Word", back: [] }));
+        out.push(this.make({ start: cand.start, end: cand.end, category: "join", expr: c(cand.concept), joins: j, word: cand.concept, formFeatures: cand.features, features: new Map(features), step: "word", back: [] }));
       // Tone words may be skipped at no cost (runtime.md 4.6).
     }
     if (cand.literal !== undefined && !out.length) {
-      out.push(this.make({ start: cand.start, end: cand.end, category: "Thing", expr: cand.literal, word: cand.kind, features, step: "Literal", back: [] }));
+      out.push(this.make({ start: cand.start, end: cand.end, category: "Thing", expr: cand.literal, word: cand.kind, features, step: "literal", back: [] }));
     }
     return out;
   }
@@ -177,11 +177,11 @@ export class Chart {
 
   /** Complete: no argument it must still take, and its wrapper (if any) applied. */
   private complete(e: Edge): boolean {
-    return e.category !== "Join" && !e.wraps && !e.heads && e.pending.every((p) => p.takes.optional);
+    return e.category !== "join" && !e.wraps && !e.heads && e.pending.every((p) => p.takes.optional);
   }
 
   private ready(e: Edge): boolean {
-    return e.category !== "Join" && e.pending.every((p) => p.takes.optional);
+    return e.category !== "join" && e.pending.every((p) => p.takes.optional);
   }
 
   /** Take: a head with a pending argument on a side combines with an adjacent complete edge. */
@@ -210,7 +210,7 @@ export class Chart {
       gap: head.gap ?? (arg.gap && head.acceptsGap === arg.gap ? undefined : arg.gap),
       features: mergeFeatures(head.features, arg.features),
       byRule: false,
-      step: "Take",
+      step: "take",
       back: [head, arg],
     });
   }
@@ -230,7 +230,7 @@ export class Chart {
           gap: target.gap ?? mod.gap,
           features: mergeFeatures(target.features, mod.features),
           byRule: false,
-          step: "Modify",
+          step: "modify",
           back: [mod, target],
         }),
       );
@@ -240,10 +240,10 @@ export class Chart {
 
   /** Join, first half: the joining word takes its right side. */
   private joinRight(j: Edge, right: Edge): Edge | undefined {
-    if (j.category !== "Join" || j.joinRight || !this.complete(right)) return undefined;
+    if (j.category !== "join" || j.joinRight || !this.complete(right)) return undefined;
     if (j.joins !== "Any" && j.joins !== right.category) return undefined;
     if (right.category === "Mark") return undefined;
-    return this.make({ ...j, end: right.end, joinRight: right, features: mergeFeatures(j.features, right.features), step: "JoinRight", back: [j, right] });
+    return this.make({ ...j, end: right.end, joinRight: right, features: mergeFeatures(j.features, right.features), step: "joinright", back: [j, right] });
   }
 
   /** Join, second half: two adjacent spans of the same category become Head(left, right). */
@@ -251,7 +251,7 @@ export class Chart {
     const right = jr.joinRight;
     if (!right || !this.complete(left) || left.category !== right.category) return undefined;
     const head = (jr.expr as Call).head;
-    const leftArgs = isHead(left.expr, head) && left.step === "Join" ? positional(left.expr) : [left.expr];
+    const leftArgs = isHead(left.expr, head) && left.step === "join" ? positional(left.expr) : [left.expr];
     return this.make({
       start: left.start,
       end: jr.end,
@@ -260,7 +260,7 @@ export class Chart {
       word: head,
       gap: left.gap ?? right.gap,
       features: mergeFeatures(left.features, jr.features),
-      step: "Join",
+      step: "join",
       back: [left, jr],
     });
   }
@@ -283,7 +283,7 @@ export class Chart {
       acceptsGap: arg.acceptsGap ?? head.acceptsGap,
       features: mergeFeatures(head.features, arg.features),
       byRule: false,
-      step: "Compose",
+      step: "compose",
       back: [head, arg],
     });
   }
@@ -298,7 +298,7 @@ export class Chart {
       pending: e.pending.slice(1),
       gap: p.takes.category,
       byRule: false,
-      step: "Gap",
+      step: "gap",
       back: [e],
     });
   }
@@ -314,7 +314,7 @@ export class Chart {
     const toneOnly = this.hearing.candidates[token].some((x) => x.concept && this.store.facts(x.concept, "Tone").length);
     const source = this.hearing.candidates[token][0]?.source ?? "Unknown";
     if (!toneOnly) addFeature(features, `WordsUsed:Skipped:${source}`, -1);
-    return this.make({ ...e, start: side === "Left" ? token : e.start, end: side === "Right" ? token + 1 : e.end, features, step: "Skip", back: [e] });
+    return this.make({ ...e, start: side === "Left" ? token : e.start, end: side === "Right" ? token + 1 : e.end, features, step: "skip", back: [e] });
   }
 
   // -------------------------------------------------------------------------------------------
@@ -330,7 +330,7 @@ export class Chart {
     // An entry's wrapper or head replacement applies once its arguments are in.
     if (e.wraps || e.heads) {
       const expr = e.heads && isCall(e.expr) ? { ...e.expr, head: e.heads } : e.wraps ? c(e.wraps, e.expr) : e.expr;
-      out.push(this.make({ ...e, expr, wraps: undefined, heads: undefined, step: "Wrap", back: [e] }));
+      out.push(this.make({ ...e, expr, wraps: undefined, heads: undefined, step: "wrap", back: [e] }));
       return out;
     }
     // A category concept's own entries (predication: an Act takes its subject on the left).
@@ -346,7 +346,7 @@ export class Chart {
           heads: en.heads,
           acceptsGap: en.fillsGap ?? e.acceptsGap,
           anyCategory: false,
-          step: "Entry",
+          step: "entry",
           back: [e],
         }),
       );
@@ -368,7 +368,7 @@ export class Chart {
       if (!CATEGORY_HEADS.has(result.head)) continue;
       const features = new Map(e.features);
       addFeature(features, `Rule:${r.meta.id}`, 1);
-      out.push(this.make({ ...e, category: result.head, expr: positional(result)[0], pending: [], modifies: [], byRule: true, features, step: `Rule ${r.meta.id}`, back: [e] }));
+      out.push(this.make({ ...e, category: result.head, expr: positional(result)[0], pending: [], modifies: [], byRule: true, features, step: `rule ${r.meta.id}`, back: [e] }));
     }
     return out;
   }

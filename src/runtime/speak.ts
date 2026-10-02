@@ -200,7 +200,8 @@ export class Speaker {
       const id = positional(e)[0];
       if (id?.kind === "string") return this.store.block(id.value)?.body ?? id.value;
     }
-    return this.print(e, "PlainText");
+    // Code shows source: an expression inside a fence prints in no medium, so nothing is escaped.
+    return this.print(e, "");
   }
 
   private lemmaOf(concept: string): string {

@@ -67,6 +67,8 @@ export const STRUCTURAL = {
       "Evidence", "Match", "Trust", "Coverage", "FocusSource",
       "ReachedAct", "NeedsMet", "ChecksWouldPass", "Blocked", "UnknownEffects", "Unworked",
       "Feature", "Weight",
+      // The CandidateSource template's keys (runtime.md 3.3), and a set-aside span's.
+      "Exact", "CaseMatch", "SpellDistance", "SoundDistance", "Stretched", "InPlay", "Shape", "Unknown", "SetAside",
       "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",
     ],
   },
