@@ -124,6 +124,18 @@ export class Session {
       const top = await this.readings(seg.covers, seg.chart, rewriter, segText, conv);
       if (!top.length) continue;
       const win = top[0];
+      // Two readings too close (design sections 9 and 23): when the best two tie exactly and lead
+      // to different acts, nothing says which was meant, so it asks instead of picking one.
+      const runner = top[1];
+      const actsOf = (r: Reading) => r.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map(key);
+      if (runner && runner.score === win.score && actsOf(win).length && actsOf(runner).length && actsOf(win).join() !== actsOf(runner).join()) {
+        const a = win.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
+        const b2 = runner.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
+        record.reasons.push(choice(`reading of "${segText}" (too close)`, top.slice(0, 2).map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
+        said.push(c("TooClose", a, b2));
+        anything = true;
+        continue;
+      }
       record.reasons.push(choice(`reading of "${segText}"`, top.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 0));
       record.heard.push(...win.cover.edges.map((e) => e.expr));
       record.lf.push(...win.lfs);
@@ -274,7 +286,12 @@ export class Session {
       };
       const best = chosen.map((alts) => alts[0]);
       assemble(best);
-      chosen.forEach((alts, i) => alts.slice(1, 4).forEach((alt) => assemble(best.map((b, j) => (j === i ? alt : b)))));
+      chosen.forEach((alts, i) => {
+        // Runners-up: the next few, and every alternative that reaches an act (what a correction
+        // would flip to), even if it scored lower.
+        const ups = [...new Set([...alts.slice(1, 3), ...alts.slice(1).filter((a) => a.reached).slice(0, 6)])];
+        ups.forEach((alt) => assemble(best.map((b, j) => (j === i ? alt : b))));
+      });
     }
     const seen = new Set<string>();
     return out
@@ -357,6 +374,12 @@ function collectWords(e: Edge, text: string, h: Hearing, out: Map<string, string
 /** One thing, or nested pairs And(a, And(b, c)): a set said pairwise. */
 function pairs(xs: Expr[]): Expr {
   return xs.length === 1 ? xs[0] : c("And", xs[0], pairs(xs.slice(1)));
+}
+
+function* walkCalls(e: Expr): Generator<Call> {
+  if (!isCall(e)) return;
+  yield e;
+  for (const a of e.args) yield* walkCalls(a.value);
 }
 
 function hasSignal(store: Store, h: Hearing): boolean {

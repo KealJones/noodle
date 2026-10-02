@@ -312,6 +312,7 @@ export class Evaluator {
     // Roles still on a primitive call are input it was handed and does not take: what the user
     // said that this reading does not use (runtime.md 6.1, unmatched roles), counted as unworked.
     const unused = isCall(act) && this.primitives.has(act.head) ? act.args.filter((a) => a.name !== undefined && a.name !== "agent").length : 0;
+    // (An instrument left over, "git" on a gh command, counts too: the reading that names its tool wins.)
     return { ...o, unworked: o.unworked + unused };
   }
 

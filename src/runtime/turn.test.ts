@@ -51,12 +51,23 @@ test("asking what is in a file reads it and shows its content", async () => {
   }
 });
 
+test("two readings that tie exactly and do different things are asked about", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-zap0", version="0", from=Seed("test"))
+Concept(Zap(), Lemma("zap"), Category(Act()))
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("first")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+`);
+  const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
+  assert.match((await s.turn("zap")).text, /^Do you mean `echo (first|second)`, or `echo (first|second)`\?$/);
+});
+
 test("a correction flips the last choice to the next reading that acts, and the weights remember", async () => {
   const store = seededStore();
   store.load(`Pack(name="test-zap", version="0", from=Seed("test"))
 Concept(Zap(), Lemma("zap"), Category(Act()))
 Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("first")), effects=UnknownEffects())
-Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(agent=Addressee()), wants=IsA(Zap(), Moment()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
 `);
   const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
   const first = await s.turn("zap");
@@ -72,7 +83,7 @@ test("what a correction teaches is kept across sessions", async () => {
   const lex = `Pack(name="test-zap2", version="0", from=Seed("test"))
 Concept(Zap(), Lemma("zap"), Category(Act()))
 Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("first")), effects=UnknownEffects())
-Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(agent=Addressee()), wants=IsA(Zap(), Moment()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
 `;
   const learnedPath = join(mkdtempSync(join(tmpdir(), "noodle-learned-")), "learned.ncon");
   const root = mkdtempSync(join(tmpdir(), "noodle-turn-"));
@@ -105,7 +116,7 @@ test("a weight change the replay gate vetoes is put back, and the flip still hap
   store.load(`Pack(name="test-zap3", version="0", from=Seed("test"))
 Concept(Zap(), Lemma("zap"), Category(Act()))
 Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("first")), effects=UnknownEffects())
-Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(), wants=IsA(Zap(), Moment()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
 `);
   const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
   let asked = 0;
