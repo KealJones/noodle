@@ -1,0 +1,102 @@
+{
+  "name": "vscode-ncon",
+  "displayName": "N-Con (.ncon)",
+  "description": "Noodle's N-Con (nested concepts): syntax highlighting, rainbow nesting by depth, hover and go to definition for concepts, parse errors, and the runtime's formatter.",
+  "version": "0.1.0",
+  "publisher": "noodle",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:ncon"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "ncon",
+        "aliases": [
+          "N-Con",
+          "ncon"
+        ],
+        "extensions": [
+          ".ncon"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ncon",
+        "scopeName": "source.ncon",
+        "path": "./syntaxes/ncon.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "N-Con",
+      "properties": {
+        "ncon.rainbow.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Color every head and its parentheses by nesting depth."
+        },
+        "ncon.rainbow.boldHeads": {
+          "type": "boolean",
+          "default": false,
+          "description": "Draw heads (the Concept names before a parenthesis) in bold."
+        },
+        "ncon.rainbow.colors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "#F92672",
+            "#A6E22E",
+            "#66D9EF",
+            "#AE81FF",
+            "#5FD7AF",
+            "#FF6AC1",
+            "#7AA2F7"
+          ],
+          "description": "One color per nesting level, cycling. Monokai by default."
+        },
+        "ncon.rainbow.source": {
+          "type": "string",
+          "enum": [
+            "ncon",
+            "vscode"
+          ],
+          "default": "ncon",
+          "enumDescriptions": [
+            "This extension paints the parentheses in the Monokai rainbow, like the heads.",
+            "VS Code's own bracket pair colorization paints the parentheses; heads keep the Monokai rainbow. Also set \"[ncon]\": { \"editor.bracketPairColorization.enabled\": true }."
+          ],
+          "description": "Who colors the parentheses."
+        },
+        "ncon.palette.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Paint strings, variables, role names, metadata and numbers in Monokai whatever the theme. Off leaves them to the theme."
+        },
+        "ncon.diagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Underline where the runtime's parser stops (needs `pnpm build` in the repository root)."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[ncon]": {
+        "editor.bracketPairColorization.enabled": false,
+        "editor.guides.bracketPairs": "active",
+        "editor.tabSize": 2
+      }
+    }
+  }
+}

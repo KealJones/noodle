@@ -34,6 +34,8 @@ export const STRUCTURAL = {
       "SetsAside", "KeyNeighbours", "HasShape", "Left", "Right", "Modifier",
       // Arguments of Takes, Modifies, Joins and FillsGap.
       "Side", "Role", "Head", "Optional",
+      // A slot's restriction to a kind of role its argument's word marks, and the fact on the word.
+      "Marks",
       // The categories (built-ins.md section 4.2; Mark from the seed draft).
       "Noun", "Thing", "Act", "Clause", "Relation", "Property", "Manner", "Mark",
       // Seed draft: an entry's wrapper, the gap filler in heard expressions, the correction and
@@ -119,7 +121,12 @@ export const STRUCTURAL = {
   },
   know: {
     why: "Know, the one door to outside knowledge (runtime.md 14): what it keeps and the sources it asks",
-    names: ["Know", "Found", "Page", "Title", "Wikipedia", "Wiktionary", "Wikidata", "Web", "AnswerShape", "Explanation", "Description"],
+    names: [
+      "Know", "Found", "Page", "Title", "Wikipedia", "Wiktionary", "Wikidata", "Web", "AnswerShape", "Explanation", "Description",
+      // What a page is about, learned (a Topic concept), and how its title is heard, so a question
+      // that names it reaches it.
+      "Topic", "Heard",
+    ],
   },
   primitives: {
     why: "the only code that touches the world (built-ins.md section 2)",

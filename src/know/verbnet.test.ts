@@ -52,7 +52,8 @@ test("VerbNet frames give verbs chart entries and readings that reach the bridge
   store.load(r.text);
   const entries = store.facts("Put", "Category");
   assert.equal(entries.length, 1);
-  assert.match(key(entries[0].claim), /Takes\(category=Relation\(\), role=Destination\(\), side=Right\(\)\)/);
+  // The preposition is restricted to the kind of place VerbNet says (a "loc" restriction).
+  assert.match(key(entries[0].claim), /Takes\(category=Relation\(\), marks=Location\(\), role=Destination\(\), side=Right\(\)\)/);
   // "put the plan in my list", heard: Put(agent, theme, destination) reduces to core meanings and
   // meets the bridge at Store.
   const heard = store.readingsOn("Put")[0].pattern;

@@ -17,3 +17,9 @@
   with a period, unless it is a block), so a result that says itself as a clause can be put in a
   sentence by its wrapper. A child that needs block layout inside a paragraph (a code block) is
   the printer's to split, not a pattern's.
+- **Benchmark against published models** (after the plan is built). GSM8K first (exact numbers,
+  scores published from small Qwens to frontier models), then BFCL (tool definitions imported the
+  way man pages are), then SimpleQA. Keal's method: run once with learning on (Noodle researches
+  live, which is its training, done in real time), then again with learning off but the learned
+  graph kept; track speed in both runs. No pre-loading a corpus: it is built to figure things out
+  live, knowing just enough to solve the problem and say so.

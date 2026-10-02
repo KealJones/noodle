@@ -55,7 +55,7 @@ Fact(Name(), Category(Noun()))
 `);
   const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")));
   const asked: string[] = [];
-  s.world.know = { cached: () => undefined, answer: async (q: string) => (asked.push(q), undefined) } as never;
+  s.world.know = { cached: () => undefined, recall: () => undefined, answer: async (q: string) => (asked.push(q), undefined) } as never;
   assert.equal((await s.turn("how are you?")).text, "I'm good, thanks.");
   assert.equal((await s.turn("what's your name")).text, "I'm Noodle.");
   assert.equal((await s.turn("what is my name?")).text, "You haven't told me that.");

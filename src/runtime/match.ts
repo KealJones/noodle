@@ -55,6 +55,19 @@ function go(p: Expr, e: Expr, b: Bindings, store: Store | undefined, top: boolea
     return true;
   }
   if (p.kind !== "call") return e.kind === p.kind && key(p) === key(e);
+  // WithRoles($e, role=x) in a pattern is anything that has those roles (ncon.md 5.1): $e binds
+  // to it without them. The head stays unnamed, so a pattern still never has a variable head;
+  // "don't push without asking" is a prohibition whose act carries the "without".
+  if (p.head === "WithRoles" && isVar(positional(p)[0])) {
+    if (!isCall(e)) return false;
+    const want = roles(p);
+    const rest = e.args.filter((a) => !want.some((w) => w.name === a.name));
+    for (const w of want) {
+      const value = e.args.find((x) => x.name === w.name)?.value;
+      if (value === undefined || !go(w.value, value, b, store, false, extra)) return false;
+    }
+    return go(positional(p)[0], { ...e, args: rest }, b, store, false, extra);
+  }
   if (!isCall(e) || !sameHead(store, p.head, e.head)) return false;
   // Inside an opaque node only variables match: nothing looks inside a quotation.
   if (OPAQUE.has(e.head) && !p.args.every((a) => isVar(a.value))) return false;

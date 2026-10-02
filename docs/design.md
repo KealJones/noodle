@@ -1050,6 +1050,27 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("commit", Senses())
   speech in page order, pointers parsed once, pronunciations), Claims (batched, labelled), Pages
   (namespaces, search, text, sections and lists, license as a fact), Query (SPARQL), Web (search,
   page lists and text).
+- **Understanding what came back, as built** (`src/runtime/know/learn.ts`, measured in
+  `docs/know-facts.md`). A page is about a concept of its own, `Title#Topic`, with its title as
+  heard (`Heard(...)`, how a question that names it reaches it), a learned word where the title is
+  one word nothing knew (`Lemma("france")`), a speaking reading that says it by its title, and the
+  page kept (`Said(Block)`). The page's opening sentence is heard by the same pipeline as a
+  request (words as written, no spelling corrections), reduced by the seed's own readings, and
+  each clause of the readings that tie for best that names the subject becomes a fact on the topic
+  (`Be(Mitochondria#Topic(), Some(Organelle()))`). Wikidata's claims on the page's entity become
+  facts directly: the property's label is heard like any word, as one phrase, with the value's
+  place left open where the label leaves it open (`Capital(France#Topic(), "Paris")`). Every fact
+  has the page or the entity as its source, so its trust is the source's.
+- **Answering from the graph first.** A question is answered by Know's recall before anything is
+  fetched: the first topic it names, and a fact on it whose head is a word of the question's own
+  around the topic, or a word one of whose senses is a kind of one of the question word's senses
+  (WordNet: to author is to compose, a sense of "write"). The seed's words ("who", "when") say
+  what the answer is, not what it is of. A claim is answered by its value; a clause by itself;
+  a question with no word of its own beside the topic, by what the topic's page said of it, or the
+  page. Only facts count in Suppose. After a fetch, the graph is asked again, and where it cannot
+  answer, the things the question names are learned about (their own pages and claims) and it is
+  asked once more; the page is the answer last. With `know: "offline"` in the config, Know never
+  goes out and answers from the graph and what it kept.
 
 ## 22. The base graph
 

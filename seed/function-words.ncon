@@ -151,6 +151,9 @@ Reading(on=All(), pattern=All(), becomes=Every(Ref(said=All(), kind=Kind())))
 Reading(on=Any(), pattern=Any($n), becomes=Some($n))
 Reading(on=Any(), pattern=Any($n), becomes=Every($n))
 Reading(on=Some(), pattern=Some($n), becomes=Some($n))
+// A prohibition over any of a kind is over each of it: "don't run any git commands" forbids
+// running each one (logical-form.md section 6: Not over Some is Every Not).
+Reading(on=Some(), pattern=Constraint(Not(WithRoles($a, theme=Some($x)))), becomes=Constraint(Not(WithRoles($a, theme=$x))))
 Reading(on=No(), pattern=No($n), becomes=Not(Some($n)))
 Reading(on=Both(), pattern=Both($n), becomes=Every($n, where=PartOf($it, Ref(said=Both($n)))))
 Reading(on=Either(), pattern=Either($n), becomes=Some($n))
@@ -422,7 +425,38 @@ Reading(on=Except(), pattern=Every($k, where=$p, modifier=Except($x)), becomes=E
 
 // "without committing, fix X": a prohibition over what it modifies (logical-form.md section 6).
 Reading(on=Without(), pattern=Without($a), becomes=Constraint(Not($a), over=Hole(Without())))
+// "don't push without asking": a prohibition until it is lifted, as "don't push yet" is. Once told
+// to go ahead it is lifted for good, until a rule is given again (logical-form.md section 7). What
+// the "without" names (asking) is what lifting it waits for.
+Reading(on=Without(), pattern=Constraint(Not(WithRoles($a, modifier=Without($b)))), becomes=Constraint(Not($a), until=Told()))
 Reading(on=Instead(), pattern=Instead($x), becomes=Not($x))
+
+// What kind of place a preposition's phrase is (VerbNet's preposition types, design section 22):
+// a frame's spatial slot takes only a phrase whose word marks that kind ("push it into the box",
+// not "push it without asking"). A word that marks none fills no spatial slot.
+Concept(Marks(), Frame(Role()))
+Fact(Into(), Marks(Destination()))
+Fact(Onto(), Marks(Destination()))
+Fact(To(), Marks(Destination()))
+Fact(From(), Marks(Source()))
+Fact(Off(), Marks(Source()))
+Fact(Out(), Marks(Source()))
+Fact(Through(), Marks(Path()))
+Fact(Across(), Marks(Path()))
+Fact(Over(), Marks(Path()))
+Fact(Via(), Marks(Path()))
+Fact(Up(), Marks(Path()))
+Fact(Down(), Marks(Path()))
+Fact(In(), Marks(Location()))
+Fact(On(), Marks(Location()))
+Fact(At(), Marks(Location()))
+Fact(Under(), Marks(Location()))
+Fact(Near(), Marks(Location()))
+Fact(Above(), Marks(Location()))
+Fact(Below(), Marks(Location()))
+Fact(By(), Marks(Location()))
+Fact(Between(), Marks(Location()))
+Fact(Against(), Marks(Location()))
 
 // =============================================================================================
 // 5. Joining and ordering

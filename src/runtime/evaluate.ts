@@ -13,7 +13,7 @@ import type { Mode, Step } from "./rewrite.js";
 import type { Store } from "./store.js";
 import { type Features, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { isThing, things } from "./primitives/hold.js";
-import { STRUCTURAL } from "../structural.js";
+import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
 
 /** What a primitive can be given inside its arguments: the structures primitives make, and blocks. */
 const DATA: ReadonlySet<string> = new Set([...STRUCTURAL.primitiveResults.names, "Block", "Args"]);
@@ -162,7 +162,13 @@ export class Evaluator {
     if (isHead(a, "Then") || isHead(a, "And") || isHead(a, "Sequence")) return this.sequence(positional(a));
     if (isHead(a, "If")) return this.conditional(a);
     const blocked = this.blockedBy(a);
-    if (blocked) return { ...this.out(), said: [c("Echo", c("BlockedBy", a, blocked.rule.until ? c("Constraint", blocked.rule.rule, ["until", blocked.rule.until]) : c("Constraint", blocked.rule.rule)))], blocked: 1, reachedAct: true };
+    if (blocked) {
+      // A rule that waits to be told ("not yet", "not without asking") asks: what it blocked is
+      // proposed, so a yes lifts the rule and does it (logical-form.md section 7).
+      if (this.mode === "Doing" && blocked.rule.until && isHead(blocked.rule.until, "Told"))
+        this.conversation.proposal = { act: a, ancestry: this.ancestry(a), untrusted: this.untrustedReadings(this.ancestry(a)), turn: this.conversation.turnIndex };
+      return { ...this.out(), said: [c("Echo", c("BlockedBy", a, blocked.rule.until ? c("Constraint", blocked.rule.rule, ["until", blocked.rule.until]) : c("Constraint", blocked.rule.rule)))], blocked: 1, reachedAct: true };
+    }
     const prim = this.primitiveCall(a);
     if (!prim) {
       const reply = c("Reply", a);
@@ -302,8 +308,10 @@ export class Evaluator {
       // that only shows something is named by what it shows ("the git log" is what git log shows).
       const kind = role(x, "kind");
       if (isCall(kind) && this.pureCall(kind)) return kind;
+      // A referent said by its name ("the README.md") is the name; a string deeper in what was
+      // said ("the boiling point of water in celsius") is a word it was said with, not its name.
       const said = role(x, "said");
-      const named = said && [...walk(said)].find((y) => y.kind === "string");
+      const named = said?.kind === "string" ? said : isCall(said) ? positional(said).find((y) => y.kind === "string") : undefined;
       if (named) return named;
       return this.referent(x) ?? x;
     });
@@ -707,6 +715,11 @@ export class Evaluator {
     const know = this.world.know;
     const words = this.topicText();
     if (!know || !this.said || !words || this.asksOfPointer(p)) return this.stuck(lf);
+    // What the graph learned answers first (Know, step 1): facts on what the question names, from
+    // the pages and claims they came from. Nothing goes out for it, so it counts in Suppose too;
+    // a page kept about what it names is only words looked up before, and does not (below).
+    const recalled = know.recall(p);
+    if (recalled && recalled.via !== "Page") return { ...this.out(), said: [this.recalled(lf, recalled)], reachedAct: true };
     // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
     // explanation is found by the whole question, a description by the thing it is about.
     const about = this.asksExplanation() ? "reason" : "thing";
@@ -716,7 +729,9 @@ export class Evaluator {
     // before (a question once answered from Wikipedia is read anew once the graph can answer it,
     // "what time is it"). A question nothing else reaches still wins, and is looked up.
     if (this.mode === "Supposing") return this.out();
-    if (!cached && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
+    // A page kept about what the question names answers it before anything goes out.
+    if (!cached && recalled) return { ...this.out(), said: [this.recalled(lf, recalled)], reachedAct: true };
+    if (!cached && !know.opts.offline && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
       return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
     // The world has a budget of lookups per turn (runtime.md 11b); past it the need stays unmet,
     // and says so. What was asked, and what came back, goes in the reasons log.
@@ -730,12 +745,74 @@ export class Evaluator {
     let k: Awaited<ReturnType<typeof know.answer>>;
     try {
       k = cached ?? (await know.answer(this.said, words, about));
+      // What was found was understood as it was kept: the graph may answer now. Where it does
+      // not, and the question is about a thing, what the question names is learned about (its
+      // own page and claims), and the graph asked again; failing that, the page is the answer.
+      // What the things it names are learned for is the relation asked about: a description of
+      // one of them is not an answer to a question about something else ("a synonym for happy").
+      // Each thing learned about is a lookup in the world, within the turn's budget.
+      const facts = (vias: string[]) => {
+        const r = know.recall(p);
+        return r && vias.includes(r.via) ? r : undefined;
+      };
+      let again = k && !cached ? facts(["Relation", "Description"]) : undefined;
+      if (!again && !cached && about === "thing") {
+        let learned = false;
+        for (const w of this.things(p)) {
+          const n = focus.lookups.get("World") ?? 0;
+          if (n >= this.budget("World", "lookups")) break;
+          focus.lookups.set("World", n + 1);
+          const got = await know.learnAbout(w);
+          focus.log.push({ what: `focus: what "${w}" is, from the world`, candidates: got ? [{ label: w, features: [], score: 0 }] : [], winner: got ? 0 : -1 });
+          learned = got || learned;
+        }
+        if (learned) again = facts(["Relation"]);
+      }
+      if (again) {
+        focus.log.push({ what: `focus: "${this.said}" from the world, answered from what was learned`, candidates: [], winner: -1 });
+        return { ...this.out(), said: [this.recalled(lf, again)], reachedAct: true };
+      }
     } catch {
       // A source that fails is no answer, not an error to show.
     }
     focus.log.push({ what: `focus: "${this.said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
     if (k) return { ...this.out(), said: [this.found(lf, k)], reachedAct: true };
     return this.stuck(lf);
+  }
+
+  /** An answer from the graph, said with the source it was learned from. */
+  private recalled(lf: Expr, r: { answer: Expr; from: Expr }): Expr {
+    return c("Outcome", lf, ["result", c("Found", r.answer, ["from", isCall(r.from) ? c(r.from.head) : r.from])]);
+  }
+
+  /**
+   * The things a question asks something of, in the user's words: each referent ("the berlin
+   * wall", by its kind) and each word of its own that a relation of the question's own words is
+   * said of ("france" in "the capital of france", "hamlet" in "who wrote hamlet"). A question with
+   * no such relation ("tell me a joke") asks of nothing. The words are a query (an index).
+   */
+  private things(p: Expr): string[] {
+    if (!this.inWords) return [];
+    const out: string[] = [];
+    const wordsOf = (x: Expr) => {
+      const w = positional(this.inWords!(c("Echo", x)) as Call)[0];
+      if (w?.kind === "string" && !out.includes(w.value)) out.push(w.value);
+    };
+    // A word the seed gives meaning to ("someone", for "who"; "of") is not a relation or a thing.
+    const own = (x: Call) => !STRUCTURAL_NAMES.has(x.head) && !this.primitives.has(x.head) && !this.store.facts(x.head).some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed");
+    const visit = (x: Expr, under: boolean) => {
+      if (!isCall(x) || x.head === "Gap") return;
+      if (x.head === "Ref") {
+        const k = role(x, "kind");
+        if (k && under) wordsOf(k);
+        if (k) visit(k, under);
+        return;
+      }
+      if (!x.args.length && own(x) && under) return wordsOf(x);
+      for (const a of x.args) visit(a.value, under || own(x));
+    };
+    visit(p, false);
+    return out.slice(0, 3);
   }
 
   private found(lf: Expr, k: { block: string; title: string; url: string; source: string }): Expr {
