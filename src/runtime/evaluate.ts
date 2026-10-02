@@ -408,7 +408,9 @@ export class Evaluator {
     // explanation is found by the whole question, a description by the thing it is about.
     const about = this.asksExplanation() ? "reason" : "thing";
     const cached = know.cached("answer", this.said);
-    if (this.mode === "Supposing") return cached ? { ...this.out(), said: [this.found(lf, cached)], reachedAct: true } : { ...this.out(), reachedAct: true };
+    // In Suppose nothing goes out, so a lookup not already answered is not known to reach an answer;
+    // only what the graph holds counts. A question nothing else reaches still wins, and is looked up.
+    if (this.mode === "Supposing") return cached ? { ...this.out(), said: [this.found(lf, cached)], reachedAct: true } : this.out();
     if (!cached && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
       return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
     try {

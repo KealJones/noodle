@@ -5,8 +5,7 @@
 // restart) are not replayed, so nothing runs twice.
 
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { format } from "../ncon/index.js";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import type { Call } from "../runtime/expr.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -25,22 +24,28 @@ export interface AssistantOptions {
   store?: Store;
 }
 
-/** What corrections taught the score, kept across sessions (design section 17). */
-export const LEARNED = join(homedir(), ".noodle", "learned.ncon");
-/** What the user taught ("X means Y"), confirmed, kept across sessions. */
-export const TAUGHT = join(homedir(), ".noodle", "taught.ncon");
+/** The store: one SQLite file, imported into once, queried as it is used (ncon.md section 9). */
+export const STORE = process.env.NOODLE_STORE ?? join(homedir(), ".noodle", "store.db");
+export const PACKS = join(homedir(), ".noodle", "packs");
 
-/** The packs imported into ~/.noodle/packs/ (pnpm import), loaded after the seed, WordNet first, then what was learned. */
-export function packedStore(dir = join(homedir(), ".noodle", "packs"), learned: string | undefined = LEARNED): Store {
-  const store = seededStore();
-  if (learned && existsSync(learned)) store.load(readFileSync(learned, "utf8"));
+/**
+ * The durable store with the seed and every pack in ~/.noodle/packs/ in it (pnpm import). A part or
+ * pack already there with the same text is not read again, so this is fast after the first time.
+ * What was learned and taught is in the same database, kept across sessions.
+ */
+export function packedStore(dir = PACKS, path = STORE): Store {
+  if (path !== ":memory:") mkdirSync(join(path, ".."), { recursive: true });
+  const store = seededStore(undefined, path);
   if (existsSync(dir)) {
     const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : f.startsWith("wiktionary") ? 2 : 3);
     for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b)))
       store.load(readFileSync(join(dir, f), "utf8"));
   }
-  // What the user taught comes last: it builds on words the packs gave.
-  if (learned && existsSync(TAUGHT)) store.load(readFileSync(TAUGHT, "utf8"));
+  // What earlier versions kept beside the store (learned weights, taught words) comes in once.
+  for (const old of ["learned.ncon", "taught.ncon"]) {
+    const p = join(homedir(), ".noodle", old);
+    if (path !== ":memory:" && existsSync(p)) store.load(readFileSync(p, "utf8"));
+  }
   return store;
 }
 
@@ -51,6 +56,8 @@ export function packedStore(dir = join(homedir(), ".noodle", "packs"), learned: 
  * ({"grants": ["UnknownEffects"]} lets documented commands run when asked). Nothing learned can
  * write it.
  */
+const P0 = { line: 0, column: 0 };
+
 export interface Config {
   grants?: EffectClass[];
   programs?: string[];
@@ -62,7 +69,6 @@ export interface Config {
   replay?: boolean;
   /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
   learn?: boolean;
-  learnedPath?: string;
 }
 
 export function readConfig(path = join(homedir(), ".noodle", "config.json")): Config {
@@ -78,14 +84,6 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     say: (d) => onSay?.(d),
     ask: (d) => onSay?.(d),
     grants: config.grants ? new Set(config.grants) : undefined,
-    keep: config.learn
-      ? (form) => {
-          mkdirSync(join(homedir(), ".noodle"), { recursive: true });
-          const text = format({ forms: [form as Call] });
-          const head = existsSync(TAUGHT) ? "" : 'Pack(name="taught", version="1", from=User())\n\n';
-          appendFileSync(TAUGHT, head + text + "\n");
-        }
-      : undefined,
     programs: config.programs ? new Set(config.programs) : undefined,
     timeoutMs: config.timeoutMs,
   };
@@ -105,7 +103,6 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     confirmed.add(k);
     const claim: Call = { kind: "call", head: "Confirmed", args: [{ value: { kind: "string", value: k, pos: { line: 0, column: 0 } } }], pos: { line: 0, column: 0 } };
     store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
-    world.keep?.({ kind: "call", head: "Fact", args: [{ value: { kind: "call", head: "Confirmation", args: [], pos: { line: 0, column: 0 } } }, { value: claim }], pos: { line: 0, column: 0 } });
   };
   const session = new Session(store, PRIMITIVES, world);
   // The replay gate, where the corpus is on this machine and the config asks for it.
@@ -113,10 +110,11 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     const gate = new ReplayGate(store);
     session.gate = (changed, after, before) => gate.check(changed, after, before);
   }
+  // What a correction teaches the score is kept in the store, as facts from the correction.
   if (config.learn)
-    session.onLearn = (w) => {
-      mkdirSync(join(homedir(), ".noodle"), { recursive: true });
-      writeFileSync(config.learnedPath ?? LEARNED, w.toNcon());
+    session.onLearn = (w, changed) => {
+      for (const name of changed)
+        store.addFact("Feature", { kind: "call", head: "Weight", args: [{ value: { kind: "string", value: name, pos: P0 } }, { value: { kind: "number", value: w.get(name), pos: P0 } }], pos: P0 }, { kind: "call", head: "Correction", args: [], pos: P0 });
     };
   return session;
 }

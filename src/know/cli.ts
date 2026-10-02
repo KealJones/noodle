@@ -42,7 +42,7 @@ if (source === "wordnet" && path) {
   console.log(`verbnet: ${r.classes} classes, ${r.verbs} verbs, ${r.frames} frames read, ${r.skippedFrames} skipped -> ${join(PACKS, "verbnet.ncon")}`);
 } else if (source === "wiktionary" && path) {
   // Forms and sounds for the words the seed and the other packs already have.
-  const words = packedStore(PACKS, undefined);
+  const words = packedStore(PACKS);
   const r = await importWiktionary(path, words, { version: version ?? "latest" });
   writeFileSync(join(PACKS, "wiktionary.ncon"), r.text);
   console.log(`wiktionary: ${r.forms} forms for ${r.words} words -> ${join(PACKS, "wiktionary.ncon")}`);
