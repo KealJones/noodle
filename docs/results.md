@@ -55,3 +55,16 @@ prompt as a word. Same labels, same split, same learned commands, same 150-word 
 Command-name match finds more of the labelled acts; Noodle makes fewer false acts. With no content
 words, a request Noodle cannot parse around its command word does not reach the act, where a name
 match does not need to parse at all. The other baselines (Napkin, BM25) have not been run yet.
+
+## 2026-10-01, later: runtime 0.14.1
+
+Per-fragment choice of moods and readings, spelling corrections at a cost, heartbeats left out of
+the denominators (so the no-act count is 345, not 358).
+
+| Measure | Noodle 0.13 | Noodle 0.14.1 | Command-name match |
+|---|---|---|---|
+| acts: exact act set | 2.4% | 3.0% (10/335) | 5.1% (17/335) |
+| acts: first act right | 6.0% | 8.7% (29/335) | 11.3% (38/335) |
+| acts: any act right | 13.7% | 17.3% (58/335) | 23.6% (79/335) |
+| no act: no act | 74.9% | 71.3% (246/345) | 64.1% (221/345) |
+| no act: a false act | 25.1% | 28.7% (99/345) | 35.9% (124/345) |
