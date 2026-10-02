@@ -83,17 +83,21 @@ export class Rewriter {
     if (seen.has(k)) return [{ expr: e, features: new Map(), steps: [] }];
     const seen2 = new Set(seen).add(k);
     const cands = this.candidates(e);
-    if (cands.length) {
-      const alts: Omit<Derivation, "score">[] = [];
-      for (const { r, b, result } of cands) {
-        const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result };
-        const own = this.wantFeatures(r, b);
-        addFeature(own, `Evidence:${r.meta.id}`, 1);
-        for (const d of this.norm(result, depth + 1, seen2))
-          alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });
-      }
-      return this.top(alts);
+    const alts: Omit<Derivation, "score">[] = [];
+    for (const { r, b, result } of cands) {
+      const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result };
+      const own = this.wantFeatures(r, b);
+      addFeature(own, `Evidence:${r.meta.id}`, 1);
+      for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });
     }
+    // Leaving this node as it is, and reading its arguments, is an alternative too: a reading
+    // that applies here is a choice, not an obligation (an inner "is in" may be part of an outer
+    // "cause to be in" rather than a question of its own).
+    alts.push(...this.args(e, k, depth, seen2));
+    return this.top(alts);
+  }
+
+  private args(e: Call, k: string, depth: number, seen2: Set<string>): Omit<Derivation, "score">[] {
     // No reading at the top: rewrite the arguments, then look at the top again.
     let combos: Omit<Derivation, "score">[] = [{ expr: e, features: new Map(), steps: [] }];
     e.args.forEach((a, i) => {

@@ -244,7 +244,9 @@ Evaluating an expression rewrites it until it reaches primitives, which run (des
 - **Candidates**: for an expression, the candidate readings are those whose pattern matches it
   exactly (section 6.1) or, for documentation readings, by the scored match (section 6.2). Each
   candidate application is a **choice point**, scored like everything else. There is no fixed order
-  (not "code first", not "idioms first"): the score picks.
+  (not "code first", not "idioms first"): the score picks. Leaving a node as it is and reading its
+  arguments is always one of the candidates: a reading that applies is a choice, not an obligation
+  (an inner "is in" may be part of an outer "cause to be in" rather than a question of its own).
 - **Direction**: expanding readings replace a concept by what it means; collapsing readings replace
   a multi-word expression by the concept it names. Both are candidates at the same choice point.
 - **Senses**: when a reading's want on a role names a kind, and the argument in that role is a word
@@ -293,7 +295,7 @@ the reasons log shows which (AGENTS.md rule 6).
 
 ### 8.2 Stage two: the dry run
 
-The top few (default 3) complete readings of the message are each evaluated with **Suppose**
+The top few complete readings of each segment (16 for now: with the seed weights most readings tie at stage one, and 3 cut off the right one in the first runs; to be measured, open question 4) are each evaluated with **Suppose**
 (section 10.1). A second log-linear score reranks them on what the dry run found:
 
 | Template | Value |

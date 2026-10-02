@@ -144,6 +144,39 @@ Reading(on=Suppose(), pattern=Question(Happen(theme=$e), about=Gap()), wants=IsA
 Reading(on=Suppose(), pattern=Maybe(Happen(theme=$e)), wants=IsA($e, Act()), becomes=Suppose($e))
 
 // ---------------------------------------------------------------------------------------------
+// VerbNet's predicates (design section 6: the bridge maps "VerbNet predicates and frames"). The
+// VerbNet import keeps a verb's semantics in VerbNet's own predicates; these say which core
+// meanings they are. Predicates not here stay VerbNet's and do not reduce.
+
+Concept(HasLocation())
+Concept(HasPossession())
+Concept(HasState())
+Concept(Motion())
+Concept(Transfer())
+Concept(TransferInfo())
+Concept(Perceive())
+Concept(Contact())
+Concept(Utilize())
+Concept(Desire())
+Concept(Destroyed())
+Concept(HasAttribute())
+
+Reading(on=HasLocation(), pattern=HasLocation($x, $y), becomes=BeIn($x, $y))
+Reading(on=Location(), pattern=Location($x, $y), becomes=BeIn($x, $y))
+Reading(on=HasPossession(), pattern=HasPossession($h, $x), becomes=Have($h, $x))
+Reading(on=HasState(), pattern=HasState($x, $v), becomes=Be($x, $v))
+Reading(on=HasAttribute(), pattern=HasAttribute($x, $a, $v), becomes=Be($x, $v, attribute=$a))
+Reading(on=Motion(), pattern=Motion($x), becomes=Move(theme=$x))
+Reading(on=Motion(), pattern=Motion($x, $path), becomes=Move(theme=$x, path=$path))
+Reading(on=Transfer(), pattern=Transfer($a, $t, $r), becomes=Cause(agent=$a, result=Become(Have($r, $t))))
+Reading(on=TransferInfo(), pattern=TransferInfo($a, $t, $r), becomes=Say(agent=$a, theme=$t, recipient=$r))
+Reading(on=Perceive(), pattern=Perceive($e, $x), becomes=See(experiencer=$e, stimulus=$x))
+Reading(on=Contact(), pattern=Contact($x, $y), becomes=Touch($x, $y))
+Reading(on=Utilize(), pattern=Utilize($a, $x), becomes=Use(agent=$a, theme=$x))
+Reading(on=Desire(), pattern=Desire($e, $x), becomes=Want(experiencer=$e, theme=$x))
+Reading(on=Destroyed(), pattern=Destroyed($x), becomes=Not(Exist($x)))
+
+// ---------------------------------------------------------------------------------------------
 // Tools: the one general entry (design section 6). Whatever a tool's documentation page says the
 // tool does, running the tool does. Understanding a page gives Describes(program, what) with what
 // reduced to core meanings, Usage(program, arguments) from its SYNOPSIS, and EffectsOf(program)

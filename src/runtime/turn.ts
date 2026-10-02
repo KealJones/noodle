@@ -22,7 +22,7 @@ export interface TurnOptions {
   derivations: number;
 }
 
-export const DEFAULT_TURN: TurnOptions = { stageTwo: 6, derivations: 3 };
+export const DEFAULT_TURN: TurnOptions = { stageTwo: 16, derivations: 4 };
 
 interface Reading {
   lfs: Expr[];
