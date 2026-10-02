@@ -26,8 +26,8 @@ Reading(on=Ref(), mode=Speaking(), pattern=Ref(said=$s), becomes=$s)
 // Names of things (files, branches, commands, identifiers) are code: copyable, never stress.
 Reading(on=Code(), mode=Speaking(), pattern=$x, wants=IsA($x, Name()), becomes=Code($x))
 
-// A command line: the program, then its arguments, with spaces between.
-Reading(on=Run(), mode=Speaking(), pattern=Run($p, $args), becomes=Paragraph($p, " ", $args))
+// A command line is code: the program, then its arguments, with spaces between.
+Reading(on=Run(), mode=Speaking(), pattern=Run($p, $args), becomes=Code(Paragraph($p, " ", $args)))
 Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
 
@@ -78,8 +78,11 @@ Reading(on=Offer(), mode=Speaking(), pattern=Offer(Run($p, $args)),
   becomes=Document(Paragraph("I can run:"), CodeBlock(Run($p, $args)), Paragraph("Go ahead?")))
 Reading(on=Offer(), mode=Speaking(), pattern=Offer($a, effects=UnknownEffects()),
   becomes=Paragraph("I can ", $a, ", but I don't know everything it changes. Go ahead?"))
+Reading(on=Offer(), mode=Speaking(), pattern=Offer(Sequence($a, $b)),
+  becomes=Document(Paragraph("I can do these, in order:"), List($a, $b), Paragraph("Go ahead?")))
+Reading(on=List(), mode=Speaking(), pattern=List($a, Sequence($b, $c)), becomes=List($a, $b, $c))
 Reading(on=Offer(), mode=Speaking(), pattern=Offer(Run($p, $args), effects=UnknownEffects()),
-  becomes=Paragraph("I can run ", Code(Run($p, $args)), ", but I don't know yet what it changes. Go ahead?"))
+  becomes=Paragraph("I can run ", Run($p, $args), ", but I don't know yet what it changes. Go ahead?"))
 
 // =============================================================================================
 // 4. Echoes of what it heard
@@ -90,7 +93,7 @@ Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not($a))),
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not($a), until=Told())),
   becomes=Paragraph("Got it: I won't ", $a, " until you say so."))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not(Run($p, $args)))),
-  becomes=Paragraph("Ok, I won't run ", Code(Run($p, $args)), "."))
+  becomes=Paragraph("Ok, I won't run ", Run($p, $args), "."))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Only($a))),
   becomes=Paragraph("Got it: I'll only ", $a, "."))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint($r, over=Always())),
@@ -120,15 +123,15 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome($a, result=$r, checked=fa
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome($a, error=$e),
   becomes=Paragraph("I couldn't ", $a, ": ", $e))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x), checked=true),
-  becomes=Paragraph("Ran ", Code(Run($p, $args)), "."))
+  becomes=Paragraph("Ran ", Run($p, $args), "."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x, output=$out), checked=true),
   becomes=Document(CodeBlock(Run($p, $args)), CodeBlock($out)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x), checked=false),
-  becomes=Paragraph(Code(Run($p, $args)), " failed (exit ", $x, ")."))
+  becomes=Paragraph(Run($p, $args), " failed (exit ", $x, ")."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x, error=$err), checked=false),
-  becomes=Document(Paragraph(Code(Run($p, $args)), " failed (exit ", $x, "):"), CodeBlock($err)))
+  becomes=Document(Paragraph(Run($p, $args), " failed (exit ", $x, "):"), CodeBlock($err)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x, output=$out), checked=false),
-  becomes=Document(Paragraph(Code(Run($p, $args)), " failed (exit ", $x, "):"), CodeBlock($out)))
+  becomes=Document(Paragraph(Run($p, $args), " failed (exit ", $x, "):"), CodeBlock($out)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=File(path=$path, content=$b, media=$m)),
   becomes=Document(Paragraph(Code($path), ":"), CodeBlock($b)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r),
