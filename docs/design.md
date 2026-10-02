@@ -1094,7 +1094,7 @@ in code that says what a mark means. The inventory below is GitHub's
 
 **One set of document heads, both ways.** `Paragraph`, `Heading(level)`, `List`, `Item`, `Task(done)`,
 `Contrast`, `Important`, `Withdrawn`, `Inserted`, `Quote`, `Callout(kind)`, `Code`, `CodeBlock(language)`,
-`Link(to)`, `Image(alt)`, `Note` (a footnote), `Break`. They are core meanings: hearing produces them
+`Link(to)`, `Image(alt)`, `Note` (a footnote), `LineBreak`. They are core meanings: hearing produces them
 and Speaking's output is made of them.
 
 **Hearing.** Each mark is an entry in the function-word lexicon; marks are as ambiguous as words and
@@ -1123,7 +1123,7 @@ of a name, `#` before digits is an issue reference), each a competing entry chos
 | `:name:` | an emoji by name, tone |
 | `\*` | the escaped mark is a plain character, not a mark |
 | `<!-- -->` | hidden from the reader: set aside, never heard as said to the assistant |
-| blank line, two trailing spaces, `\` at line end, `<br/>` | `Paragraph` and `Break`: segment boundaries (section 8) |
+| blank line, two trailing spaces, `\` at line end, `<br/>` | `Paragraph` and `LineBreak`: segment boundaries (section 8) |
 
 **Nesting by indent** (a list inside a list) is the one place markdown's structure is layout, not
 marks. Indentation is character mechanics, the same in any language, so the runtime records each

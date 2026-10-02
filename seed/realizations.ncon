@@ -1,0 +1,218 @@
+// Seed part 8: English realizations (design sections 6, 23 and 25b).
+//
+// What the assistant says, as Speaking readings: the wording of each thing it says, made of
+// document heads and words, never markup. Then the media realizations: how a document prints in
+// markdown (the chat, .md files) and in plain text (commit messages, terminals). The medium is a
+// fact on the destination, never a guess from the words.
+//
+// Wording: string literals are the words said; a nested expression is realized by its own
+// Speaking readings, and a concept with none is said by its lemma (the last entry of section 1).
+// Printing: Print(doc, medium=M) is the last step of Say; Printed(...) joins its parts into text;
+// Escaped(s) escapes the medium's marks in s; Fenced(s, mark) wraps s in a fence of mark longer
+// than any run of it inside s (structural; seed/README.md).
+
+Pack(name="seed-realizations", version="0.1.0", from=Seed("realizations"))
+
+// =============================================================================================
+// 1. Saying a concept
+
+// A concept with no realization of its own is said by its lemma.
+Reading(on=Lemma(), mode=Speaking(), pattern=$x, needs=Fact($x, Lemma($l)), becomes=$l)
+
+// A referent is said the way the user said it.
+Reading(on=Ref(), mode=Speaking(), pattern=Ref(said=$s), becomes=$s)
+
+// Names of things (files, branches, commands, identifiers) are code: copyable, never stress.
+Reading(on=Code(), mode=Speaking(), pattern=$x, wants=IsA($x, Name()), becomes=Code($x))
+
+// A set is a list when it is long, a phrase when it is short.
+Reading(on=Every(), mode=Speaking(), pattern=Every($k), becomes=Paragraph("every ", $k))
+Reading(on=List(), mode=Speaking(), pattern=And($a, $b), becomes=Paragraph($a, " and ", $b))
+Reading(on=List(), mode=Speaking(), pattern=Or($a, $b), becomes=Paragraph($a, " or ", $b))
+Reading(on=Not(), mode=Speaking(), pattern=Not($a), becomes=Paragraph("not ", $a))
+Reading(on=Speaker(), mode=Speaking(), pattern=Speaker(), becomes="you")
+Reading(on=Addressee(), mode=Speaking(), pattern=Addressee(), becomes="I")
+
+// =============================================================================================
+// 2. Honest when stuck, one per reason (design section 23)
+
+Reading(on=NoSense(), mode=Speaking(), pattern=NoSense($w),
+  becomes=Paragraph("I don't know what ", Code($w), " means here."))
+Reading(on=NoSense(), mode=Speaking(), pattern=NoSense($w, in=$x),
+  becomes=Paragraph("I don't know what ", Code($w), " means in ", $x, "."))
+Reading(on=NoReading(), mode=Speaking(), pattern=NoReading($x),
+  becomes=Paragraph("I understood ", $x, ", but I don't know how to do it."))
+Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet($n),
+  becomes=Paragraph("I can't do that yet: I need to know ", $n, "."))
+Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet($n, for=$a),
+  becomes=Paragraph("To ", $a, ", I need to know ", $n, "."))
+Reading(on=NoSource(), mode=Speaking(), pattern=NoSource($q),
+  becomes=Paragraph("I don't know ", $q, ", and I have nowhere to look it up."))
+Reading(on=NoPermission(), mode=Speaking(), pattern=NoPermission($a),
+  becomes=Paragraph("I'm not allowed to ", $a, " without you saying so."))
+Reading(on=TooClose(), mode=Speaking(), pattern=TooClose($a, $b),
+  becomes=Paragraph("Do you mean ", $a, ", or ", $b, "?"))
+Reading(on=BlockedBy(), mode=Speaking(), pattern=BlockedBy($a, $rule, from=$src),
+  becomes=Paragraph("I didn't ", $a, ": ", $rule, " (", $src, ")."))
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x),
+  becomes=Paragraph("I couldn't work out ", Quote($x), "."))
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=$why),
+  becomes=Paragraph("I couldn't work out ", Quote($x), ": ", $why, "."))
+
+// =============================================================================================
+// 3. Offers before a guarded act, with the target shown (design section 13)
+
+Reading(on=Offer(), mode=Speaking(), pattern=Offer($a),
+  becomes=Paragraph("I can ", $a, ". Go ahead?"))
+Reading(on=Offer(), mode=Speaking(), pattern=Offer($a, target=$t),
+  becomes=Document(Paragraph("I can ", $a, ":"), List($t), Paragraph("Go ahead?")))
+Reading(on=Offer(), mode=Speaking(), pattern=Offer(Run($p, $args)),
+  becomes=Document(Paragraph("I can run:"), CodeBlock(Run($p, $args)), Paragraph("Go ahead?")))
+Reading(on=Offer(), mode=Speaking(), pattern=Offer($a, effects=UnknownEffects()),
+  becomes=Paragraph("I can ", $a, ", but I don't know everything it changes. Go ahead?"))
+
+// =============================================================================================
+// 4. Echoes of what it heard
+
+// The echo of a rule it was given (design section 19).
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not($a))),
+  becomes=Paragraph("Got it: I won't ", $a, "."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not($a), until=Told())),
+  becomes=Paragraph("Got it: I won't ", $a, " until you say so."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Only($a))),
+  becomes=Paragraph("Got it: I'll only ", $a, "."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint($r, over=Always())),
+  becomes=Paragraph("From now on, ", Echo(Constraint($r)), " Right?"))
+// A directive to do a blocked act: the rule is echoed, not lifted (logical-form.md section 7).
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not($a), until=Told()))),
+  becomes=Paragraph("You said not to ", $a, " yet. ", $a, " now?"))
+
+// What it understood a request as, when it asks to be sure.
+Reading(on=Directive(), mode=Speaking(), pattern=Echo(Directive($a)),
+  becomes=Paragraph("You want me to ", $a, "?"))
+
+// =============================================================================================
+// 5. Results
+
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Happen(theme=$a, time=Past())),
+  becomes=Paragraph("Done: ", $a, "."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Happen(theme=$a, time=Past()), checked=true),
+  becomes=Paragraph("Done, and checked: ", $a, "."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Happen(theme=$a, time=Past()), checked=false),
+  becomes=Paragraph($a, ". I can't tell whether that does what you wanted."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Not(Happen(theme=$a)), because=$why),
+  becomes=Paragraph("I didn't ", $a, ": ", $why, "."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Sequence($steps), stopped=$at),
+  becomes=Document(Paragraph("I stopped at ", $at, ". What ran:"), List($steps)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a)),
+  becomes=Paragraph("I can undo ", $a, ". Want me to?"))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), output=$out),
+  becomes=Document(CodeBlock(Run($p, $args)), CodeBlock($out)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Count($s), $n),
+  becomes=Paragraph($n))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Nothing()),
+  becomes=Paragraph("Nothing."))
+
+// Answers.
+Reading(on=Answer(), mode=Speaking(), pattern=Answer(true), becomes=Paragraph("Yes."))
+Reading(on=Answer(), mode=Speaking(), pattern=Answer(false), becomes=Paragraph("No."))
+Reading(on=Answer(), mode=Speaking(), pattern=Answer(true, $p), becomes=Paragraph("Yes, ", $p, "."))
+Reading(on=Answer(), mode=Speaking(), pattern=Answer(false, $p), becomes=Paragraph("No, ", Not($p), "."))
+Reading(on=Answer(), mode=Speaking(), pattern=Answer($x), becomes=Paragraph($x))
+Reading(on=Answer(), mode=Speaking(), pattern=Answer(Not(Know(experiencer=Addressee(), theme=$q))),
+  becomes=Paragraph("I don't know."))
+Reading(on=Answer(), mode=Speaking(), pattern=Answer(Not(True($presupposed))),
+  becomes=Paragraph("That assumes ", $presupposed, ", which isn't so."))
+
+// Asking.
+Reading(on=Ask(), mode=Speaking(), pattern=Ask(Or($a, $b)), becomes=Paragraph("Do you mean ", $a, " or ", $b, "?"))
+Reading(on=Ask(), mode=Speaking(), pattern=Ask(Gap(), kind=$k), becomes=Paragraph("Which ", $k, "?"))
+Reading(on=Ask(), mode=Speaking(), pattern=Ask($p), becomes=Paragraph($p, "?"))
+
+// Social turns: a greeting or thanks gets a short reply and nothing runs.
+Reading(on=Hello(), mode=Speaking(), pattern=Reply(Hello()), becomes=Paragraph("Hi."))
+Reading(on=Thanks(), mode=Speaking(), pattern=Reply(Thanks()), becomes=Paragraph("You're welcome."))
+Reading(on=Bye(), mode=Speaking(), pattern=Reply(Bye()), becomes=Paragraph("Bye."))
+
+// =============================================================================================
+// 6. Markdown (design section 25b)
+
+Concept(Markdown(), IsA(Medium()),
+  Escapes("\\"), Escapes("*"), Escapes("_"), Escapes("~"), Escapes("`"), Escapes("#"), Escapes(">"),
+  Escapes("["), Escapes("]"), Escapes("<"), Escapes("|"))
+
+Reading(on=Document(), mode=Speaking(), pattern=Print(Document($a, $b), medium=Markdown()),
+  becomes=Printed(Print($a, medium=Markdown()), "\n\n", Print($b, medium=Markdown())))
+Reading(on=Paragraph(), mode=Speaking(), pattern=Print(Paragraph($x), medium=Markdown()),
+  becomes=Print($x, medium=Markdown()))
+Reading(on=Paragraph(), mode=Speaking(), pattern=Print(Paragraph($a, $b), medium=Markdown()),
+  becomes=Printed(Print($a, medium=Markdown()), Print($b, medium=Markdown())))
+Reading(on=Text(), mode=Speaking(), pattern=Print($s, medium=Markdown()), wants=IsA($s, Text()),
+  becomes=Escaped($s, medium=Markdown()))
+Reading(on=Heading(), mode=Speaking(), pattern=Print(Heading($x, level=$n), medium=Markdown()),
+  becomes=Printed(Repeated("#", $n), " ", Print($x, medium=Markdown())))
+Reading(on=List(), mode=Speaking(), pattern=Print(List($x), medium=Markdown()),
+  becomes=Printed("- ", Print($x, medium=Markdown())))
+Reading(on=List(), mode=Speaking(), pattern=Print(List($a, $b), medium=Markdown()),
+  becomes=Printed(Print(List($a), medium=Markdown()), "\n", Print(List($b), medium=Markdown())))
+Reading(on=Item(), mode=Speaking(), pattern=Print(Item($x), medium=Markdown()),
+  becomes=Printed("- ", Print($x, medium=Markdown())))
+Reading(on=Task(), mode=Speaking(), pattern=Print(Task($x, done=false), medium=Markdown()),
+  becomes=Printed("- [ ] ", Print($x, medium=Markdown())))
+Reading(on=Task(), mode=Speaking(), pattern=Print(Task($x, done=true), medium=Markdown()),
+  becomes=Printed("- [x] ", Print($x, medium=Markdown())))
+Reading(on=Contrast(), mode=Speaking(), pattern=Print(Contrast($x), medium=Markdown()),
+  becomes=Printed("*", Print($x, medium=Markdown()), "*"))
+Reading(on=Important(), mode=Speaking(), pattern=Print(Important($x), medium=Markdown()),
+  becomes=Printed("**", Print($x, medium=Markdown()), "**"))
+Reading(on=Important(), mode=Speaking(), pattern=Print(Important(Contrast($x)), medium=Markdown()),
+  becomes=Printed("***", Print($x, medium=Markdown()), "***"))
+Reading(on=Withdrawn(), mode=Speaking(), pattern=Print(Withdrawn($x), medium=Markdown()),
+  becomes=Printed("~~", Print($x, medium=Markdown()), "~~"))
+Reading(on=Inserted(), mode=Speaking(), pattern=Print(Inserted($x), medium=Markdown()),
+  becomes=Printed("<ins>", Print($x, medium=Markdown()), "</ins>"))
+Reading(on=Quote(), mode=Speaking(), pattern=Print(Quote($x), medium=Markdown()),
+  becomes=Printed("> ", Print($x, medium=Markdown())))
+Reading(on=Callout(), mode=Speaking(), pattern=Print(Callout($x, kind=$k), medium=Markdown()),
+  becomes=Printed("> [!", Uppercase($k), "]\n> ", Print($x, medium=Markdown())))
+// Code shows source, never rendering: inline code uses enough backticks, a block a long enough fence.
+Reading(on=Code(), mode=Speaking(), pattern=Print(Code($x), medium=Markdown()),
+  becomes=Fenced($x, mark="`", min=1, pad=true))
+Reading(on=CodeBlock(), mode=Speaking(), pattern=Print(CodeBlock($x), medium=Markdown()),
+  becomes=Fenced($x, mark="`", min=3, block=true))
+Reading(on=CodeBlock(), mode=Speaking(), pattern=Print(CodeBlock($x, language=$l), medium=Markdown()),
+  becomes=Fenced($x, mark="`", min=3, block=true, language=$l))
+Reading(on=Link(), mode=Speaking(), pattern=Print(Link($x, to=$t), medium=Markdown()),
+  becomes=Printed("[", Print($x, medium=Markdown()), "](", $t, ")"))
+// A link whose text is its target prints the bare target.
+Reading(on=Link(), mode=Speaking(), pattern=Print(Link($t, to=$t), medium=Markdown()), becomes=$t)
+Reading(on=Image(), mode=Speaking(), pattern=Print(Image($src, alt=$a), medium=Markdown()),
+  becomes=Printed("![", Escaped($a, medium=Markdown()), "](", $src, ")"))
+Reading(on=Note(), mode=Speaking(), pattern=Print(Note($x, $n), medium=Markdown()),
+  becomes=Printed("[^", $n, "]: ", Print($x, medium=Markdown())))
+Reading(on=LineBreak(), mode=Speaking(), pattern=Print(LineBreak(), medium=Markdown()), becomes="  \n")
+
+// =============================================================================================
+// 7. Plain text (design section 25b). Stress prints nothing: the words carry it.
+
+Concept(PlainText(), IsA(Medium()))
+
+Reading(on=Document(), mode=Speaking(), pattern=Print(Document($a, $b), medium=PlainText()),
+  becomes=Printed(Print($a, medium=PlainText()), "\n\n", Print($b, medium=PlainText())))
+Reading(on=Paragraph(), mode=Speaking(), pattern=Print(Paragraph($a, $b), medium=PlainText()),
+  becomes=Printed(Print($a, medium=PlainText()), Print($b, medium=PlainText())))
+Reading(on=Heading(), mode=Speaking(), pattern=Print(Heading($x, level=_), medium=PlainText()),
+  becomes=Print($x, medium=PlainText()))
+Reading(on=Item(), mode=Speaking(), pattern=Print(Item($x), medium=PlainText()),
+  becomes=Printed("- ", Print($x, medium=PlainText())))
+Reading(on=Task(), mode=Speaking(), pattern=Print(Task($x, done=false), medium=PlainText()),
+  becomes=Printed("[ ] ", Print($x, medium=PlainText())))
+Reading(on=Task(), mode=Speaking(), pattern=Print(Task($x, done=true), medium=PlainText()),
+  becomes=Printed("[x] ", Print($x, medium=PlainText())))
+Reading(on=Contrast(), mode=Speaking(), pattern=Print(Contrast($x), medium=PlainText()), becomes=Print($x, medium=PlainText()))
+Reading(on=Important(), mode=Speaking(), pattern=Print(Important($x), medium=PlainText()), becomes=Print($x, medium=PlainText()))
+Reading(on=Callout(), mode=Speaking(), pattern=Print(Callout($x, kind=$k), medium=PlainText()),
+  becomes=Printed(Capitalized($k), ": ", Print($x, medium=PlainText())))
+Reading(on=Code(), mode=Speaking(), pattern=Print(Code($x), medium=PlainText()), becomes=$x)
+Reading(on=Link(), mode=Speaking(), pattern=Print(Link($x, to=$t), medium=PlainText()),
+  becomes=Printed(Print($x, medium=PlainText()), " (", $t, ")"))

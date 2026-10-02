@@ -1,0 +1,209 @@
+// Seed part 1: core meanings (design section 6; built-ins.md section 3).
+//
+// The closed list everything bottoms out in. A reduction that needs a meaning outside this file
+// (and outside the structural concepts of built-ins.md section 4) does not reduce. Each entry
+// passes the test of built-ins.md section 1: it would be in the list for chess, a jam website and
+// the user's name, and for a cooking assistant or a calendar.
+//
+// Sources of the list: Wierzbicka and Goddard's semantic primes, VerbNet 3.4's semantic
+// predicates, and the document heads of design section 25b. Where a prime or predicate is already
+// a structural concept (Not, If, Every, Some, Only, Before, After, Now, Kind, Quote, Speaker,
+// Addressee) or a pure primitive (Contains, Compare, Count), it is not repeated here.
+//
+// Naming: a core meaning has the name its English exponent's word concept would have, and is that
+// concept (seed/README.md, decision 1). Lemma facts record the exponent. Two-place states take
+// their arguments positionally (Have(owner, thing)); events take roles.
+//
+// Frame(...) says what a core meaning takes and of what kind. Values are LF kinds (Prop, Act,
+// Thing, Time, Kind) or core kinds (Someone, Something, Place, Amount).
+
+Pack(name="seed-core", version="0.1.0", from=Seed("core"))
+
+// ---------------------------------------------------------------------------------------------
+// Roles (ncon.md section 7). The roles function words assign and core meanings take. VerbNet's
+// thematic roles are imported and made SameAs these where they are the same.
+
+Concept(Role())
+
+Concept(Agent(), IsA(Role()))          // who or what does it
+Concept(Patient(), IsA(Role()))        // what is changed by it
+Concept(Theme(), IsA(Role()))          // what is moved, had, said or known, unchanged
+Concept(Experiencer(), IsA(Role()))    // who knows, wants, feels or sees
+Concept(Stimulus(), IsA(Role()))       // what is seen, heard or felt
+Concept(Recipient(), IsA(Role()))      // who ends up having it
+Concept(Beneficiary(), IsA(Role()))    // for whom it is done
+Concept(Source(), IsA(Role()))         // where it starts or comes from
+Concept(Destination(), IsA(Role()))    // where it ends up
+Concept(Location(), IsA(Role()))       // where it is or happens
+Concept(Path(), IsA(Role()))           // the way it goes
+Concept(Instrument(), IsA(Role()))     // what it is done with
+Concept(Topic(), IsA(Role()))          // what it is about
+Concept(Attribute(), IsA(Role()))      // which property
+Concept(Value(), IsA(Role()))          // what the property is
+Concept(Extent(), IsA(Role()))         // how much or how far
+Concept(Standard(), IsA(Role()))       // what it is compared with
+Concept(Result(), IsA(Role()))         // what holds because of it
+Concept(Purpose(), IsA(Role()))        // what it is done for
+Concept(Reason(), IsA(Role()))         // why it happens
+Concept(Material(), IsA(Role()))       // what a made thing is made from
+Concept(Product(), IsA(Role()))        // what is made
+Concept(Partner(), IsA(Role()))        // who or what it is done with
+Concept(Content(), IsA(Role()))        // the words or block a document part holds
+Concept(Level(), IsA(Role()))          // a heading's depth
+Concept(Done(), IsA(Role()))           // whether a task is done
+Concept(Language(), IsA(Role()))       // a code block's language
+Concept(To(), IsA(Role()))             // a link's target
+Concept(Alt(), IsA(Role()))            // an image's alternative text
+
+// ---------------------------------------------------------------------------------------------
+// Substantives
+
+Concept(Someone(), Lemma("someone"), IsA(Something()))
+Concept(Something(), Lemma("something"))
+Concept(People(), Lemma("people"), IsA(Someone()))
+Concept(Part(), Lemma("part"), Frame(Thing()))                            // a part of a whole
+Concept(PartOf(), Lemma("part of"), Frame(Thing(), Thing()))              // X is part of Y
+Concept(Place(), Lemma("place"), IsA(Something()))
+Concept(Way(), Lemma("way"), Frame(Act()))                                // how something is done
+Concept(Word(), Lemma("word"), IsA(Something()))
+Concept(Name(), Lemma("name"), Frame(Thing()))                            // what something is called
+Concept(Number(), Lemma("number"), IsA(Amount()))
+Concept(Amount(), Lemma("amount"), Frame(Thing()))
+Concept(State(), Lemma("state"), Frame(Thing()))                          // how something is, at a time
+Concept(Oneself(), Frame(Someone()))                                      // the same someone as the agent
+
+// ---------------------------------------------------------------------------------------------
+// Determination and identity
+
+Concept(This(), Lemma("this"), Frame(Thing()))
+Concept(Same(), Lemma("same"), Frame(Thing(), Thing()))
+Concept(Other(), Lemma("other"), Frame(Thing(), Thing()))                 // not the same as
+Concept(Like(), Lemma("like"), Frame(Thing(), Thing()))                   // similar to
+Concept(Be(), Lemma("be"), Frame(Thing(), Thing()))                       // X is Y (identity or kind)
+Concept(Exist(), Lemma("exist"), Lemma("there is"), Frame(Thing()))
+Concept(Have(), Lemma("have"), Frame(Thing(), Thing()))                   // X has Y
+Concept(BeIn(), Lemma("be in"), Frame(Thing(), Thing()))                  // X is in Y
+Concept(Together(), Lemma("together"), Frame(Thing()))                    // the members are one
+Concept(Touch(), Lemma("touch"), Frame(Thing(), Thing()))
+
+// ---------------------------------------------------------------------------------------------
+// Quantity
+
+Concept(One(), Lemma("one"), IsA(Number()))
+Concept(Two(), Lemma("two"), IsA(Number()))
+Concept(Many(), Lemma("many"), Lemma("much"), Frame(Kind()))
+Concept(Few(), Lemma("few"), Lemma("little"), Frame(Kind()))
+Concept(More(), Lemma("more"), Frame(Thing(), standard=Thing(), attribute=Kind()))
+Concept(Less(), Lemma("less"), Frame(Thing(), standard=Thing(), attribute=Kind()))
+Concept(Most(), Lemma("most"), Frame(Kind(), attribute=Kind()))
+Concept(Enough(), Lemma("enough"), Frame(Thing(), purpose=Act()))
+Concept(Excess(), Lemma("too"), Frame(Thing(), purpose=Act()))            // more than is good for
+Concept(Very(), Lemma("very"), Frame(Prop()))
+Concept(Also(), Lemma("also"), Frame(Prop()))                             // this as well as the other
+Concept(Whole(), Lemma("whole"), Frame(Thing()))                          // every part of it
+Concept(First(), Lemma("first"), Frame(Thing(), Thing()))                 // nothing before it in an order
+Concept(Last(), Lemma("last"), Frame(Thing(), Thing()))                   // nothing after it in an order
+Concept(Next(), Lemma("next"), Frame(Thing(), Thing()))                   // right after, in an order
+Concept(Order(), Lemma("order"), Frame(Thing(), attribute=Kind()))        // members one after another
+
+// ---------------------------------------------------------------------------------------------
+// Evaluation and description
+
+Concept(Good(), Lemma("good"), Frame(Thing(), beneficiary=Someone()))
+Concept(Bad(), Lemma("bad"), Frame(Thing(), beneficiary=Someone()))
+Concept(True(), Lemma("true"), Frame(Prop()))
+Concept(Big(), Lemma("big"), Frame(Thing()))
+Concept(Small(), Lemma("small"), Frame(Thing()))
+Concept(Long(), Lemma("long"), Frame(Thing()))                            // in length or in time
+Concept(Short(), Lemma("short"), Frame(Thing()))
+Concept(New(), Lemma("new"), Frame(Thing()))                              // began to exist a short time before
+Concept(Old(), Lemma("old"), Frame(Thing()))                              // began to exist a long time before
+Concept(Open(), Lemma("open"), Frame(Thing()))                            // can be gone into, used or added to
+Concept(Work(), Lemma("work"), Frame(Thing()))                            // does what it is for
+Concept(Important(), Lemma("important"), Frame(Thing()))                  // do not miss this (also a document head)
+Concept(Easy(), Lemma("easy"), Frame(Act(), beneficiary=Someone()))
+Concept(Possible(), Lemma("possible"), Frame(Prop()))
+
+// ---------------------------------------------------------------------------------------------
+// Mind
+
+Concept(Think(), Lemma("think"), Frame(experiencer=Someone(), topic=Prop()))
+Concept(Know(), Lemma("know"), Frame(experiencer=Someone(), theme=Thing()))
+Concept(Want(), Lemma("want"), Frame(experiencer=Someone(), theme=Prop()))
+Concept(Need(), Lemma("need"), Frame(experiencer=Thing(), theme=Thing()))    // cannot be or do without
+Concept(Feel(), Lemma("feel"), Frame(experiencer=Someone(), stimulus=Thing()))
+Concept(See(), Lemma("see"), Frame(experiencer=Someone(), stimulus=Thing()))
+Concept(Hear(), Lemma("hear"), Frame(experiencer=Someone(), stimulus=Thing()))
+Concept(Mean(), Lemma("mean"), Frame(Thing(), Thing()))                       // words mean something
+Concept(Choose(), Lemma("choose"), Frame(agent=Someone(), theme=Thing(), source=Thing()))
+Concept(Prefer(), Lemma("prefer"), Frame(experiencer=Someone(), theme=Thing(), standard=Thing()))
+Concept(Try(), Lemma("try"), Frame(agent=Someone(), theme=Act()))
+Concept(Can(), Lemma("can"), Frame(agent=Thing(), theme=Act()))
+Concept(Maybe(), Lemma("maybe"), Frame(Prop()))
+Concept(Because(), Lemma("because"), Frame(Prop(), reason=Prop()))
+
+// ---------------------------------------------------------------------------------------------
+// Speech
+
+Concept(Say(), Lemma("say"), Frame(agent=Someone(), theme=Thing(), recipient=Someone()))
+Concept(Answer(), Lemma("answer"), Frame(agent=Someone(), theme=Thing(), topic=Thing()))  // say in reply to a question
+
+// ---------------------------------------------------------------------------------------------
+// Events and doing
+
+Concept(Do(), Lemma("do"), Frame(agent=Someone(), theme=Act()))
+Concept(Happen(), Lemma("happen"), Frame(theme=Thing()))
+Concept(Cause(), Lemma("cause"), Frame(agent=Thing(), result=Prop()))
+Concept(Become(), Lemma("become"), Frame(Prop()))                         // begin to hold
+Concept(Begin(), Lemma("begin"), Lemma("start"), Frame(theme=Thing()))
+Concept(End(), Lemma("end"), Frame(theme=Thing()))                        // stop happening or holding
+Concept(Continue(), Lemma("continue"), Frame(theme=Thing()))              // go on happening or holding
+Concept(Again(), Lemma("again"), Frame(Prop()))                           // one more time, after before
+Concept(Change(), Lemma("change"), Frame(theme=Thing(), result=Prop()))   // become other than it was
+Concept(Make(), Lemma("make"), Frame(agent=Someone(), product=Thing(), material=Thing()))
+Concept(Move(), Lemma("move"), Frame(agent=Thing(), theme=Thing(), source=Place(), destination=Place()))
+Concept(Use(), Lemma("use"), Frame(agent=Someone(), theme=Thing(), purpose=Act()))
+Concept(Wait(), Lemma("wait"), Frame(agent=Someone(), time=Time()))       // do nothing until
+Concept(Live(), Lemma("live"), Frame(Thing()))                            // is alive, is running
+
+// ---------------------------------------------------------------------------------------------
+// Time (beyond the structural time heads Now, Past, Future, At, Since, Until, During, Before,
+// After, Told, LastChange)
+
+Concept(Moment(), Lemma("moment"), IsA(Time()))
+Concept(Duration(), Lemma("for some time"), Frame(Thing()))               // how long it holds
+
+// ---------------------------------------------------------------------------------------------
+// Space
+
+Concept(Here(), Lemma("here"), IsA(Place()))
+Concept(Near(), Lemma("near"), Frame(Thing(), Thing()))
+Concept(Far(), Lemma("far"), Frame(Thing(), Thing()))
+Concept(Above(), Lemma("above"), Frame(Thing(), Thing()))
+Concept(Below(), Lemma("below"), Frame(Thing(), Thing()))
+Concept(Side(), Lemma("side"), Frame(Thing()))
+
+// ---------------------------------------------------------------------------------------------
+// Documents (design section 25b). Hearing produces these from marks; Speaking's output is made of
+// them, and the media realizations print them.
+
+Concept(Document(), Lemma("document"), Frame(Thing()))
+Concept(Text(), Lemma("text"), Frame(Thing()))                            // a run of words, as content
+Concept(Paragraph(), Lemma("paragraph"), Frame(Thing()))
+Concept(Heading(), Lemma("heading"), Frame(Thing(), level=Number()))
+Concept(List(), Lemma("list"), Frame(Thing()))
+Concept(Item(), Lemma("item"), Frame(Thing()))
+Concept(Task(), Lemma("task"), Frame(Thing(), done=Prop()))
+Concept(Contrast(), Lemma("contrast"), Frame(Thing()))                    // this, as against the alternatives
+Concept(Withdrawn(), Frame(Thing()))                                      // said, then taken back
+Concept(Inserted(), Frame(Thing()))                                       // the added side of a correction
+Concept(Callout(), Frame(Thing(), kind=Kind()))                           // the writer's own words, flagged
+Concept(Code(), Lemma("code"), Frame(Thing()))                            // a name or text to be taken exactly
+Concept(CodeBlock(), Frame(Thing(), language=Kind()))
+Concept(Link(), Lemma("link"), Frame(Thing(), to=Thing()))
+Concept(Image(), Lemma("image"), Frame(Thing(), alt=Thing()))
+Concept(Note(), Lemma("note"), Frame(Thing()))                            // a footnote: belongs where it is cited
+Concept(LineBreak(), Lemma("line break"))
+Concept(Tip(), Lemma("tip"), IsA(Kind()))                                 // a callout kind
+Concept(Warning(), Lemma("warning"), IsA(Kind()))                         // a callout kind
+Concept(Caution(), Lemma("caution"), IsA(Kind()))                         // a callout kind

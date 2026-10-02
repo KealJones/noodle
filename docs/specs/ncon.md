@@ -75,7 +75,7 @@ A **word** is its forms and its senses (design section 5):
 ```
 Concept(List(),
   Lemma("list"),
-  Form("lists", Plural()), Form("listed", Past()), Form("listing", Participle()),
+  Form("lists", Plural()), Form("listed", Past()), Form("listed", PastParticiple()), Form("listing", Gerund()),
   PartOfSpeech(Noun()), PartOfSpeech(Verb()),
   Sense(List#Series), Sense(List#Enumerate))
 
@@ -108,7 +108,9 @@ Fact(subject: Name, claim: expr, inSense?: Name, holds?: Time, meta)
 - **subject**: the concept the fact is about. Facts are stored on their subject and indexed by
   their claim's head and by every concept the claim names, so `IsA(Series())` on `List#Series` is
   found both from `List#Series` and from `Series`.
-- **claim**: any expression without variables. Its head says what kind of fact it is (`IsA`,
+- **claim**: any expression without variables, except a rule: a claim whose head is `Constraint`
+  (a standing rule, such as the seed's default policies) keeps the `_` and pattern variables its
+  rule matches with. Its head says what kind of fact it is (`IsA`,
   `Lemma`, `Takes`, `Holds`, `Named`...). The claim's head is itself a concept and can carry facts
   about how it behaves (`Transitive()`, `InverseOf(...)`, `Symmetric()`); the runtime uses only the
   ones listed in `built-ins.md`.
@@ -202,12 +204,12 @@ none of them. These are the fact heads it reads:
 
 | Fact | Meaning |
 |---|---|
-| `Category(C())` | the word or form, once every non-optional Takes is filled, yields a span of syntactic category C ("the" is a Thing that takes a Noun on its right: CCG's NP/N) |
-| `Takes(side=, category=, role=?, head=?, optional=?)` | it takes an argument of category C on a side (`Left()`, `Right()`); with `role=` the argument fills that role, without it the argument is positional (`The(Beans())`); `head=` restricts the argument's head word (the preposition a verb frame requires) |
-| `Modifies(side=, category=, role=?)` | it attaches to an adjacent span of category C and becomes an argument of that span's head (in role `modifier` unless said) |
-| `Joins(category=?)` | it joins two adjacent spans of the same category (category omitted: any) |
-| `FillsGap(role=?)` | it opens a gap that a displaced phrase fills (a wh-word, a relative pronoun) |
-| `Rule(...)` | a lexical rule on a form or an auxiliary (the passive, questions, fronting): a reading over chart edges, section 5.1 |
+| `Category(C(), ..., wraps=?)` | one **entry**: the word or form, once every non-optional Takes of the entry is filled, yields a span of syntactic category C ("the" is a Thing that takes a Noun on its right: CCG's NP/N). The entry's Takes, Modifies and FillsGap facts are nested in it, so a word with several behaviours has several Category facts ("that" as determiner, pronoun, complementizer, relative). `wraps=X()` makes the edge's expression `X(...)` of what the entry built (an inverted auxiliary wraps `Interrogative`). `Category(Any())` yields the category of the entry's first argument |
+| `Takes(side=, category=, role=?, head=?, optional=?)` | inside an entry: it takes an argument of category C on a side (`Left()`, `Right()`); with `role=` the argument fills that role, without it the argument is positional (`The(Beans())`); `head=` restricts the argument's head word (the preposition a verb frame requires); `category=Any()` takes any category |
+| `Modifies(side=, category=, role=?)` | inside an entry: the entry's complete span attaches to an adjacent span of category C and becomes an argument of that span's head (in role `modifier` unless said) |
+| `Joins(category=?)` | an entry of its own: it joins two adjacent spans of the same category (`Any()` or omitted: any) |
+| `FillsGap(category=)` | inside an entry: the entry's clause argument has a gap of that category, filled by `Gap()` in the heard expression (a wh-word, a relative pronoun) |
+| `Corrects()`, `Aside()` | the word signals a correction (bound to a choice point of the last reading, design section 17) or an aside (kept on the turn, design section 14) |
 
 **Category and kind are different** (design section 8). Categories are the chart's hard constraint:
 a small closed set of structural concepts (`built-ins.md`, section 4.2). Kinds are soft: they enter only
@@ -219,11 +221,16 @@ of Takes facts on a word is their order of application (the first is the nearest
 
 ### 5.1 Lexical rules
 
-A lexical rule is a reading whose pattern is over a chart edge and a form or auxiliary, and whose
-becomes rearranges roles: the passive (a form of "be" plus a past participle) swaps agent and theme
-and moves "by" to agent; a question inverts; a fronted phrase fills the role it came from. They are
-readings on the words that trigger them (`Be`, the participle form feature), written in the seed,
-counted (design section 6, part 4).
+A lexical rule is a reading whose owner is what triggers it: a category concept (it applies to
+every edge of that category), a form feature (`Plural`, `Past`, `Present`, `PastParticiple`,
+`Gerund`, `ThirdSingular`: to edges of words in that form), or a word (`Be`). Its pattern and
+becomes are wrapped in the edge's category (`pattern=Act($e)`, `becomes=Clause(Imperative($e))`), so
+a rule can change the category of the edge it adds. `WithRoles($e, theme=$x)` is `$e` with those
+roles filled, for when the head is not known; patterns never have a variable head. The passive puts
+the subject of "be" in `theme` and "by" in `agent`; a bare Act is an imperative; fronted phrases
+attach by their own `Modifies(side=Right(), category=Clause())` entries. Written in the seed,
+counted (design section 6, part 4). A category concept may also carry an entry of its own:
+predication is `Concept(Act(), Category(Clause(), Takes(side=Left(), category=Thing(), role=Agent())))`.
 
 ## 6. Content blocks
 

@@ -111,8 +111,11 @@ without them.
 
 ### 4.2 The chart's vocabulary and its categories
 
-Fact heads: `Category`, `Takes`, `Modifies`, `Joins`, `FillsGap`, `Rule`, `Tone`, `OpensClause`,
-`EndsClause`, `SetsAside`, `KeyNeighbours`, `HasShape`; sides `Left`, `Right`; the role `Modifier`.
+Fact heads: `Category`, `Takes`, `Modifies`, `Joins`, `FillsGap`, `Tone`, `OpensClause`,
+`EndsClause`, `SetsAside`, `KeyNeighbours`, `HasShape`, `Corrects`, `Aside`; sides `Left`, `Right`;
+the role `Modifier`; `Wraps` (an entry's wrapper), `Gap` (the gap filler), `WithRoles` (roles
+filled on an expression whose head is not known), `Indent`; the form features `Plural`, `Past`,
+`Present`, `PastParticiple`, `Gerund`, `ThirdSingular`.
 
 Categories (a closed list; the chart's hard constraint):
 
@@ -125,6 +128,7 @@ Categories (a closed list; the chart's hard constraint):
 | `Relation` | a prepositional phrase (PP) | "to my list" |
 | `Property` | an adjective phrase | "broken", "already set up" |
 | `Manner` | an adverbial | "yet", "quickly" |
+| `Mark` | a mark that only closes or pairs | `)`, the closing `*` |
 
 Why structural: the six steps compare categories by identity. Which word has which category is data;
 the list itself is what the steps range over.
@@ -136,7 +140,8 @@ the list itself is what the steps range over.
 
 ### 4.4 The logical form
 
-Speech acts `Question`, `Assert`, `Directive`, `Advice`, `Constraint`; operators `Not`, `Only`,
+LF argument kinds `Prop`, `Act`, `Thing`, `Time`, `Kind`, `Rule`, and `Frame` (what a core meaning
+takes, read by the kind check). Speech acts `Question`, `Assert`, `Directive`, `Advice`, `Constraint`; operators `Not`, `Only`,
 `Every`, `Some`, `If`, `And`, `Or`, `Then`, `Quote`, `Mention`, `Permit`; scope `Hole`, `Label`,
 `Outscopes`; referents `Ref`; time `Now`, `Past`, `Future`, `At`, `Since`, `Until`, `During`,
 `Before`, `After`, `Told`, `LastChange`; `Written` (canonical free text). Participants `Speaker`
@@ -166,6 +171,16 @@ the conversation structure are runtime mechanism over them (runtime spec, sectio
 ### 4.7 The primitives
 
 The names in section 2.
+
+### 4.8 Saying and printing
+
+The reasons an expression is unworked (`NoSense`, `NoReading`, `NeedUnmet`, `NoSource`,
+`NoPermission`, `TooClose`, `BlockedBy`, `Unworked`), what Say is handed to realize (`Offer`,
+`Echo`, `Outcome`, `Reply`), and the printing step (`Print`, `Medium`, `Printed`, `Escaped`,
+`Escapes`, `Fenced`, `Repeated`, `Uppercase`, `Capitalized`). Why structural: the runtime records
+the reasons and calls Say with them; the realizations that word them are seed readings (part 8).
+
+The full list, with each group's reason, is `src/structural.ts`.
 
 ## 5. How to add a built-in
 
@@ -202,5 +217,6 @@ The names in section 2.
 Keal (2026-10-01):
 
 - **Categories (1):** deferred to the seed draft. Nothing in the parser or runtime treats the list as closed.
+  The seed draft (0.1.0) proposes the seven plus `Mark` (`seed/README.md`, decision 3).
 - **Structural count (4):** about 130 names accepted, time heads stay structural. The design's "a
   handful" is to be reworded to the real count.
