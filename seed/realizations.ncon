@@ -61,9 +61,9 @@ Reading(on=TooClose(), mode=Speaking(), pattern=TooClose($a, $b),
 Reading(on=BlockedBy(), mode=Speaking(), pattern=BlockedBy($a, $rule, from=$src),
   becomes=Paragraph("I didn't ", $a, ": ", $rule, " (", $src, ")."))
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x),
-  becomes=Paragraph("I couldn't work out ", Quote($x), "."))
+  becomes=Paragraph("I couldn't work out \"", $x, "\"."))
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=$why),
-  becomes=Paragraph("I couldn't work out ", Quote($x), ": ", $why, "."))
+  becomes=Paragraph("I couldn't work out \"", $x, "\": ", $why, "."))
 
 // =============================================================================================
 // 3. Offers before a guarded act, with the target shown (design section 13)
@@ -90,45 +90,52 @@ Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Only($a))),
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint($r, over=Always())),
   becomes=Paragraph("From now on, ", Echo(Constraint($r)), " Right?"))
 // A directive to do a blocked act: the rule is echoed, not lifted (logical-form.md section 7).
-Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not($a), until=Told()))),
-  becomes=Paragraph("You said not to ", $a, " yet. ", $a, " now?"))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not($r), until=Told()))),
+  becomes=Paragraph("You said not to ", $r, " yet. Do it now?"))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not($r)))),
+  becomes=Paragraph("You said not to ", $r, ", so I didn't."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Only($r)))),
+  becomes=Paragraph("You said to only ", $r, ", so I didn't ", $a, "."))
 
 // What it understood a request as, when it asks to be sure.
 Reading(on=Directive(), mode=Speaking(), pattern=Echo(Directive($a)),
   becomes=Paragraph("You want me to ", $a, "?"))
 
 // =============================================================================================
-// 5. Results
+// 5. Results. Outcome(act, result=r, checked=c) is what an act did; an act is said in the words
+// the user used for it where there are some.
 
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Happen(theme=$a, time=Past())),
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome($a, result=$r),
   becomes=Paragraph("Done: ", $a, "."))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Happen(theme=$a, time=Past()), checked=true),
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome($a, result=$r, checked=true),
   becomes=Paragraph("Done, and checked: ", $a, "."))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Happen(theme=$a, time=Past()), checked=false),
-  becomes=Paragraph($a, ". I can't tell whether that does what you wanted."))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Not(Happen(theme=$a)), because=$why),
-  becomes=Paragraph("I didn't ", $a, ": ", $why, "."))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Sequence($steps), stopped=$at),
-  becomes=Document(Paragraph("I stopped at ", $at, ". What ran:"), List($steps)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome($a, result=$r, checked=false),
+  becomes=Paragraph("I tried to ", $a, ", but it didn't do what it should have."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome($a, error=$e),
+  becomes=Paragraph("I couldn't ", $a, ": ", $e))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x, output=$out, error=$err), checked=true),
+  becomes=Document(CodeBlock(Run($p, $args)), CodeBlock($out)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x, output=$out, error=$err), checked=false),
+  becomes=Document(Paragraph("It failed (exit ", $x, "):"), CodeBlock(Run($p, $args)), CodeBlock($err)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=File(path=$path, content=$b, media=$m)),
+  becomes=Document(Paragraph(Code($path), ":"), CodeBlock($b)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r),
+  becomes=Paragraph($r))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Count($s), result=$n),
+  becomes=Paragraph($n))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a)),
   becomes=Paragraph("I can undo ", $a, ". Want me to?"))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), output=$out),
-  becomes=Document(CodeBlock(Run($p, $args)), CodeBlock($out)))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Count($s), $n),
-  becomes=Paragraph($n))
-Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Nothing()),
-  becomes=Paragraph("Nothing."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Sequence($steps), stopped=$at),
+  becomes=Document(Paragraph("I stopped at ", $at, ". What ran:"), List($steps)))
 
-// Answers.
-Reading(on=Answer(), mode=Speaking(), pattern=Answer(true), becomes=Paragraph("Yes."))
-Reading(on=Answer(), mode=Speaking(), pattern=Answer(false), becomes=Paragraph("No."))
-Reading(on=Answer(), mode=Speaking(), pattern=Answer(true, $p), becomes=Paragraph("Yes, ", $p, "."))
-Reading(on=Answer(), mode=Speaking(), pattern=Answer(false, $p), becomes=Paragraph("No, ", Not($p), "."))
-Reading(on=Answer(), mode=Speaking(), pattern=Answer($x), becomes=Paragraph($x))
-Reading(on=Answer(), mode=Speaking(), pattern=Answer(Not(Know(experiencer=Addressee(), theme=$q))),
-  becomes=Paragraph("I don't know."))
-Reading(on=Answer(), mode=Speaking(), pattern=Answer(Not(True($presupposed))),
-  becomes=Paragraph("That assumes ", $presupposed, ", which isn't so."))
+// Answers to questions and checks of claims.
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=true), becomes=Paragraph("Yes."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=false), becomes=Paragraph("No."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p, about=$x), result=$r), becomes=Paragraph($r))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=$r), becomes=Paragraph($r))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Assert($p), result=true), becomes=Paragraph("Yes, that's right."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Assert($p), result=false), becomes=Paragraph("That's not so."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Nothing()), becomes=Paragraph("Nothing."))
 
 // Asking.
 Reading(on=Ask(), mode=Speaking(), pattern=Ask(Or($a, $b)), becomes=Paragraph("Do you mean ", $a, " or ", $b, "?"))
@@ -139,6 +146,9 @@ Reading(on=Ask(), mode=Speaking(), pattern=Ask($p), becomes=Paragraph($p, "?"))
 Reading(on=Hello(), mode=Speaking(), pattern=Reply(Hello()), becomes=Paragraph("Hi."))
 Reading(on=Thanks(), mode=Speaking(), pattern=Reply(Thanks()), becomes=Paragraph("You're welcome."))
 Reading(on=Bye(), mode=Speaking(), pattern=Reply(Bye()), becomes=Paragraph("Bye."))
+Reading(on=Sorry(), mode=Speaking(), pattern=Reply(Sorry()), becomes=Paragraph("No worries."))
+Reading(on=Stop(), mode=Speaking(), pattern=Reply(End($x)), becomes=Paragraph("Stopped."))
+Reading(on=Lol(), mode=Speaking(), pattern=Reply(Lol()), becomes=Paragraph("Ha."))
 
 // =============================================================================================
 // 6. Markdown (design section 25b)

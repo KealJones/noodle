@@ -13,8 +13,8 @@ export type Mode = "Doing" | "Speaking" | "Supposing";
 export interface Step {
   reading: number;
   owner: string;
-  before: string;
-  after: string;
+  before: Expr;
+  after: Expr;
 }
 
 export interface Derivation {
@@ -86,7 +86,7 @@ export class Rewriter {
     if (cands.length) {
       const alts: Omit<Derivation, "score">[] = [];
       for (const { r, b, result } of cands) {
-        const step: Step = { reading: r.meta.id, owner: r.owner, before: k, after: key(result) };
+        const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result };
         const own = this.wantFeatures(r, b);
         addFeature(own, `Evidence:${r.meta.id}`, 1);
         for (const d of this.norm(result, depth + 1, seen2))
