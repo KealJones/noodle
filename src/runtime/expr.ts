@@ -32,7 +32,17 @@ export const isHead = (e: Expr | undefined, head: string): e is Call => isCall(e
  * arguments in their written order (ncon.md: roled arguments compare by role regardless of order,
  * so `key` sorts them).
  */
+const keys = new WeakMap<Expr, string>();
+
 export function key(e: Expr): string {
+  const have = keys.get(e);
+  if (have !== undefined) return have;
+  const k = computeKey(e);
+  keys.set(e, k);
+  return k;
+}
+
+function computeKey(e: Expr): string {
   switch (e.kind) {
     case "number":
       return JSON.stringify(e.value);
