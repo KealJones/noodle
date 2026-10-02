@@ -15,7 +15,7 @@ const jsonl = (p) => readFileSync(p, "utf8").split("\n").filter(Boolean).map((l)
 const all = jsonl(join(homedir(), ".napkin", "corpus", "all.jsonl"));
 const holdout = new Set(JSON.parse(readFileSync(join(homedir(), ".noodle", "experiment", "split.json"), "utf8")).holdout);
 const labels = jsonl(join(homedir(), ".napkin", "corpus", "tests", "labels.jsonl")).filter(
-  (l) => typeof l.i === "number" && !holdout.has(l.i) && l.verdict !== "drop" && (l.class === "acts" || l.class === "none") && all[l.i]?.text && all[l.i].text.split(/\s+/).length <= 150,
+  (l) => typeof l.i === "number" && !holdout.has(l.i) && l.verdict !== "drop" && (l.class === "acts" || l.class === "none") && all[l.i]?.text && all[l.i].text.split(/\s+/).length <= 150 && !all[l.i].text.trimStart().startsWith("<heartbeat>"),
 );
 
 // The learned commands: every reading from a tool's documentation that becomes Run.

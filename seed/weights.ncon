@@ -5,6 +5,8 @@
 // 1; every other template at 0. ReachedAct is the strong prior toward the executable reading,
 // named so it can be ablated. Unworked counts expressions left that no reading applied to (its
 // value is minus that count), so a reading that reads every word beats one that leaves one.
+// CandidateSource is 1 too: a token read as said scores above one read as a spelling correction a
+// distance away, which otherwise counted the same as the word itself ("browser" read as "browse").
 
 Pack(name="seed-weights", version="0.1.0", from=Seed("weights"))
 
@@ -13,7 +15,7 @@ Concept(WordsUsed(), Weight(1))
 Concept(WantedKind(), Weight(1))
 Concept(ShapeFit(), Weight(1))
 Concept(SenseFrequency(), Weight(1))
-Concept(CandidateSource(), Weight(0))
+Concept(CandidateSource(), Weight(1))
 Concept(Neighbour(), Weight(0))
 Concept(Evidence(), Weight(0))
 Concept(Match(), Weight(0))

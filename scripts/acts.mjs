@@ -47,6 +47,8 @@ const rows = [];
 for (const l of labels) {
   const text = all[l.i]?.text;
   if (!text) continue;
+  // Automated messages (scheduled heartbeats) are not prompts (testing.md section 5).
+  if (text.trimStart().startsWith("<heartbeat>")) continue;
   if (text.split(/\s+/).length > maxWords) {
     rows.push({ i: l.i, cls: l.class, tooLong: true });
     continue;
