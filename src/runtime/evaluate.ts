@@ -234,11 +234,12 @@ export class Evaluator {
     const p = this.primitives.get(a0.head);
     if (!p) return undefined;
     const a = this.resolve(a0) as Call;
-    // Input the primitive does not take must not be dropped: a "never" or a "not" left on the call
-    // would be silently ignored (AGENTS.md rule 8b). Only who does it, the tool it is done with,
-    // and tone (kept on the turn) may be left.
+    // Input the primitive does not take is left over (and counted as unworked). What must never be
+    // dropped is a word that limits what may run: one whose readings make a prohibition, a
+    // restriction or a condition ("never", "yet", "only", "unless") would be silently ignored
+    // (AGENTS.md rule 8b), so a call with one left on it does not run.
     const left = a.args.filter((x) => x.name !== undefined && x.name !== "agent" && x.name !== "instrument");
-    if (left.some((x) => !(isCall(x.value) && this.store.facts(x.value.head, "Tone").length > 0))) return undefined;
+    if (left.some((x) => [...walk(x.value)].some((y) => isCall(y) && this.limits(y.head)))) return undefined;
     const args = positional(a);
     if (args.length !== p.params.length) return undefined;
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
@@ -277,6 +278,12 @@ export class Evaluator {
       if (isHead(r.rule, "Only") && !this.ruleMatches(r, a, ancestry)) return { rule: r };
     }
     return undefined;
+  }
+
+  /** A word whose own readings make a prohibition, a restriction or a condition. */
+  private limits(head: string): boolean {
+    if (head === "Not" || head === "Only" || head === "If" || head === "Constraint") return true;
+    return this.store.readingsOn(head).some((r) => !r.mode && r.becomes !== undefined && [...walk(r.becomes)].some((y) => isCall(y) && (y.head === "Not" || y.head === "Only" || y.head === "Constraint" || y.head === "If")));
   }
 
   /**
