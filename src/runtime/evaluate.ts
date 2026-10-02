@@ -240,6 +240,9 @@ export class Evaluator {
     // (AGENTS.md rule 8b), so a call with one left on it does not run.
     const left = a.args.filter((x) => x.name !== undefined && x.name !== "agent" && x.name !== "instrument");
     if (left.some((x) => [...walk(x.value)].some((y) => isCall(y) && this.limits(y.head)))) return undefined;
+    // An act told in the past or the future ("I pushed it") is a report or a plan, not something to
+    // do now (logical-form.md 3.3: time is an index on the act).
+    if (left.some((x) => x.name === "time" && isCall(x.value) && x.value.head !== "Now")) return undefined;
     const args = positional(a);
     if (args.length !== p.params.length) return undefined;
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
