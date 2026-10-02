@@ -84,9 +84,10 @@ Concept(Web(), TrustLevel(4))
 
 // Focus's budget per turn (design section 14b; runtime.md 11b): how many lookups each source may
 // have, and how many candidates one search may take from it, most salient first. The world is
-// asked at most twice a turn; the workspace is listed once, at most 200 names.
+// asked at most four times a turn (a question, and what it names learned about); the workspace
+// is listed once, at most 200 names.
 Concept(Focus(),
   Budget(CurrentConversation(), candidates=20),
   Budget(UserFacts(), candidates=20),
   Budget(Workspace(), lookups=1, candidates=200),
-  Budget(World(), lookups=2))
+  Budget(World(), lookups=4))

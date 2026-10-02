@@ -457,7 +457,7 @@ relevant.
   then it stays unworked (section 7).
 - **Budget** per turn: lookups per source, a network time limit, and a cap on how far back past
   conversations are searched unless the words ask ("the list from last month"). The budget is a
-  policy fact on `Focus` per source (`Budget(World(), lookups=2)`, `Budget(Workspace(), lookups=1,
+  policy fact on `Focus` per source (`Budget(World(), lookups=4)`, `Budget(Workspace(), lookups=1,
   candidates=200)`, `Budget(UserFacts(), candidates=20)`): `lookups` is how many times a turn may
   ask the source, `candidates` how many one search may take from it, most salient (then most
   recent) first. A source with no budget is unbounded. A need the world cannot be asked for, the

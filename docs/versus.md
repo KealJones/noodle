@@ -1,12 +1,12 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 16:29 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 17:50 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
 | | RIGHT | HONEST | WRONG | ERROR |
 |---|---|---|---|---|
-| Noodle | 37 | 47 | 10 | 0 |
+| Noodle | 38 | 46 | 10 | 0 |
 | Napkin | 31 | 49 | 14 | 0 |
 
 By session (RIGHT / HONEST / WRONG / ERROR):
@@ -17,12 +17,12 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | facts | 4 / 3 / 1 / 0 | 2 / 5 / 1 / 0 |
 | math | 5 / 1 / 1 / 0 | 5 / 1 / 1 / 0 |
 | units | 1 / 3 / 1 / 0 | 2 / 3 / 0 / 0 |
-| time and reminders | 2 / 2 / 1 / 0 | 4 / 1 / 0 / 0 |
-| lists and memory | 2 / 6 / 1 / 0 | 2 / 5 / 2 / 0 |
+| time and reminders | 2 / 1 / 2 / 0 | 4 / 1 / 0 / 0 |
+| lists and memory | 2 / 7 / 0 / 0 | 2 / 5 / 2 / 0 |
 | definitions | 2 / 4 / 0 / 0 | 3 / 1 / 2 / 0 |
-| files | 3 / 4 / 1 / 0 | 0 / 7 / 1 / 0 |
-| git | 3 / 3 / 2 / 0 | 0 / 8 / 0 / 0 |
-| instructions | 2 / 1 / 1 / 0 | 0 / 4 / 0 / 0 |
+| files | 2 / 5 / 1 / 0 | 0 / 7 / 1 / 0 |
+| git | 4 / 1 / 3 / 0 | 0 / 8 / 0 / 0 |
+| instructions | 3 / 1 / 0 / 0 | 0 / 4 / 0 / 0 |
 | multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
 | typos and messy phrasing | 3 / 5 / 0 / 0 | 2 / 5 / 1 / 0 |
 | near-misses | 4 / 3 / 0 / 0 | 2 / 3 / 2 / 0 |
@@ -45,7 +45,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 9 | what is the capital of japan? | From Wikipedia, [Capital of Japan](https://en.wikipedia.org/wiki/Capital_of_Japan):<br><br>The capital of Japan is Tokyo. Throughout history, the national capital of Japan has been in locations other than Tokyo. The oldest capital is Nara. | RIGHT | Tokyo. | RIGHT |
+| 9 | what is the capital of japan? | From Wikidata:<br><br>Tokyo | RIGHT | Tokyo. | RIGHT |
 | 10 | who wrote pride and prejudice | From Wikipedia, [Pride & Prejudice (2005 film)](https://en.wikipedia.org/wiki/Pride_%26_Prejudice_(2005_film)):<br><br>Pride & Prejudice is a 2005 period romance film directed by Joe Wright, in his feature directorial debut, based on Jane Austen's 1813 novel of the same name. The film features five sisters from an English family of landed gentry as they deal with issues of marriage, morality, and  ... | RIGHT | I don't know that yet. | HONEST |
 | 11 | how many legs does a spider have | I couldn't work out "how many legs does a spider have". | HONEST | I heard that as "how many legs does have spider", but couldn't work it out. Could you put it another way? | HONEST |
 | 12 | what's the boiling point of water in celsius | I couldn't work out "what's the boiling point of water in celsius". | HONEST | I don't know boiling point of water in celsius yet. | HONEST |
@@ -80,18 +80,18 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 9:30 AM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 10:51 AM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Friday, October 2. | RIGHT | Thursday. | RIGHT |
-| 31 | what's the date tomorrow | Today is Friday, October 2. | WRONG | Friday, October 2, 2026 | RIGHT |
+| 31 | what's the date tomorrow | From Wikipedia, [Date palm](https://en.wikipedia.org/wiki/Date_palm):<br><br>Phoenix dactylifera, commonly known as the date palm, is a flowering-plant species in the palm family Arecaceae, native to the region from the Gulf States and Iraq to Pakistan and India. It is cultivated for its edible sweet fruit called dates. The species is widely cultivated across northern Africa, the Middle East, Aust ... | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
-| 33 | how many days until christmas | I couldn't work out "how many days until christmas". | HONEST | 85 days. | RIGHT |
+| 33 | how many days until christmas | From Wikipedia, [The Twelve Days of Christmas (song)](https://en.wikipedia.org/wiki/The_Twelve_Days_of_Christmas_(song)):<br><br>"The Twelve Days of Christmas" is an English Christmas carol and nursery rhyme. A classic example of a cumulative song, the lyrics detail a series of increasingly numerous gifts given to the speaker by their "true love" on each of the twelve days of Christmas. The carol, ... | WRONG | 85 days. | RIGHT |
 
 ## lists and memory
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 34 | start a grocery list | I couldn't work out "start a grocery list". | HONEST | I don't know how to start yet. | HONEST |
-| 35 | add eggs and milk to it | I can run `git add`, but I don't know yet what it changes. Go ahead? | WRONG | Added eggs and milk to your start. | RIGHT |
+| 35 | add eggs and milk to it | I couldn't work out "add eggs and milk to it". | HONEST | Added eggs and milk to your start. | RIGHT |
 | 36 | also add bread | I couldn't work out "also add bread". | HONEST | I don't know how to add yet. | HONEST |
 | 37 | what's on my grocery list? | You haven't told me that. | HONEST | I don't know yet. | HONEST |
 | 38 | take milk off the list | I couldn't work out "take milk off the list". | HONEST | I don't know how to milk yet. | HONEST |
@@ -119,7 +119,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 50 | show me the readme | `README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: Readme() | HONEST |
 | 51 | what's in notes.txt | `notes.txt`:<br><br>```<br>buy milk<br>call mom<br>fix the bike<br>``` | RIGHT | I don't know yet. | HONEST |
 | 52 | how many lines are in notes.txt | I couldn't work out "how many lines are in notes.txt". | HONEST | I don't know yet. | HONEST |
-| 53 | create a file called ideas.md with the text 'build a robot' | ideas.md | RIGHT | I worked that out, but I don't know how to say it yet: Robot() | HONEST |
+| 53 | create a file called ideas.md with the text 'build a robot' | I don't know what `ideas.md` means here. | HONEST | I worked that out, but I don't know how to say it yet: Robot() | HONEST |
 | 54 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
 | 55 | rename ideas.md to plans.md | I don't know these words yet: ideas.md and plans.md. | HONEST | I don't know how to rename yet. | HONEST |
 | 56 | delete plans.md | I don't know what `plans.md` means here. | HONEST | I don't know how to delete yet. | HONEST |
@@ -128,12 +128,12 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-BN5ApU`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-pqY00t`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 954a02129f1f34060a718d25b336d44394e284ce<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 09:30:19 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
-| 60 | commit my changes with the message 'update readme' | I couldn't work out "commit my changes with the message 'update readme'". | HONEST | I don't know how to commit yet. | HONEST |
-| 61 | yes go ahead | There's nothing I'm waiting to do. | HONEST | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
-| 62 | is the working tree clean now? | Do you mean ` git clean  `, or `git clean`? | RIGHT | I don't know yet. | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 3830cd9b20e65a27a872c1d6f1daf9ea869a97a7<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 10:51:18 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 60 | commit my changes with the message 'update readme' | I can run `git commit`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
+| 61 | yes go ahead | `git commit` failed (exit 1):<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
+| 62 | is the working tree clean now? | Do you mean run ` git clean  `, or run `git clean`? | RIGHT | I don't know yet. | HONEST |
 | 63 | create a branch called feature-login | I don't know what `feature-login` means here. | HONEST | I worked that out, but I don't know how to say it yet: BudgetExceeded(kind="steps", limit=4000) | HONEST |
 | 64 | push it | I can run `git push`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
 
@@ -141,8 +141,8 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 65 | don't run any git commands without asking me first | Got it: I won't not `git ...`.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
-| 66 | show me the git status | ```<br>git status<br>```<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I don't know how to status yet. | HONEST |
+| 65 | don't run any git commands without asking me first | Got it: I won't run `git ...` until you say so.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
+| 66 | show me the git status | Do you mean run `git status`, or run `git status`? | RIGHT | I don't know how to status yet. | HONEST |
 | 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short". | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
 | 68 | stop | Stopped. | RIGHT | I worked that out, but I don't know how to say it yet: Stop() | HONEST |
 
@@ -154,7 +154,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 70 | make a file called a.txt, then another called b.txt | I don't know these words yet: a.txt and b.txt. | HONEST | I don't know how to called yet. | HONEST |
 | 71 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
 | 72 | list the files and then show me package.json | `package.json`:<br><br>```<br>{<br>  "name": "shop",<br>  "version": "1.0.0"<br>}<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
-| 73 | what's 6 times 7 and what's the capital of italy | 6 times 7 is 42.<br><br>I couldn't the capital of italy: no such file or directory: italy | WRONG | I don't know how to multiply yet. | HONEST |
+| 73 | what's 6 times 7 and what's the capital of italy | 6 times 7 is 42. | WRONG | I don't know how to multiply yet. | HONEST |
 
 ## typos and messy phrasing
 
@@ -162,7 +162,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 74 | waht is teh capitol of france | I couldn't work out "waht is teh capitol of france". | HONEST | Paris. | RIGHT |
 | 75 | hwo many days in a leap yeer | I couldn't work out "hwo many days in a leap yeer". | HONEST | I don't know that yet. | HONEST |
-| 76 | pls show me whats in teh readme | I couldn't work out "pls show me whats in teh readme". I understood `git show me`, but I don't know how to do it.<br><br>`README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I don't know how to what yet. | HONEST |
+| 76 | pls show me whats in teh readme | I couldn't work out "pls show me whats in teh readme". I understood run `git show me`, but I don't know how to do it.<br><br>`README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I don't know how to what yet. | HONEST |
 | 77 | whats 9 tims 9 | 9 times 9 is 81. | RIGHT | I don't know yet. | HONEST |
 | 78 | remmber my fav color is green | I couldn't work out "remmber my fav color is green". | HONEST | I don't know how to is yet. | HONEST |
 | 79 | wats my fav color | You haven't told me that. | HONEST | I see. | WRONG |

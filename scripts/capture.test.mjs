@@ -34,8 +34,10 @@ test('captures head, uncommitted work, untracked files, and pins them', () => {
   assert.ok(existsSync(join(root, 'fixtures', m.id, 'untracked.tar.gz')));
   assert.equal(sh(d, 'stash', 'list'), '', 'stash list untouched');
   assert.equal(readFileSync(join(d, 'a.txt'), 'utf8'), 'two\n', 'working tree untouched');
-  const idx = readFileSync(join(root, 'captures.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const idx = readFileSync(join(root, 'capture', `${m.at.slice(0, 7)}.jsonl`), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
   assert.equal(idx.at(-1).dirty, true);
+  assert.equal(idx.at(-1).sessionId, 's1');
+  assert.equal(idx.at(-1).prompt, 'commit and push');
 });
 
 test('a clean tree has no work commit', () => {
