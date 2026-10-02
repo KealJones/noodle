@@ -71,7 +71,7 @@ test("a reading from documentation is offered even under a grant, and runs once 
 test("an offer of three acts is a list", async () => {
   const { s } = session();
   const r = await s.turn("zap and push and blip");
-  assert.match(r.text, /^I can do these, in order:\n\n- `touch zapped`\n- `touch pushed`\n- `touch blipped`\n\nGo ahead\?$/);
+  assert.match(r.text, /^I can do these, in order:\n\n- run `touch zapped`\n- run `touch pushed`\n- run `touch blipped`\n\nGo ahead\?$/);
 });
 
 test("two chats that start alike do not share a session", async () => {

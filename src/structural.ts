@@ -102,6 +102,9 @@ export const STRUCTURAL = {
       "Due",
       "Print", "Medium", "Printed", "Escaped", "Escapes", "Fenced", "Repeated", "Uppercase", "Capitalized",
       "Block", "Min", "Pad",
+      // A child said as itself where it has words of its own, else the wrapper's fallback: what
+      // lets a wrapper say only the wrapping ("Done: ...") and a child say itself (a command's run).
+      "Either",
       // Run's argument list, which a command line is realized from.
       "Args",
     ],
