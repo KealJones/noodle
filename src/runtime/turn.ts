@@ -188,6 +188,24 @@ export class Session {
     if (choices.length && !opts.dry) this.last = choices[choices.length - 1];
 
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
+    // Being stuck is said once, about the whole message, however many parts of it were stuck.
+    const stuckSaid = said.filter((x) => isCall(x) && x.head === "Unworked" && !role(x, "because"));
+    if (stuckSaid.length > 1) {
+      const at = said.indexOf(stuckSaid[0]);
+      const rest = said.filter((x) => !stuckSaid.includes(x));
+      rest.splice(at, 0, c("Unworked", s(text.trim())));
+      said.length = 0;
+      said.push(...rest);
+    }
+    // The same answer from outside is said once, whichever part of the message asked for it.
+    const seenFound = new Set<string>();
+    for (let i = 0; i < said.length; i++) {
+      const r = isCall(said[i]) && (said[i] as Call).head === "Outcome" ? role(said[i], "result") : undefined;
+      if (!r || !isCall(r) || r.head !== "Found") continue;
+      const k = key(positional(r)[0]);
+      if (seenFound.has(k)) said.splice(i--, 1);
+      else seenFound.add(k);
+    }
     // The same thing is said once.
     const once = new Set<string>();
     for (let i = said.length - 1; i >= 0; i--) {

@@ -954,6 +954,10 @@ Concept(CamelCase(), IsA(Name()), HasShape(Seq(Lower(), Repeat(OneOf(Lower(), Di
 Concept(Emoji(), HasShape(Seq(Literal(":"), Repeat(OneOf(Lower(), Digit(), Literal("_"), Literal("+"), Literal("-")), 1, 40), Literal(":"))),
   Tone(Warmth()))
 
+// A code span is an exact name (design section 25b): what is between the backticks, never a
+// spelling candidate. Capture marks the part that is the name.
+Concept(CodeSpan(), IsA(Name()), HasShape(Seq(Literal("`"), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("`"))))
+
 // Set aside before the chart: content, never heard (runtime.md section 3.1; design section 25b).
 Concept(CodeFence(), IsA(CodeBlock()), SetsAside(),
   HasShape(Seq(Literal("```"), Repeat(Any(), 0, 1000000, shortest=true), Literal("```"))),

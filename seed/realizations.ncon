@@ -187,6 +187,7 @@ Reading(on=Ask(), mode=Speaking(), pattern=Ask($p), becomes=Paragraph($p, "?"))
 Reading(on=Hello(), mode=Speaking(), pattern=Reply(Hello()), becomes=Paragraph("Hi."))
 Reading(on=Thanks(), mode=Speaking(), pattern=Reply(Thanks()), becomes=Paragraph("You're welcome."))
 Reading(on=Bye(), mode=Speaking(), pattern=Reply(Bye()), becomes=Paragraph("Bye."))
+
 Reading(on=Sorry(), mode=Speaking(), pattern=Reply(Sorry()), becomes=Paragraph("No worries."))
 Reading(on=Stop(), mode=Speaking(), pattern=Reply(End($x)), becomes=Paragraph("Stopped."))
 Reading(on=Lol(), mode=Speaking(), pattern=Reply(Lol()), becomes=Paragraph("Ha."))

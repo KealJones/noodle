@@ -5,7 +5,7 @@
 
 import type { Expr } from "./expr.js";
 import { c, isCall, positional } from "./expr.js";
-import { matchShape } from "./shape.js";
+import { matchShape, matchShapeValue } from "./shape.js";
 import type { Store } from "./store.js";
 
 export interface Token {
@@ -252,10 +252,13 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
   const ends = new Map(tokens.map((t, i) => [t.end, i]));
   tokens.forEach((tok, i) => {
     for (const f of shapes) {
-      const len = matchShape(positional(f.claim as never)[0] as Expr, text, tok.start);
+      const { len, value } = matchShapeValue(positional(f.claim as never)[0] as Expr, text, tok.start);
       const j = ends.get(tok.start + len);
-      if (len && j !== undefined)
-        add({ start: i, end: j + 1, literal: str(text.slice(tok.start, tok.start + len)), features: [], source: "Shape", distance: 0, kind: f.subject });
+      if (len && j !== undefined) {
+        add({ start: i, end: j + 1, literal: str(value ?? text.slice(tok.start, tok.start + len)), features: [], source: "Shape", distance: 0, kind: f.subject });
+        // A captured name is exact: the tokens inside it are not also words to correct.
+        if (value !== undefined) for (let k = i + 1; k < j; k++) candidates[k] = candidates[k].filter((x) => x.source === "Exact" || x.source === "Shape");
+      }
     }
   });
 
