@@ -217,8 +217,9 @@ export class Speaker {
 
 /** How much of an expression a pattern pins down: its calls and literals, not its variables. */
 function specificity(p: Expr): number {
-  if (!isCall(p)) return isVar(p) ? 0 : 1;
-  return 1 + p.args.reduce((n, a) => n + specificity(a.value), 0);
+  // A call pins down most, a literal less, a variable only that something is there.
+  if (!isCall(p)) return isVar(p) ? 0.5 : 1;
+  return 2 + p.args.reduce((n, a) => n + specificity(a.value), 0);
 }
 
 export { s };

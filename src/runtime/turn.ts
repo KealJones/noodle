@@ -217,7 +217,8 @@ export class Session {
       args: e.args.map((a) => ({
         ...a,
         value: mapExpr(a.value, (x) => {
-          if (!isCall(x) || x.head === "Run" || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply") return undefined;
+          // A primitive call is said by its own realization (a command line, a file's content).
+          if (!isCall(x) || this.primitives.has(x.head) || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply") return undefined;
           const w = find(x);
           return w ? s(w) : undefined;
         }),
