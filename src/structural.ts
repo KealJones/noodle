@@ -105,6 +105,15 @@ export const STRUCTURAL = {
       "Arithmetic", "Now", "Read", "Write", "Edit", "Run", "Schedule", "Say", "Ask", "Suppose", "Sequence",
     ],
   },
+  primitiveResults: {
+    why: "the structures primitives return; observation reads tools' machine formats as structure (runtime.md section 9)",
+    names: [
+      "File", "Directory", "Entry", "GitStatus", "GitLog", "GitBranches", "Changed", "Untracked", "Commit", "Branch",
+      "Ran", "Args", "Wrote", "Edited", "Replace", "Inserted", "Withdrawn",
+      // How Sort and Rank order, and how Compare tests equality.
+      "Name", "Same",
+    ],
+  },
 } as const satisfies Record<string, Group>;
 
 /** Every structural name, once. */
