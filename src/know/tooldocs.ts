@@ -99,13 +99,14 @@ export async function learnTool(program: string, read: Primitive, world: World, 
     }
     if (usage) senseClaims.push(c("Usage", c(sense), usage));
     forms.push(c("Concept", c(sense), ...senseClaims, ["from", pageFrom]));
-    // Told to do it, it runs the command. What it changes is not known yet: unknown effects are
-    // guarded, so it is offered first (design sections 13 and 20).
+    // Told to do it, it runs the command. The pattern names no agent: in "commit and push" the
+    // addressee is on the conjunction, not on each act. What it changes is not known yet: unknown
+    // effects are guarded, so it is offered first (design sections 13 and 20).
     forms.push(
       c(
         "Reading",
         ["on", c(word)],
-        ["pattern", c(word, ["agent", c("Addressee")])],
+        ["pattern", c(word)],
         ["becomes", c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w))))],
         ["effects", c("UnknownEffects")],
         ["from", pageFrom],
@@ -118,7 +119,7 @@ export async function learnTool(program: string, read: Primitive, world: World, 
         c(
           "Reading",
           ["on", c(word)],
-          ["pattern", c(word, ["agent", c("Addressee")], ["theme", v("x")])],
+          ["pattern", c(word, ["theme", v("x")])],
           ["becomes", c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w)), v("x")))],
           ["effects", c("UnknownEffects")],
           ["from", pageFrom],

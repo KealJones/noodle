@@ -73,7 +73,11 @@ export class Rewriter {
     return f;
   }
 
+  /** Alternatives already worked out for an expression, within one normalize call. */
+  private memo = new Map<string, Omit<Derivation, "score">[]>();
+
   normalize(e: Expr): Derivation[] {
+    this.memo = new Map();
     const out = this.norm(e, 0, new Set());
     return out
       .map((d) => {
@@ -98,6 +102,16 @@ export class Rewriter {
     if (!isCall(e) || OPAQUE.has(e.head) || depth > this.opts.maxSteps) return [{ expr: e, features: new Map(), steps: [] }];
     const k = key(e);
     if (seen.has(k)) return [{ expr: e, features: new Map(), steps: [] }];
+    // The same expression reached again (through another alternative) has the same alternatives:
+    // work them out once, or the beam's branching is worked out again at every level.
+    const have = this.memo.get(k);
+    if (have) return have;
+    const out = this.normFresh(e, k, depth, seen);
+    this.memo.set(k, out);
+    return out;
+  }
+
+  private normFresh(e: Call, k: string, depth: number, seen: Set<string>): Omit<Derivation, "score">[] {
     const seen2 = new Set(seen).add(k);
     const cands = this.candidates(e);
     const alts: Omit<Derivation, "score">[] = [];

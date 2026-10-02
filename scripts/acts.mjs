@@ -6,6 +6,7 @@
 import { mkdtempSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 
 const dist = join(import.meta.dirname, "..", "dist");
 const { packedStore, createSession } = await import(join(dist, "assistant", "index.js"));
@@ -13,6 +14,9 @@ const { isCall, positional } = await import(join(dist, "runtime", "expr.js"));
 
 const args = process.argv.slice(2);
 const limit = Number(args.includes("--limit") ? args[args.indexOf("--limit") + 1] : Infinity);
+// Very long prompts (pasted logs, documents) are reported as too long rather than heard: the chart
+// is cubic in a segment's length, and these are measured separately (pnpm measure).
+const maxWords = Number(args.includes("--max-words") ? args[args.indexOf("--max-words") + 1] : 150);
 const jsonl = (p) => readFileSync(p, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 const all = jsonl(join(homedir(), ".napkin", "corpus", "all.jsonl"));
 const split = JSON.parse(readFileSync(join(homedir(), ".noodle", "experiment", "split.json"), "utf8"));
@@ -42,10 +46,17 @@ const rows = [];
 for (const l of labels) {
   const text = all[l.i]?.text;
   if (!text) continue;
+  if (text.split(/\s+/).length > maxWords) {
+    rows.push({ i: l.i, cls: l.class, tooLong: true });
+    continue;
+  }
   const s = createSession(store, root);
   let acts = [];
+  const t0 = performance.now();
   try {
     acts = (await s.turn(text, { dry: true })).acts.map(named).filter(Boolean);
+    const ms = performance.now() - t0;
+    if (args.includes("--progress")) console.error(`${l.i}\t${text.split(/\s+/).length}w\t${ms.toFixed(0)}ms`);
   } catch (e) {
     rows.push({ i: l.i, cls: l.class, error: String(e).slice(0, 80) });
     continue;
@@ -56,17 +67,18 @@ for (const l of labels) {
 }
 
 const of = (f) => rows.filter(f).length;
-const actsRows = rows.filter((r) => r.cls === "acts" && !r.error);
-const noneRows = rows.filter((r) => r.cls === "none" && !r.error);
+const actsRows = rows.filter((r) => r.cls === "acts" && !r.error && !r.tooLong);
+const noneRows = rows.filter((r) => r.cls === "none" && !r.error && !r.tooLong);
 const pct = (a, b) => `${b ? ((100 * a) / b).toFixed(1) : "0.0"}% (${a}/${b})`;
 const report = {
   labelled: rows.length,
   errors: of((r) => r.error),
-  actsExact: pct(of((r) => r.cls === "acts" && r.exact), actsRows.length),
-  actsFirst: pct(of((r) => r.cls === "acts" && r.first), actsRows.length),
-  actsAny: pct(of((r) => r.cls === "acts" && r.any), actsRows.length),
-  noneCorrect: pct(of((r) => r.cls === "none" && !r.error && r.got.length === 0), noneRows.length),
-  falseActs: pct(of((r) => r.cls === "none" && !r.error && r.got.length > 0), noneRows.length),
+  tooLong: of((r) => r.tooLong),
+  actsExact: pct(actsRows.filter((r) => r.exact).length, actsRows.length),
+  actsFirst: pct(actsRows.filter((r) => r.first).length, actsRows.length),
+  actsAny: pct(actsRows.filter((r) => r.any).length, actsRows.length),
+  noneCorrect: pct(noneRows.filter((r) => r.got.length === 0).length, noneRows.length),
+  falseActs: pct(noneRows.filter((r) => r.got.length > 0).length, noneRows.length),
 };
 if (args.includes("--json")) console.log(JSON.stringify({ report, rows }));
 else {
