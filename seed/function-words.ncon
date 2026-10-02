@@ -731,6 +731,18 @@ Reading(on=Meant(), pattern=Meant($x), becomes=$x)
 Reading(on=ISaid(), pattern=ISaid($x), becomes=$x)
 
 // =============================================================================================
+// 11b. Teaching (design section 17): "X means Y" teaches a rewrite from X to Y, echoed and
+// confirmed before it is kept.
+
+Concept(Mean(), Form("means", ThirdSingular()), Form("meant", Past()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Act(), role=Theme()), Takes(side=Left(), category=Act(), role=Agent())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme()), Takes(side=Left(), category=Act(), role=Agent())))
+
+Reading(on=Mean(), pattern=Assert(Mean(agent=$w, theme=$d)), becomes=Directive(Remember(Rewrite($w, $d))))
+
+// =============================================================================================
 // 12. Asides: kept on the turn, not answers (design section 14).
 
 Concept(Btw(), Lemma("btw"), Form("by the way"), Form("fyi"), Form("side note"), Form("sidenote"), Form("unrelated"), Form("random but"),

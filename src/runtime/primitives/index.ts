@@ -13,8 +13,9 @@ import type { Primitive } from "../primitive.js";
 import { Compare, Count, Filter, Now, Rank, Sort } from "./pure.js";
 import { Contains, Read } from "./read.js";
 import { Ask, Run, Say } from "./run.js";
+import { Remember } from "./remember.js";
 import { Edit, Write } from "./write.js";
 
 export const PRIMITIVES: ReadonlyMap<string, Primitive> = new Map(
-  [Read, Write, Edit, Run, Say, Ask, Count, Filter, Sort, Rank, Now, Contains, Compare].map((p) => [p.name, p]),
+  [Read, Write, Edit, Run, Say, Ask, Count, Filter, Sort, Rank, Now, Contains, Compare, Remember].map((p) => [p.name, p]),
 );

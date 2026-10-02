@@ -34,6 +34,8 @@ export interface World {
   programs?: ReadonlySet<string>;
   /** Effect classes a level 1 grant (the config, design section 20) lets run without an offer. */
   grants?: ReadonlySet<EffectClass>;
+  /** Keeps what the user taught beyond this session (a top-level N-Con form); the channel decides where. */
+  keep?(form: Expr): void;
   /** Run's time limit in milliseconds. */
   timeoutMs?: number;
 }

@@ -232,8 +232,10 @@ export class Evaluator {
     if (args.length !== p.params.length) return undefined;
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
     // word (an unresolved "file" is not something a primitive can be given).
-    const unready = (y: Expr) => y.kind === "variable" || (isCall(y) && !DATA.has(y.head));
-    if (args.some((x) => [...walk(x)].some(unready))) return undefined;
+    // A rewrite to remember is expressions by nature, kept as they are, like a quotation.
+    const unready = (y: Expr): boolean =>
+      y.kind === "variable" || (isCall(y) && (y.head === "Rewrite" || y.head === "Quote" ? false : !DATA.has(y.head) || y.args.some((a) => unready(a.value))));
+    if (args.some(unready)) return undefined;
     return { p, args };
   }
 
@@ -277,7 +279,10 @@ export class Evaluator {
   private async callInner(p: Primitive, args: Expr[], act: Expr, granted = false): Promise<Outcome> {
     const effects: EffectClass[] = p.effects(args, this.world);
     const guarded = effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
-    if (guarded.length && !granted) {
+    // A rewrite the user teaches applies after it is echoed and confirmed (design sections 19 and
+    // 20): a misheard rule must not quietly become behaviour.
+    const taught = p.name === "Remember" && isHead(args[0], "Rewrite");
+    if ((guarded.length || taught) && !granted) {
       if (this.mode === "Doing") {
         // Acts offered in one turn are one proposal, in order ("show me the diff and the log").
         const prev = this.conversation.proposal;

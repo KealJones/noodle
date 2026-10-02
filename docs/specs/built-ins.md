@@ -34,7 +34,7 @@ may run them.
 | `Remove(holder, item)` | no | Deletes | holder does not contain item | Store (if the item was kept) | later |
 | `Contains(holder, item)` | yes | none | none | none | later |
 | `Set(thing, property, value)` | no | ChangesLocal | property has value | Set to old value | later |
-| `Remember(fact)` | no | ChangesGraph | the fact is in the store | Retract | later |
+| `Remember(item)` | no | ChangesGraph | the fact or reading is in the store | Retract | **yes**: a fact, or a rewrite the user taught (`Rewrite(from, to)`), confirmed first |
 | `Compare(a, b, by)` | yes | none | none | none | later |
 | `Count(set)` | yes | none | none | none | yes |
 | `Rank(set, by)`, `Sort(set, by)`, `Filter(set, where)` | yes | none | none | none | yes |

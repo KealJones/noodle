@@ -32,9 +32,10 @@ const root = mkdtempSync(join(tmpdir(), "noodle-acts-"));
 function named(act) {
   if (!isCall(act)) return undefined;
   if (act.head === "Run") {
+    // The labels name a two-level command by joining its words ("gh pr-view" is gh pr view).
     const [program, a] = positional(act);
-    const sub = isCall(a) ? positional(a)[0] : undefined;
-    return { program: program?.value, sub: sub?.kind === "string" ? sub.value : undefined };
+    const words = isCall(a) ? positional(a).filter((x) => x.kind === "string").map((x) => x.value) : [];
+    return { program: program?.value, sub: words[0], sub2: words.length > 1 && /^[a-z]+$/.test(words[1]) ? `${words[0]}-${words[1]}` : undefined };
   }
   if (act.head === "Read") return { sub: "read" };
   if (act.head === "Write" || act.head === "Edit") return { sub: "edit" };
@@ -62,7 +63,7 @@ for (const l of labels) {
     continue;
   }
   const want = (l.acts ?? []).map(k).filter(Boolean);
-  const got = [...new Set(acts.map(k))];
+  const got = [...new Set(acts.map((a) => (a.sub2 && want.includes(k({ program: a.program, sub: a.sub2 })) ? k({ program: a.program, sub: a.sub2 }) : k(a))))];
   rows.push({ i: l.i, cls: l.class, want, got, exact: want.length === got.length && want.every((w) => got.includes(w)), first: want.length > 0 && got[0] === want[0], any: got.some((g) => want.includes(g)) });
 }
 

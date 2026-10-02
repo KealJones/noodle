@@ -120,6 +120,8 @@ export const STRUCTURAL = {
       "Path", "Media", "Exit", "Error", "Previous", "Term", "Summary", "Command",
       // How Sort and Rank order, and how Compare tests equality.
       "Name", "Same",
+      // What Remember keeps and returns (a rewrite the user taught).
+      "Rewrite", "Remembered",
     ],
   },
 } as const satisfies Record<string, Group>;

@@ -5,7 +5,9 @@
 // restart) are not replayed, so nothing runs twice.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { format } from "../ncon/index.js";
+import type { Call } from "../runtime/expr.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
@@ -23,17 +25,23 @@ export interface AssistantOptions {
 
 /** What corrections taught the score, kept across sessions (design section 17). */
 export const LEARNED = join(homedir(), ".noodle", "learned.ncon");
+/** What the user taught ("X means Y"), confirmed, kept across sessions. */
+export const TAUGHT = join(homedir(), ".noodle", "taught.ncon");
 
 /** The packs imported into ~/.noodle/packs/ (pnpm import), loaded after the seed, WordNet first, then what was learned. */
 export function packedStore(dir = join(homedir(), ".noodle", "packs"), learned: string | undefined = LEARNED): Store {
   const store = seededStore();
   if (learned && existsSync(learned)) store.load(readFileSync(learned, "utf8"));
-  if (!existsSync(dir)) return store;
-  const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : 2);
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b)))
-    store.load(readFileSync(join(dir, f), "utf8"));
+  if (existsSync(dir)) {
+    const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : 2);
+    for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b)))
+      store.load(readFileSync(join(dir, f), "utf8"));
+  }
+  // What the user taught comes last: it builds on words the packs gave.
+  if (learned && existsSync(TAUGHT)) store.load(readFileSync(TAUGHT, "utf8"));
   return store;
 }
+
 
 /**
  * The config (~/.noodle/config.json, design section 20): level 1, the user's own. It grants
@@ -64,6 +72,14 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     say: (d) => onSay?.(d),
     ask: (d) => onSay?.(d),
     grants: config.grants ? new Set(config.grants) : undefined,
+    keep: config.learn
+      ? (form) => {
+          mkdirSync(join(homedir(), ".noodle"), { recursive: true });
+          const text = format({ forms: [form as Call] });
+          const head = existsSync(TAUGHT) ? "" : 'Pack(name="taught", version="1", from=User())\n\n';
+          appendFileSync(TAUGHT, head + text + "\n");
+        }
+      : undefined,
     programs: config.programs ? new Set(config.programs) : undefined,
     timeoutMs: config.timeoutMs,
   };
