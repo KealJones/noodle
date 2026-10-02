@@ -75,6 +75,12 @@ export interface ChartOptions {
   covers: number;
   /** Longest run of tokens one Skip step may pass over. */
   maxSkip: number;
+  /**
+   * Arguments may be left open as gaps with no word that fills them: a definition is said of
+   * something it does not name ("make visible" is said of what is shown), and the open argument is
+   * where that something goes (design section 6).
+   */
+  open?: boolean;
 }
 
 export const DEFAULT_CHART: ChartOptions = { k: 6, covers: 8, maxSkip: 2 };
@@ -98,7 +104,7 @@ export class Chart {
     const n = to - from;
     this.spans = Array.from({ length: n + 1 }, () => Array.from({ length: n + 1 }, () => [] as Edge[]));
     this.segmentRules = store.readingsOn("Segment").filter((r) => isCall(r.pattern) && CATEGORY_HEADS.has(r.pattern.head));
-    this.hasGapWord = false;
+    this.hasGapWord = opts.open ?? false;
   }
 
   private cell(s: number, e: number): Edge[] {
@@ -346,7 +352,9 @@ export class Chart {
     // An entry's wrapper or head replacement applies once its arguments are in.
     if (e.wraps || e.heads) {
       const expr = e.heads && isCall(e.expr) ? { ...e.expr, head: e.heads } : e.wraps ? c(e.wraps, e.expr) : e.expr;
-      out.push(this.make({ ...e, expr, wraps: undefined, heads: undefined, step: "wrap", back: [e] }));
+      // Optional arguments still pending are now one level down, inside the wrapper.
+      const pending = e.wraps && !e.heads ? e.pending.map((p) => ({ ...p, path: [0, ...p.path] })) : e.pending;
+      out.push(this.make({ ...e, expr, pending, wraps: undefined, heads: undefined, step: "wrap", back: [e] }));
       return out;
     }
     // A category concept's own entries (predication: an Act takes its subject on the left).

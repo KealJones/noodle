@@ -35,8 +35,9 @@ pnpm run import verbnet ~/.noodle/sources/verbnet/verbnet3.4
 - **Wiktionary forms** are imported (`pnpm run import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz`,
   from the 523 MB gzipped Kaikki extract); its idioms and definitions are not yet.
 - **wordfreq** is downloaded (`~/.noodle/sources/wordfreq-large_en.msgpack.gz`) but not imported:
-  sense frequency needs counts per sense, which neither it nor WordNet's release has, so
-  `SenseFrequency` still has no data and senses tie.
+  sense frequency needs counts per sense, which neither it nor WordNet's release has. Its word
+  order picks the most common words for stage 0's coverage measure (`pnpm import definitions`,
+  docs/stage0.md); `SenseFrequency` uses WordNet's own sense order as a rank.
 - **gitglossary(7) and the git man pages** need no download: they are read from the local `man`
   pages by `Read(ManPage(...))` (phase 4).
 
