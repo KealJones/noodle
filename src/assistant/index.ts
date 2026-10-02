@@ -17,6 +17,7 @@ import type { EffectClass, World } from "../runtime/primitive.js";
 import type { Store } from "../runtime/store.js";
 import type { Assistant, ChatMessage } from "../serve/assistant.js";
 import { ReplayGate } from "./replay.js";
+import { Know } from "../runtime/know/know.js";
 
 export interface AssistantOptions {
   /** The workspace every primitive is confined to. */
@@ -55,6 +56,8 @@ export interface Config {
   programs?: string[];
   root?: string;
   timeoutMs?: number;
+  /** Use Know, the door to outside knowledge (the chat and the endpoints turn it on). */
+  know?: boolean;
   /** Check learned weight changes against the hand-checked items (testing.md section 4). */
   replay?: boolean;
   /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
@@ -86,6 +89,9 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     programs: config.programs ? new Set(config.programs) : undefined,
     timeoutMs: config.timeoutMs,
   };
+  // Know, the door to outside knowledge, where the channel turns it on; whether it may go out is
+  // the SendsOutside grant.
+  if (config.know) world.know = new Know(store, world.now);
   // Readings from documentation the user has confirmed, kept as facts (runtime.md 13).
   const confirmed = new Set(
     store
@@ -136,7 +142,7 @@ export function createAssistant(opts: Partial<AssistantOptions> = {}): Assistant
       const before = history(messages.slice(0, lastAt));
       let session = lastAt > 0 ? sessions.get(before) : undefined;
       if (session) sessions.delete(before);
-      else session = createSession(store, root, { ...config, learn: config.learn ?? true });
+      else session = createSession(store, root, { ...config, learn: config.learn ?? true, know: config.know ?? true });
       const { text } = await session.turn(last.content);
       sessions.set(history([...messages.slice(0, lastAt + 1), { role: "assistant", content: text }]), session);
       // Stream it by lines and words, as a chat UI expects text to arrive.

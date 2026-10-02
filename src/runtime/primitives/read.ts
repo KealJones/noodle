@@ -27,8 +27,16 @@ export const Read: Primitive = {
   name: "Read",
   params: ["source"],
   pure: true,
-  effects: () => ["Reads"],
+  // A page on the web is read through Know, the one door to outside knowledge: its URL leaves the
+  // machine (SendsOutside, guarded unless granted).
+  effects: ([source]) => (source?.kind === "string" && /^https?:\/\//i.test(source.value) ? ["Reads", "SendsOutside"] : ["Reads"]),
   async run([source], world) {
+    if (source?.kind === "string" && /^https?:\/\//i.test(source.value)) {
+      if (!world.know) throw new Error("reading a page needs Know, and this session has none");
+      const k = await world.know.page(source.value);
+      if (!k) throw new Error(`could not read ${source.value}`);
+      return c("Page", ["path", s(source.value)], ["title", s(k.title)], ["content", c("Block", s(k.block))]);
+    }
     if (isCall(source)) {
       switch (source.head) {
         case "GitStatus":

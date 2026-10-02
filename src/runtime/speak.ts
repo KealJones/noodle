@@ -103,6 +103,11 @@ export class Speaker {
       const foldedForPrint = folded ?? this.foldPrint(doc);
       if (foldedForPrint) return this.print(foldedForPrint, medium, depth + 1);
     }
+    // Kept content prints as itself, escaped in the medium: it is the source's words, not markup.
+    if (doc.head === "Block" && positional(doc)[0]?.kind === "string") {
+      const b = this.store.block((positional(doc)[0] as { value: string }).value);
+      if (b) return this.escape(b.body, medium);
+    }
     // A concept on its own with no reading prints as its lemma, or its name.
     if (!doc.args.length) return this.escape(this.lemmaOf(doc.head), medium);
     // No reading prints it: its parts, in order.

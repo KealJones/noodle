@@ -17,7 +17,7 @@ export interface Token {
   indent?: number;
 }
 
-export type CandidateSource = "Exact" | "Inflected" | "SpellDistance" | "Stretched" | "InPlay" | "Shape" | "Unknown" | "SetAside";
+export type CandidateSource = "Exact" | "CaseMatch" | "Inflected" | "SpellDistance" | "Stretched" | "InPlay" | "Shape" | "Unknown" | "SetAside";
 
 export interface Candidate {
   /** Token indices [start, end). */
@@ -203,8 +203,12 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
       add({ start: i, end: i + 1, literal: c("Block", { kind: "string", value: a.text, pos: { line: 0, column: 0 } }), features: [], source: "SetAside", distance: 0, kind: a.kind });
       return;
     }
-    const exact = store.lookup(tok.text);
+    // A lemma written with capitals ("WHO", "Ada") is that name: a token in another case reaches it
+    // only as a correction a step away, so "who" is the word, not the organization.
+    const exact = store.lookup(tok.text).filter((h) => h.text === h.text.toLowerCase() || h.text === tok.text || h.text.toLowerCase() !== tok.text.toLowerCase());
+    const recased = store.lookup(tok.text).filter((h) => !exact.includes(h));
     for (const h of exact) add({ start: i, end: i + 1, concept: h.concept, features: h.features, source: "Exact", distance: 0 });
+    for (const h of recased) add({ start: i, end: i + 1, concept: h.concept, features: h.features, source: "CaseMatch", distance: 1 });
     const word = /^[\p{L}][\p{L}'’]*$/u.test(tok.text) ? tok.text.toLowerCase() : undefined;
     if (word) {
       for (const sq of squeezes(word))

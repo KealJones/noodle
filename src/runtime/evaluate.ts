@@ -355,7 +355,9 @@ export class Evaluator {
       return { ...this.out(), said: [offer], acts: [act], reachedAct: true };
     }
     if (this.mode === "Supposing") {
-      if (!p.pure || this.calls >= SUPPOSE_CALLS) return { ...this.out(), acts: [act], reachedAct: true };
+      // Nothing leaves the machine in Suppose (runtime.md 10.1): a call that would send outside is
+      // captured like an effectful one.
+      if (!p.pure || effects.includes("SendsOutside") || this.calls >= SUPPOSE_CALLS) return { ...this.out(), acts: p.pure ? [] : [act], reachedAct: true };
       this.calls++;
     }
     try {
@@ -393,7 +395,61 @@ export class Evaluator {
       return { ...r, said: r.said.map((x) => (isHead(x, "Outcome") && role(x, "result")?.kind === "boolean" ? ({ ...x, args: [{ value: lf }, ...x.args.slice(1)] } as Call) : x)) };
     }
     if (this.mode === "Doing") this.conversation.lastQuestion = lf;
+    // Nothing here answers it: the need is knowledge, and Know is the one door to it (runtime.md
+    // 11b, phase 2; 14). The question's words are the query. In Suppose it answers from the cache
+    // only; a lookup that would go out counts as reaching an answer.
+    const know = this.world.know;
+    if (!know || !this.said) return this.stuck(lf, c("NoSource", p));
+    const topic = this.topicText() ?? this.topicOf(p);
+    // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
+    // explanation is found by the whole question, a description by the thing it is about.
+    const about = this.asksExplanation() ? "reason" : "thing";
+    const cached = know.cached("answer", this.said);
+    if (this.mode === "Supposing") return cached ? { ...this.out(), said: [this.found(lf, cached)], reachedAct: true } : { ...this.out(), reachedAct: true };
+    if (!cached && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
+      return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
+    try {
+      const k = cached ?? (await know.answer(this.said, topic, about));
+      if (k) return { ...this.out(), said: [this.found(lf, k)], reachedAct: true };
+    } catch {
+      // A source that fails is no answer, not an error to show.
+    }
     return this.stuck(lf, c("NoSource", p));
+  }
+
+  private found(lf: Expr, k: { block: string; title: string; url: string; source: string }): Expr {
+    return c("Outcome", lf, ["result", c("Found", c("Block", s(k.block)), ["title", s(k.title)], ["to", s(k.url)], ["from", c(k.source)])]);
+  }
+
+  private asksExplanation(): boolean {
+    return this.said
+      .split(/[^\p{L}\p{N}'’]+/u)
+      .filter(Boolean)
+      .some((w) => this.store.lookup(w).some((h) => this.store.facts(h.concept, "AnswerShape").some((f) => isHead(positional(f.claim as Call)[0], "Explanation"))));
+  }
+
+  /**
+   * What a question is about, in its own words: the words of what was said that are not in the
+   * function-word lexicon ("what is rayleigh scattering" is about "rayleigh scattering").
+   */
+  private topicText(): string | undefined {
+    const words = this.said
+      .split(/[^\p{L}\p{N}'’.-]+/u)
+      .filter(Boolean)
+      .filter((w) => !this.store.lookup(w).some((h) => this.store.facts(h.concept).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))))));
+    return words.length ? words.join(" ") : undefined;
+  }
+
+  /** What a question is about, in words: its first named thing (a literal, or a word's lemma). */
+  private topicOf(p: Expr): string | undefined {
+    for (const y of walk(p)) {
+      if (y.kind === "string") return y.value;
+      if (isCall(y) && !STRUCTURAL.logicalForm.names.includes(y.head as never) && y.head !== "Gap") {
+        const l = this.store.facts(y.head, "Lemma").map((f) => positional(f.claim as Call)[0])[0];
+        if (l?.kind === "string" && !this.store.facts(y.head).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))))) return l.value;
+      }
+    }
+    return undefined;
   }
 
   private async assert(p: Expr): Promise<Outcome> {

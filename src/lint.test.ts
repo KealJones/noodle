@@ -25,7 +25,10 @@ const code = (p: string) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
 
-const runtime = files(join(SRC, "runtime"), (p) => !p.endsWith(".test.ts") && !p.includes(`${join("runtime", "primitives")}`));
+// Know's source adapters are, with the primitives, the code that touches the world (runtime.md 14):
+// they fetch, and they read the formats sources answer in (HTML), so they are not runtime code here.
+const KNOW_SOURCES = join("runtime", "know", "sources.ts");
+const runtime = files(join(SRC, "runtime"), (p) => !p.endsWith(".test.ts") && !p.includes(`${join("runtime", "primitives")}`) && !p.endsWith(KNOW_SOURCES));
 const everything = files(SRC, () => true);
 
 test("runtime code names no concept outside the structural list", () => {
@@ -65,7 +68,7 @@ const WORLD_ACCESS: Record<string, string> = {
 test("only primitives touch the world from runtime code", () => {
   const bad: string[] = [];
   for (const f of [...runtime, ...files(join(SRC, "seed"), (p) => !p.endsWith(".test.ts"))]) {
-    if (WORLD_ACCESS[basename(f)]) continue;
+    if (WORLD_ACCESS[basename(f)] || f.endsWith(KNOW_SOURCES)) continue;
     const src = code(f);
     if (/from "node:(fs|child_process|net|https?|dgram)"/.test(src) || /\bfetch\(/.test(src)) bad.push(`${relative(SRC, f)}: imports world access`);
     if (/Date\.now\(|new Date\(\)|performance\.now\(/.test(src)) bad.push(`${relative(SRC, f)}: reads the clock`);

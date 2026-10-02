@@ -154,6 +154,21 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a)),
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Sequence($steps), stopped=$at),
   becomes=Document(Paragraph("I stopped at ", $at, ". What ran:"), List($steps)))
 
+// Answers from outside: the source named and linked, then its own words (design section 25:
+// research names its sources).
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=Found($b, title=$t, to=$u, from=$src)),
+  becomes=Document(Paragraph("From ", $src, ", ", Link($t, to=$u), ":"), Paragraph($b)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p, about=$x), result=Found($b, title=$t, to=$u, from=$src)),
+  becomes=Document(Paragraph("From ", $src, ", ", Link($t, to=$u), ":"), Paragraph($b)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=Page(path=$u, title=$t, content=$b)),
+  becomes=Document(Paragraph(Link($t, to=$u), ":"), Paragraph($b)))
+Reading(on=Wikipedia(), mode=Speaking(), pattern=Wikipedia(), becomes="Wikipedia")
+Reading(on=Wiktionary(), mode=Speaking(), pattern=Wiktionary(), becomes="Wiktionary")
+Reading(on=Wikidata(), mode=Speaking(), pattern=Wikidata(), becomes="Wikidata")
+Reading(on=Web(), mode=Speaking(), pattern=Web(), becomes="the web")
+Reading(on=Offer(), mode=Speaking(), pattern=Offer(Know($q)),
+  becomes=Paragraph("I don't know that. I can look it up online. Go ahead?"))
+
 // Answers to questions and checks of claims.
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=true), becomes=Paragraph("Yes."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=false), becomes=Paragraph("No."))

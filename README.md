@@ -47,6 +47,16 @@ What it can do today, with git's pages learned: "git status", "show me the diff"
 "what's in README.md?", "whats in it?", "don't push yet" (and then refusing a "push"), "thanks",
 "sorry byeeee". Anything it cannot work out, it says so, naming the word it has no sense for.
 
+### Knowing things
+
+A question nothing in the graph or the workspace answers goes to Know (runtime.md section 14):
+Wikipedia (a thing's own page for "what is X" and "who is X", a search on the whole question for
+"why" and "how"), then Wikidata, then a web search. "what's on <url>" and "what is <url>" read the
+page. Answers say where they came from, are kept as content with their source (trust level 4, the
+web), and are reused from the graph for 30 days. Looking things up sends the question off the
+machine, which is the guarded effect class SendsOutside: it is offered first unless the config
+grants it (`"grants": ["SendsOutside"]`).
+
 ### Permissions
 
 Every command a tool's documentation taught it has unknown effects, and documentation is a level 3

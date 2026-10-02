@@ -139,7 +139,8 @@ export class Chart {
     if (cand.source !== "Unknown") addFeature(features, "WordsUsed", cand.end - cand.start);
     // Where the candidate came from: the word as said (1), a correction a distance away (minus the
     // distance), or nothing known (0) (runtime.md 3.3 and 8.1).
-    addFeature(features, `CandidateSource:${cand.source}`, cand.source === "Unknown" ? 0 : cand.distance ? -cand.distance : 1);
+    // A candidate covering several tokens (a URL, a multi-word name) counts for each of them.
+    addFeature(features, `CandidateSource:${cand.source}`, cand.source === "Unknown" ? 0 : cand.distance ? -cand.distance : cand.end - cand.start);
     if (cand.kind) addFeature(features, `ShapeFit:${cand.kind}`, 1);
     if (cand.concept) {
       const { entries, joins } = this.entries(cand.concept);
