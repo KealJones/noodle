@@ -38,7 +38,7 @@ may run them.
 | `Compare(a, b, by)` | yes | none | none | none | later |
 | `Count(set)` | yes | none | none | none | yes |
 | `Rank(set, by)`, `Sort(set, by)`, `Filter(set, where)` | yes | none | none | none | yes |
-| `Arithmetic(op, args)` | yes | none | none | none | later |
+| `Arithmetic(op, a, b)` | yes | none | none | none | yes: two numbers; op is `Addition`, `Subtraction`, `Multiplication`, `Division`, `Exponentiation` or `Modulo` (a root is a power, a percent a division by 100) |
 | `Now()` | yes | none | none | none | yes |
 | `Read(source)` | yes | none (Reads) | a block or structure came back | none | **yes** |
 | `Write(target, content)` | no | ChangesLocal, or Deletes if it replaces content not saved elsewhere | the target has the content | restore the old block | **yes** |
@@ -170,7 +170,9 @@ the conversation structure are runtime mechanism over them (runtime spec, sectio
 
 ### 4.7 The primitives
 
-The names in section 2.
+The names in section 2. Arithmetic's operations (`Addition`, `Subtraction`, `Multiplication`,
+`Division`, `Exponentiation`, `Modulo`) are listed with the structures primitives return: the
+primitive computes each, so it knows them by name.
 
 ### 4.8 Saying and printing
 

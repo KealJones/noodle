@@ -129,6 +129,12 @@ Reading(on=Compare(), pattern=More($a, standard=$b, attribute=$k), becomes=Compa
 Reading(on=Compare(), pattern=Less($a, standard=$b, attribute=$k), becomes=Compare($b, $a, $k))
 Reading(on=Now(), pattern=Now(), becomes=Now())
 
+// Asking what a computation is, or saying one on its own ("17 * 23"), asks for its value. Its
+// value is a number.
+Concept(Arithmetic(), IsA(Number()))
+Reading(on=Arithmetic(), pattern=Question(Be(Gap(), Arithmetic($o, $a, $b)), about=Gap()), becomes=Question(Arithmetic($o, $a, $b), about=Gap()))
+Reading(on=Arithmetic(), pattern=Assert(Be(Ref(said=$s, kind=Thing()), Arithmetic($o, $a, $b))), becomes=Question(Arithmetic($o, $a, $b), about=Gap()))
+
 // ---------------------------------------------------------------------------------------------
 // Time
 

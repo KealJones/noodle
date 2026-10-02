@@ -27,6 +27,16 @@ export interface Outcome {
   checksPassed: number;
 }
 
+/** A pure call inside an act's arguments that could not be worked out. */
+class Failed extends Error {
+  constructor(
+    readonly call: Expr,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 const SPEECH_ACTS = new Set(["Question", "Assert", "Directive", "Advice", "Constraint"]);
 /** Pure primitives Suppose may run, within this many calls (runtime.md 10.1). */
 const SUPPOSE_CALLS = 20;
@@ -166,7 +176,7 @@ export class Evaluator {
     const prim = this.primitiveCall(p);
     if (!prim || !prim.p.pure) return undefined;
     try {
-      const r = await prim.p.run(prim.args, this.world);
+      const r = await prim.p.run(await Promise.all(prim.args.map((x) => this.value(x))), this.world);
       return r.kind === "boolean" ? r.value : undefined;
     } catch {
       return undefined;
@@ -248,10 +258,33 @@ export class Evaluator {
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
     // word (an unresolved "file" is not something a primitive can be given).
     // A rewrite to remember is expressions by nature, kept as they are, like a quotation.
+    // A pure primitive's call among the arguments is data once its own arguments are: it is
+    // worked out first (the value of "17 times 23" is what Compare or a question is given).
     const unready = (y: Expr): boolean =>
-      y.kind === "variable" || (isCall(y) && (y.head === "Rewrite" || y.head === "Quote" ? false : !DATA.has(y.head) || y.args.some((a) => unready(a.value))));
+      y.kind === "variable" ||
+      (isCall(y) && (y.head === "Rewrite" || y.head === "Quote" ? false : (!DATA.has(y.head) && !this.pureCall(y)) || y.args.some((a) => unready(a.value))));
     if (args.some(unready)) return undefined;
     return { p, args };
+  }
+
+  /** A call to a pure primitive with the arguments it takes, and no others. */
+  private pureCall(y: Call): boolean {
+    const p = this.primitives.get(y.head);
+    return !!p?.pure && y.args.every((a) => a.name === undefined) && y.args.length === p.params.length;
+  }
+
+  /** An argument with the pure primitive calls inside it worked out, innermost first. */
+  private async value(x: Expr): Promise<Expr> {
+    if (!isCall(x) || x.head === "Rewrite" || x.head === "Quote") return x;
+    const args = await Promise.all(x.args.map(async (a) => ({ ...a, value: await this.value(a.value) })));
+    const y: Call = { ...x, args };
+    if (!this.pureCall(y)) return y;
+    try {
+      return await this.primitives.get(y.head)!.run(positional(y), this.world);
+    } catch (err) {
+      // What failed is the inner call, as it was said ("10 divided by 0"), not the act around it.
+      throw new Failed(x, err instanceof Error ? err.message : String(err));
+    }
   }
 
   // -------------------------------------------------------------------------------------------
@@ -364,6 +397,7 @@ export class Evaluator {
       this.calls++;
     }
     try {
+      args = await Promise.all(args.map((x) => this.value(x)));
       const result = await p.run(args, this.world);
       const checked = p.check ? await p.check(args, result, this.world) : undefined;
       if (this.mode === "Doing") {
@@ -382,7 +416,7 @@ export class Evaluator {
       return { ...this.out(), said: [outcome], acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
     } catch (err) {
       if (this.mode === "Doing") this.conversation.events.push({ turn: this.conversation.turnIndex, act, error: String(err) });
-      return { ...this.out(), said: [c("Outcome", act, ["error", s(err instanceof Error ? err.message : String(err))])], unworked: 1 };
+      return { ...this.out(), said: [c("Outcome", err instanceof Failed ? err.call : act, ["error", s(err instanceof Error ? err.message : String(err))])], unworked: 1 };
     }
   }
 

@@ -124,6 +124,9 @@ export const STRUCTURAL = {
       "Path", "Media", "Exit", "Error", "Previous", "Term", "Summary", "Command",
       // How Sort and Rank order, and how Compare tests equality.
       "Name", "Same",
+      // Arithmetic's operations: the primitive computes each, so it must know them by name. A root
+      // is an Exponentiation and a percent a Division; the words that say them build those.
+      "Addition", "Subtraction", "Multiplication", "Division", "Exponentiation", "Modulo",
       // What Remember keeps and returns (a rewrite the user taught).
       "Rewrite", "Remembered",
     ],
