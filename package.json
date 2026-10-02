@@ -14,7 +14,8 @@
     "measure": "pnpm build && node scripts/measure.mjs",
     "import": "pnpm build && node dist/know/cli.js",
     "score:acts": "pnpm build && node scripts/acts.mjs",
-    "killtest": "pnpm build && node scripts/killtest.mjs"
+    "killtest": "pnpm build && node scripts/killtest.mjs",
+    "versus": "pnpm build && node scripts/versus.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

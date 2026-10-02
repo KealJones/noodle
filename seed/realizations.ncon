@@ -69,6 +69,10 @@ Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=$why),
   becomes=Paragraph("I couldn't work out \"", $x, "\". ", $why))
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NeedUnmet(Proposal())),
   becomes=Paragraph("There's nothing I'm waiting to do."))
+// A question about someone in the conversation the graph holds nothing on.
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NoSource($q, about=$w)), becomes=NoSource($q, about=$w))
+Reading(on=NoSource(), mode=Speaking(), pattern=NoSource($q, about=Self()), becomes=Paragraph("I don't know that about myself."))
+Reading(on=NoSource(), mode=Speaking(), pattern=NoSource($q, about=User()), becomes=Paragraph("You haven't told me that."))
 
 // =============================================================================================
 // 3. Offers before a guarded act, with the target shown (design section 13)
@@ -177,6 +181,10 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=$r),
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Assert($p), result=true), becomes=Paragraph("Yes, that's right."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Assert($p), result=false), becomes=Paragraph("That's not so."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Nothing()), becomes=Paragraph("Nothing."))
+// Answers about someone in the conversation, from what the graph holds about them.
+Reading(on=State(), mode=Speaking(), pattern=Outcome($q, result=State(Self(), $s)), becomes=Paragraph("I'm ", $s, ", thanks."))
+Reading(on=Name(), mode=Speaking(), pattern=Outcome($q, result=Name(Self(), $n)), becomes=Paragraph("I'm ", $n, "."))
+Reading(on=Name(), mode=Speaking(), pattern=Outcome($q, result=Name(User(), $n)), becomes=Paragraph("Your name is ", $n, "."))
 
 // Asking.
 Reading(on=Ask(), mode=Speaking(), pattern=Ask(Or($a, $b)), becomes=Paragraph("Do you mean ", $a, " or ", $b, "?"))

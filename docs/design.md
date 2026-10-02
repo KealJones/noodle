@@ -762,6 +762,11 @@ say, Focus fetches it:
 - **a referent** ("the list I started", "that doc", "the PR from yesterday"): searched in the current
   conversation, then past conversations, then the workspace, scored by kind, salience and recency;
 - **a fact** ("what's my manager's name?"): the long-term user facts, then Know;
+- **a fact about someone in the conversation** ("how are you?", "what's your name?", "what's my
+  name?"): what the graph holds on the addressee (the assistant's own facts, in the seed) or the
+  speaker, and never Know, since the world's sources know neither; with nothing held, one honest
+  line. A question about what a pointer ("it") points at, or one whose words name nothing outside
+  the conversation ("what's up"), is not looked up either;
 - **a state** ("what changed?", "is it pushed?"): the workspace, through pure primitives;
 - **knowledge** ("tell me about X", "what does Y cost?"): Know, across its sources.
 
