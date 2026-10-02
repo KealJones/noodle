@@ -37,7 +37,8 @@ test("don't push yet is a constraint until told, echoed, and blocks a later push
 
 test("a word it has no sense for is said, not guessed", async () => {
   const s = session();
-  assert.equal((await s.turn("frobnicate the zorp")).text.split("\n\n")[0], "I don't know what `frobnicate` means here.");
+  assert.equal((await s.turn("frobnicate the zorp")).text, "I don't know these words yet: frobnicate and zorp.");
+  assert.equal((await s.turn("frobnicate")).text, "I don't know what `frobnicate` means here.");
 });
 
 test("asking what is in a file reads it and shows its content", async () => {
