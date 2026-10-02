@@ -83,8 +83,15 @@ export async function learnTool(program: string, read: Primitive, world: World, 
     return sense;
   };
   const run = (words: string[], extra?: Expr) => c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w)), ...(extra ? [extra] : [])));
-  const reading = (word: string, pattern: Expr, becomes: Expr, from: Expr) =>
+  // Each reading also comes in a form that names the tool ("git status": status, with git), so the
+  // tool's name picks its own command where two tools share a word.
+  const reading = (word: string, pattern: Expr, becomes: Expr, from: Expr) => {
     forms.push(c("Reading", ["on", c(word)], ["pattern", pattern], ["becomes", becomes], ["effects", c("UnknownEffects")], ["from", from]));
+    if (isCall(pattern))
+      forms.push(
+        c("Reading", ["on", c(word)], ["pattern", { ...pattern, args: [...pattern.args, { name: "instrument", value: c(toolWord) }] }], ["becomes", becomes], ["effects", c("UnknownEffects")], ["from", from]),
+      );
+  };
 
   for (const sub of subs) {
     let doc: Expr;
