@@ -262,10 +262,12 @@ export class Evaluator {
     let at = -1;
     for (let i = events.length - 1; i >= 0 && at < 0; i--) if (events[i].effectful && !events[i].undone && !events[i].error) at = i;
     const ev = events[at];
-    if (!ev) return this.stuck(a, c("NoInverse"));
+    // Nothing to take back, or nothing that undoes it, is the answer: said, and not a correction of
+    // the last reading (the user asked to undo an act, not to read the last message again).
+    if (!ev) return { ...this.stuck(a, c("NoInverse")), reachedAct: true };
     const inverse = ev.undo;
     const prim = inverse && this.primitiveCall(inverse);
-    if (!inverse || !prim) return this.stuck(a, c("NoInverse", ev.act));
+    if (!inverse || !prim) return { ...this.stuck(a, c("NoInverse", ev.act)), reachedAct: true };
     const before = events.length;
     const o = await this.call(prim.p, prim.args, inverse);
     if (this.mode === "Doing" && events.length > before) {
