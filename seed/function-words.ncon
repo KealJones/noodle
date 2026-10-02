@@ -120,21 +120,22 @@ Concept(Her(), Lemma("her"), Category(Thing(), Takes(side=Right(), category=Noun
 Concept(Its(), Lemma("its"), Category(Thing(), Takes(side=Right(), category=Noun())))
 Concept(Whose(), Lemma("whose"), Category(Thing(), Takes(side=Right(), category=Noun()), FillsGap(category=Thing())))
 
-// Definite and possessive phrases are referents (logical-form.md section 4).
-Reading(on=The(), pattern=The($n), becomes=Ref(said=The($n)))
-Reading(on=This(), pattern=This($n), becomes=Ref(said=This($n)))
+// Definite and possessive phrases are referents (logical-form.md section 4); the noun they were
+// said with is the kind they point at, until a reading that holds them wants something narrower.
+Reading(on=The(), pattern=The($n), becomes=Ref(said=The($n), kind=$n))
+Reading(on=This(), pattern=This($n), becomes=Ref(said=This($n), kind=$n))
 Reading(on=This(), pattern=This(), becomes=Ref(said=This()))
-Reading(on=That(), pattern=That($n), becomes=Ref(said=That($n)))
+Reading(on=That(), pattern=That($n), becomes=Ref(said=That($n), kind=$n))
 Reading(on=That(), pattern=That(), becomes=Ref(said=That()))
-Reading(on=These(), pattern=These($n), becomes=Ref(said=These($n)))
-Reading(on=Those(), pattern=Those($n), becomes=Ref(said=Those($n)))
-Reading(on=My(), pattern=My($n), becomes=Ref(said=My($n)))
-Reading(on=Your(), pattern=Your($n), becomes=Ref(said=Your($n)))
-Reading(on=Our(), pattern=Our($n), becomes=Ref(said=Our($n)))
-Reading(on=Their(), pattern=Their($n), becomes=Ref(said=Their($n)))
-Reading(on=His(), pattern=His($n), becomes=Ref(said=His($n)))
-Reading(on=Her(), pattern=Her($n), becomes=Ref(said=Her($n)))
-Reading(on=Its(), pattern=Its($n), becomes=Ref(said=Its($n)))
+Reading(on=These(), pattern=These($n), becomes=Ref(said=These($n), kind=$n))
+Reading(on=Those(), pattern=Those($n), becomes=Ref(said=Those($n), kind=$n))
+Reading(on=My(), pattern=My($n), becomes=Ref(said=My($n), kind=$n))
+Reading(on=Your(), pattern=Your($n), becomes=Ref(said=Your($n), kind=$n))
+Reading(on=Our(), pattern=Our($n), becomes=Ref(said=Our($n), kind=$n))
+Reading(on=Their(), pattern=Their($n), becomes=Ref(said=Their($n), kind=$n))
+Reading(on=His(), pattern=His($n), becomes=Ref(said=His($n), kind=$n))
+Reading(on=Her(), pattern=Her($n), becomes=Ref(said=Her($n), kind=$n))
+Reading(on=Its(), pattern=Its($n), becomes=Ref(said=Its($n), kind=$n))
 
 // Quantifiers build Every and Some.
 Reading(on=A(), pattern=A($n), becomes=Some($n))

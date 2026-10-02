@@ -17,7 +17,7 @@ export interface Token {
   indent?: number;
 }
 
-export type CandidateSource = "Exact" | "SpellDistance" | "Stretched" | "InPlay" | "Shape" | "Unknown" | "SetAside";
+export type CandidateSource = "Exact" | "Inflected" | "SpellDistance" | "Stretched" | "InPlay" | "Shape" | "Unknown" | "SetAside";
 
 export interface Candidate {
   /** Token indices [start, end). */
@@ -158,6 +158,26 @@ export function squeezes(word: string): string[] {
   return outs.map((o) => o + word.slice(at));
 }
 
+/** The bases a word may be, by the Suffix facts on form features (seed/lexical-rules.ncon). */
+export function inflections(store: Store, word: string): { base: string; feature: string }[] {
+  const out: { base: string; feature: string }[] = [];
+  for (const f of store.factsWithHead("Suffix")) {
+    const claim = f.claim as never as { args: { name?: string; value: Expr }[] };
+    const suffix = claim.args.find((a) => a.name === undefined)?.value;
+    if (suffix?.kind !== "string" || !word.endsWith(suffix.value) || word.length - suffix.value.length < 2) continue;
+    let base = word.slice(0, -suffix.value.length);
+    const restore = claim.args.find((a) => a.name === "restore")?.value;
+    const undouble = claim.args.find((a) => a.name === "undouble")?.value;
+    if (restore?.kind === "string") base += restore.value;
+    if (undouble?.kind === "boolean" && undouble.value) {
+      if (base.length < 3 || base[base.length - 1] !== base[base.length - 2]) continue;
+      base = base.slice(0, -1);
+    }
+    out.push({ base, feature: f.subject });
+  }
+  return out;
+}
+
 export interface Hearing {
   tokens: Token[];
   candidates: Candidate[][];
@@ -189,7 +209,12 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
     if (word) {
       for (const sq of squeezes(word))
         for (const h of store.lookup(sq)) add({ start: i, end: i + 1, concept: h.concept, features: h.features, source: "Stretched", distance: 0 });
-      if (word.length >= 3 && !exact.length) {
+      // A regular form: a lemma plus a suffix from the seed's inflection facts. Morphology, not a
+      // spelling correction, so it competes even with an exact word ("prs" the word, "pr" plural).
+      for (const inf of inflections(store, word))
+          for (const h of store.lookup(inf.base))
+            if (!h.features.length) add({ start: i, end: i + 1, concept: h.concept, features: [inf.feature], source: "Inflected", distance: 0 });
+      if (word.length >= 3 && !exact.length && !candidates[i].some((x) => x.source === "Inflected")) {
         const max = word.length <= 4 ? 1 : 2;
         for (const l of lemmaList) {
           if (!/^[\p{L}]/u.test(l) || l.includes(" ")) continue;
