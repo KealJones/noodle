@@ -26,6 +26,11 @@ Reading(on=Ref(), mode=Speaking(), pattern=Ref(said=$s), becomes=$s)
 // Names of things (files, branches, commands, identifiers) are code: copyable, never stress.
 Reading(on=Code(), mode=Speaking(), pattern=$x, wants=IsA($x, Name()), becomes=Code($x))
 
+// A command line: the program, then its arguments, with spaces between.
+Reading(on=Run(), mode=Speaking(), pattern=Run($p, $args), becomes=Paragraph($p, " ", $args))
+Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
+Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
+
 // A set is a list when it is long, a phrase when it is short.
 Reading(on=Every(), mode=Speaking(), pattern=Every($k), becomes=Paragraph("every ", $k))
 Reading(on=List(), mode=Speaking(), pattern=And($a, $b), becomes=Paragraph($a, " and ", $b))
@@ -138,6 +143,9 @@ Reading(on=Bye(), mode=Speaking(), pattern=Reply(Bye()), becomes=Paragraph("Bye.
 // =============================================================================================
 // 6. Markdown (design section 25b)
 
+// The chat prints in markdown; a destination's medium is a fact on it, never a guess.
+Fact(Conversation(), Medium(Markdown()))
+
 Concept(Markdown(), IsA(Medium()),
   Escapes("\\"), Escapes("*"), Escapes("_"), Escapes("~"), Escapes("`"), Escapes("#"), Escapes(">"),
   Escapes("["), Escapes("]"), Escapes("<"), Escapes("|"))
@@ -151,9 +159,11 @@ Reading(on=Paragraph(), mode=Speaking(), pattern=Print(Paragraph($a, $b), medium
 Reading(on=Heading(), mode=Speaking(), pattern=Print(Heading($x, level=$n), medium=Markdown()),
   becomes=Printed(Repeated("#", $n), " ", Print($x, medium=Markdown())))
 Reading(on=List(), mode=Speaking(), pattern=Print(List($x), medium=Markdown()),
-  becomes=Printed("- ", Print($x, medium=Markdown())))
+  becomes=Print(Item($x), medium=Markdown()))
 Reading(on=List(), mode=Speaking(), pattern=Print(List($a, $b), medium=Markdown()),
-  becomes=Printed(Print(List($a), medium=Markdown()), "\n", Print(List($b), medium=Markdown())))
+  becomes=Printed(Print(Item($a), medium=Markdown()), "\n", Print(List($b), medium=Markdown())))
+Reading(on=Item(), mode=Speaking(), pattern=Print(Item(Item($x)), medium=Markdown()),
+  becomes=Print(Item($x), medium=Markdown()))
 Reading(on=Item(), mode=Speaking(), pattern=Print(Item($x), medium=Markdown()),
   becomes=Printed("- ", Print($x, medium=Markdown())))
 Reading(on=Task(), mode=Speaking(), pattern=Print(Task($x, done=false), medium=Markdown()),
