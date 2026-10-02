@@ -82,17 +82,25 @@ export class Know {
   }
 
   /**
-   * Whether what came back is about what was asked: at least half of the question's own words
-   * (its topic) are in the page's title or opening. A page that shares none of them (an album
-   * titled like the question) is not an answer.
+   * Whether what came back is about what was asked. Either every one of the question's own words
+   * (its topic) is in the page's title or opening, or the page's title is made only of the
+   * question's words and names at least half of them ("Fall of the Berlin Wall" for "what year did
+   * the berlin wall fall"). A page whose title brings words of its own and that misses some of the
+   * topic ("Tell Jemmeh" for "tell me a joke", "Happy path" for "a synonym for happy") is about
+   * something else, and saying so honestly is better than saying it.
    */
   private about(f: Found, topic: string | undefined): boolean {
     if (!topic) return true;
-    const words = topic.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
+    const split = (x: string) => x.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
+    const words = split(topic);
     if (!words.length) return true;
+    const stem = (w: string) => w.slice(0, Math.max(4, w.length - 2));
     const hay = `${f.title} ${f.text.slice(0, 400)}`.toLowerCase();
-    const hits = words.filter((w) => hay.includes(w.slice(0, Math.max(4, w.length - 2)))).length;
-    return hits * 2 >= words.length;
+    if (words.every((w) => hay.includes(stem(w)))) return true;
+    const title = split(f.title.replace(/\([^)]*\)/g, ""));
+    const inTopic = (t: string) => words.some((w) => stem(w) === stem(t) || w.startsWith(stem(t)) || t.startsWith(stem(w)));
+    const named = words.filter((w) => title.some((t) => stem(w) === stem(t) || w.startsWith(stem(t)) || t.startsWith(stem(w)))).length;
+    return title.length > 0 && title.every(inTopic) && named * 2 >= words.length;
   }
 
   /** What a word means, from a dictionary. */

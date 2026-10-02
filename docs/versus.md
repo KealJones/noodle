@@ -1,12 +1,12 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 06:13 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 06:16 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
 | | RIGHT | HONEST | WRONG | ERROR |
 |---|---|---|---|---|
-| Noodle | 35 | 41 | 18 | 0 |
+| Noodle | 34 | 46 | 14 | 0 |
 | Napkin | 31 | 49 | 14 | 0 |
 
 By session (RIGHT / HONEST / WRONG / ERROR):
@@ -14,19 +14,19 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | session | Noodle | Napkin |
 |---|---|---|
 | small talk | 5 / 3 / 0 / 0 | 6 / 1 / 1 / 0 |
-| facts | 5 / 1 / 2 / 0 | 2 / 5 / 1 / 0 |
+| facts | 4 / 3 / 1 / 0 | 2 / 5 / 1 / 0 |
 | math | 5 / 1 / 1 / 0 | 5 / 1 / 1 / 0 |
 | units | 1 / 4 / 0 / 0 | 2 / 3 / 0 / 0 |
 | time and reminders | 2 / 2 / 1 / 0 | 4 / 1 / 0 / 0 |
-| lists and memory | 2 / 4 / 3 / 0 | 2 / 5 / 2 / 0 |
-| definitions | 2 / 3 / 1 / 0 | 3 / 1 / 2 / 0 |
+| lists and memory | 2 / 5 / 2 / 0 | 2 / 5 / 2 / 0 |
+| definitions | 2 / 4 / 0 / 0 | 3 / 1 / 2 / 0 |
 | files | 3 / 4 / 1 / 0 | 0 / 7 / 1 / 0 |
 | git | 2 / 2 / 4 / 0 | 0 / 8 / 0 / 0 |
 | instructions | 2 / 1 / 1 / 0 | 0 / 4 / 0 / 0 |
 | multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
 | typos and messy phrasing | 2 / 5 / 1 / 0 | 2 / 5 / 1 / 0 |
 | near-misses | 3 / 3 / 1 / 0 | 2 / 3 / 2 / 0 |
-| conversation | 0 / 5 / 1 / 0 | 3 / 1 / 2 / 0 |
+| conversation | 0 / 6 / 0 / 0 | 3 / 1 / 2 / 0 |
 
 ## small talk
 
@@ -48,9 +48,9 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 9 | what is the capital of japan? | From Wikipedia, [Capital of Japan](https://en.wikipedia.org/wiki/Capital_of_Japan):<br><br>The capital of Japan is Tokyo. Throughout history, the national capital of Japan has been in locations other than Tokyo. The oldest capital is Nara. | RIGHT | Tokyo. | RIGHT |
 | 10 | who wrote pride and prejudice | From Wikipedia, [Pride & Prejudice (2005 film)](https://en.wikipedia.org/wiki/Pride_%26_Prejudice_(2005_film)):<br><br>Pride & Prejudice is a 2005 period romance film directed by Joe Wright, in his feature directorial debut, based on Jane Austen's 1813 novel of the same name. The film features five sisters from an English family of landed gentry as they deal with issues of marriage, morality, and  ... | RIGHT | I don't know that yet. | HONEST |
 | 11 | how many legs does a spider have | I couldn't work out "how many legs does a spider have". | HONEST | I heard that as "how many legs does have spider", but couldn't work it out. Could you put it another way? | HONEST |
-| 12 | what's the boiling point of water in celsius | From Wikipedia, [Celsius](https://en.wikipedia.org/wiki/Celsius):<br><br>The degree Celsius is the unit of temperature on the Celsius temperature scale, one of two temperature scales used in the International System of Units (SI), the other being the closely related Kelvin scale. The degree Celsius can refer to a specific point on the Celsius temperature scale or to a difference or range between t ... | WRONG | I don't know boiling point of water in celsius yet. | HONEST |
+| 12 | what's the boiling point of water in celsius | I couldn't work out "what's the boiling point of water in celsius". | HONEST | I don't know boiling point of water in celsius yet. | HONEST |
 | 13 | who painted the mona lisa? | From Wikipedia, [Mona Lisa](https://en.wikipedia.org/wiki/Mona_Lisa):<br><br>The Mona Lisa is a half-length portrait painting by the Italian artist Leonardo da Vinci. Considered an archetypal masterpiece of the Italian Renaissance, it has been described as "the best known, the most visited, the most written about, the most sung about, \[and\] the most parodied work of art in the world". The painti ... | RIGHT | Leonardo Da Vinci. | RIGHT |
-| 14 | what year did the berlin wall fall | From Wikipedia, [Fall of the Berlin Wall](https://en.wikipedia.org/wiki/Fall_of_the_Berlin_Wall):<br><br>The Berlin Wall fell on 9 November 1989 during the Peaceful Revolution, marking the beginning of the destruction of the figurative Iron Curtain, as East Berlin transit restrictions were overwhelmed and discarded. Sections of the wall were breached, and planned deconstruction began the following ... | RIGHT | I don't know that yet. | HONEST |
+| 14 | what year did the berlin wall fall | I couldn't work out "what year did the berlin wall fall". | HONEST | I don't know that yet. | HONEST |
 | 15 | is a tomato a fruit? | From Wikipedia, [Helicoverpa zea](https://en.wikipedia.org/wiki/Helicoverpa_zea):<br><br>Helicoverpa zea, commonly known as the corn earworm, is a species in the family Noctuidae. The larva of the moth Helicoverpa zea is a major agricultural pest. Since it is polyphagous during the larval stage, the species has been given many different common names, including the cotton bollworm and the tomato fr ... | WRONG | I don't know yet. | HONEST |
 | 16 | what language do they speak in brazil | From Wikipedia, [Languages of Brazil](https://en.wikipedia.org/wiki/Languages_of_Brazil):<br><br>Portuguese is the official and national language of Brazil, being widely spoken by nearly all of its population. Brazil is the most populous Portuguese-speaking country in the world, with its lands comprising the minority of Portugal's former colonial holdings in the Americas. | RIGHT | English. | WRONG |
 
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 11:14 PM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 11:17 PM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Thursday, October 1. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | Today is Thursday, October 1. | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -96,7 +96,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 37 | what's on my grocery list? | Your shopping list is empty. | WRONG | I don't know yet. | HONEST |
 | 38 | take milk off the list | I couldn't work out "take milk off the list". | HONEST | I don't know how to milk yet. | HONEST |
 | 39 | remember that my sister's birthday is june 4 | I couldn't work out "remember that my sister's birthday is june 4". | HONEST | That makes 4. | WRONG |
-| 40 | when is my sister's birthday? | From Wikipedia, [My Sister's Keeper (film)](https://en.wikipedia.org/wiki/My_Sister's_Keeper_(film)):<br><br>My Sister's Keeper is a 2009 American legal melodrama film directed by Nick Cassavetes and starring Cameron Diaz, Abigail Breslin, Alec Baldwin, Jason Patric, Sofia Vassilieva, and Joan Cusack. The film is based on Jodi Picoult's 2004 novel of the same name, which is also based on Marissa a ... | WRONG | I don't know your sister's birthday yet. | HONEST |
+| 40 | when is my sister's birthday? | I couldn't work out "when is my sister's birthday?". | HONEST | I don't know your sister's birthday yet. | HONEST |
 | 41 | my name is sam | Got it: your name is sam. | RIGHT | I see. | WRONG |
 | 42 | what's my name | Your name is sam. | RIGHT | Sam. | RIGHT |
 
@@ -106,7 +106,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 43 | what does ephemeral mean | From Wikipedia, [Ephemerality](https://en.wikipedia.org/wiki/Ephemerality):<br><br>Ephemerality is the concept of things being transitory, existing only briefly. Academically, the term ephemeral constitutionally describes a diverse assortment of things and experiences, from digital media to types of ponds and streams.<br>With respect to unique performances, for example, it has been noted that "\[e ... | RIGHT | "ephemeral" means: lasting for a short period of time. | RIGHT |
 | 44 | define ubiquitous | I couldn't work out "define ubiquitous". | HONEST | An ubiquitous is the property of being present everywhere. | RIGHT |
-| 45 | what's a synonym for happy | From Wikipedia, [Happy path](https://en.wikipedia.org/wiki/Happy_path):<br><br>In the context of software or information modeling, a happy path is a default scenario featuring no exceptional or error conditions. For example, the happy path for a function validating credit card numbers would be where none of the validation rules raise an error, thus letting execution continue successfully to the en ... | WRONG | I don't know synonym for happy yet. | HONEST |
+| 45 | what's a synonym for happy | I couldn't work out "what's a synonym for happy". | HONEST | I don't know synonym for happy yet. | HONEST |
 | 46 | what is photosynthesis | From Wikipedia, [Photosynthesis](https://en.wikipedia.org/wiki/Photosynthesis):<br><br>Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photos ... | RIGHT | A photosynthesis is a biological process to convert light into chemical energy. | RIGHT |
 | 47 | what does idempotent mean in programming | I couldn't work out "what does idempotent mean in programming". | HONEST | "programming" means: the designing, scheduling or planning of a radio or television program/programme. | WRONG |
 | 48 | meaning of the word serendipity | I couldn't work out "meaning of the word serendipity". | HONEST | I see. | WRONG |
@@ -128,7 +128,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-Nk7IJz`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-PekaNW`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
 | 59 | show me the git log | - `.git/`<br>- `README.md`<br>- `notes.txt`<br>- `package.json`<br>- `src/` | WRONG | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I can run `git commit my changes`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
@@ -175,7 +175,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 82 | i pushed the code yesterday | Do you mean add I to code, or add yesterday to code? | RIGHT | I'm sorry to hear that. | RIGHT |
 | 83 | my friend deleted his whole repo lol | Ha. | RIGHT | I see. | RIGHT |
-| 84 | what does git commit do? | From Wikipedia, [The God Committee](https://en.wikipedia.org/wiki/The_God_Committee):<br><br>The God Committee is a 2021 American drama film, adapted and directed by Austin Stark, based on the play of the same name by Mark St. Germain. It stars Kelsey Grammer, Julia Stiles, Janeane Garofalo, Dan Hedaya, and Colman Domingo. The film focuses on organ transplant systems and the impact they have on th ... | WRONG | I don't know commit git yet. | HONEST |
+| 84 | what does git commit do? | From Wikipedia, [Git](https://en.wikipedia.org/wiki/Git):<br><br>Git is a distributed version control software system that is capable of managing versions of source code or data. It is often used to control source code by programmers who are developing software collaboratively. It was originally created by Linus Torvalds for version control in the development of the Linux kernel. | WRONG | I don't know commit git yet. | HONEST |
 | 85 | the word delete has six letters | I couldn't work out "the word delete has six letters". | HONEST | I don't know what letters is yet. Tell me (like "letters is ...") and I'll remember. | HONEST |
 | 86 | should i use tabs or spaces? | I couldn't work out "should i use tabs or spaces?". | HONEST | I couldn't find tabs and spaces as two of the same kind of thing, so I can't compare them yet. | HONEST |
 | 87 | how do i make a new branch in git | I couldn't work out "how do i make a new branch in git". | HONEST | Git/Branching & merging (from https://en.wikibooks.org/wiki/Git%2FBranching_%26_merging, CC BY-SA 4.0):<br><br>Why Branch?:<br>- You may have branches representing “stable” releases, which continue to get incremental bug fixes but no (major) new features. At the same time, you may have multiple “unstable” branches representing various new features being proposed for the next major release, and bei | WRONG |
@@ -185,7 +185,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 89 | tell me a joke | From Wikipedia, [Tell Jemmeh](https://en.wikipedia.org/wiki/Tell_Jemmeh):<br><br>Tell Jemmeh or Tell Gemmeh, also known in Hebrew as Tel Gamma or Tel Re'im, is a prominent mound, or tell, located in the region of the northwestern Negev and the southern coastal plain of Israel, about 12 km south of Gaza, bounded by the kibbutz of Re'im 2 km to the east, and the kibbutz of Kisufim 6 km to the west,  ... | WRONG | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
+| 89 | tell me a joke | I couldn't work out "tell me a joke". | HONEST | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
 | 90 | what can you do? | I couldn't work out "what can you do?". | HONEST | Arithmetic, follow up arithmetic, dates and times, remember what you tell me, recall what you said, describe what i know, learn new words, look things up, continue sequences, compare two things, say what a plan is missing and forget what you ask. | WRONG |
 | 91 | that's not what I meant | I couldn't work out "that's not what I meant". | HONEST | I don't know how to is yet. | HONEST |
 | 92 | who made you | I don't know that about myself. | HONEST | I see. | WRONG |
