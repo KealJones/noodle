@@ -143,8 +143,9 @@ export class Evaluator {
     for (const st of steps) {
       const r = await this.directive(st);
       o = this.merge(o, r);
-      // A failed step, a block or an offer stops the plan (runtime.md 10.2).
-      if (r.unworked || r.blocked || r.said.some((x) => isHead(x, "Offer"))) break;
+      // A failed step or a block stops the plan (runtime.md 10.2). A step that is offered is not
+      // run, so later steps are offered with it, as one proposal: the user says yes to the plan.
+      if (r.unworked || r.blocked) break;
     }
     return o;
   }
