@@ -25,6 +25,44 @@ test("a social turn gets the seed's reply and runs nothing", async () => {
   assert.equal((await s.turn("sorry byeeee")).text, "No worries.\n\nBye.");
 });
 
+// The regression of 0.21: with imported senses beside the seed's ("hi" the abbreviation, "thank"
+// the verb) and a correction that had taught Unworked a weight of 0, the social reading tied with
+// the imported one and lost. A reply is an answer, so it wins on ReachedAct as well.
+test("a social turn keeps its reply beside imported senses and a learned Unworked weight", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-imported", version="0", from=Seed("test"))
+Concept(Hi(), Lemma("hi"), Category(Thing()))
+Concept(Thank(), Lemma("thank"), Form("thanks", ThirdSingular()), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme(), optional=true)))
+Fact(Feature(), Weight("Unworked", 0))
+`);
+  const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")));
+  // Not won on the order of a tie: the social reading scores above every reading of the other sense.
+  for (const [said, reply, other] of [["hi", "Hi.", "Hi("], ["thanks!", "You're welcome.", "Thank("]]) {
+    const r = await s.turn(said);
+    assert.equal(r.text, reply);
+    const cands = r.record.reasons[0].candidates;
+    const rival = Math.max(...cands.filter((x) => x.label.includes(other)).map((x) => x.score));
+    assert.ok(cands[0].score > rival, `${said}: ${cands[0].score} vs ${rival}`);
+  }
+});
+
+test("a question about the assistant or the user is answered from the graph, never from Know", async () => {
+  const store = seededStore();
+  store.load(LEXICON);
+  // "name" as an import gives it: a noun.
+  store.load(`Pack(name="test-name", version="0", from=Seed("test"))
+Fact(Name(), Category(Noun()))
+`);
+  const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")));
+  const asked: string[] = [];
+  s.world.know = { cached: () => undefined, answer: async (q: string) => (asked.push(q), undefined) } as never;
+  assert.equal((await s.turn("how are you?")).text, "I'm good, thanks.");
+  assert.equal((await s.turn("what's your name")).text, "I'm Noodle.");
+  assert.equal((await s.turn("what is my name?")).text, "You haven't told me that.");
+  assert.equal((await s.turn("who are you")).text, "I don't know that about myself.");
+  assert.deepEqual(asked, []);
+});
+
 test("don't push yet is a constraint until told, echoed, and blocks a later push", async () => {
   const s = session();
   const r = await s.turn("dont push yet");

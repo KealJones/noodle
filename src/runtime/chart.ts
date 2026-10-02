@@ -596,8 +596,10 @@ function signature(e: Edge): string {
   return sig;
 }
 
+// Two entries that differ only in the gap they fill ("how" fills a manner or a property) are two
+// edges, not one.
 function computeSignature(e: Edge): string {
-  return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.length, e.byRule].join("|");
+  return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.acceptsGap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.length, e.byRule].join("|");
 }
 
 export { roles };

@@ -133,8 +133,8 @@ Reading(on=These(), pattern=These($n), becomes=Ref(said=These($n), kind=$n))
 Reading(on=Those(), pattern=Those($n), becomes=Ref(said=Those($n), kind=$n))
 Reading(on=These(), pattern=These(), becomes=Ref(said=These()))
 Reading(on=Those(), pattern=Those(), becomes=Ref(said=Those()))
-Reading(on=My(), pattern=My($n), becomes=Ref(said=My($n), kind=$n))
-Reading(on=Your(), pattern=Your($n), becomes=Ref(said=Your($n), kind=$n))
+Reading(on=My(), pattern=My($n), becomes=Ref(said=My($n), kind=$n, of=Speaker()))
+Reading(on=Your(), pattern=Your($n), becomes=Ref(said=Your($n), kind=$n, of=Addressee()))
 Reading(on=Our(), pattern=Our($n), becomes=Ref(said=Our($n), kind=$n))
 Reading(on=Their(), pattern=Their($n), becomes=Ref(said=Their($n), kind=$n))
 Reading(on=His(), pattern=His($n), becomes=Ref(said=His($n), kind=$n))
@@ -225,6 +225,7 @@ Concept(Why(), Lemma("why"), Form("y"),
   Category(Clause(), Takes(side=Right(), category=Act(), role=Topic())))
 Concept(How(), Lemma("how"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Manner())),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Property()), heads=State()),
   Category(Clause(), Takes(side=Right(), category=Property()), Takes(side=Right(), category=Clause(), role=Topic())),
   Category(Clause(), Takes(side=Right(), category=Thing(), head=Many()), Takes(side=Right(), category=Act(), role=Topic())))
 Concept(Whether(), Lemma("whether"), Category(Clause(), Takes(side=Right(), category=Clause())))
@@ -249,6 +250,9 @@ Reading(on=How(), pattern=How(topic=$p), becomes=Question(And($p, Be(Gap(), Way(
 Reading(on=How(), pattern=How(Many(), topic=$p), becomes=Question(And($p, Be(Gap(), Number($p))), about=Gap()))
 // "how much is X": the amount asked for is the subject, and the question is what X comes to.
 Reading(on=Many(), pattern=How(Many(), topic=Be(theme=$x)), becomes=Question(Be(Gap(), $x), about=Gap()))
+// "how is X", "how are you": the gap is what X is like (the entry that fills a property heads
+// State), so the question asks X's state.
+Reading(on=How(), pattern=State(topic=Interrogative(Be(agent=$x, attribute=Gap()))), becomes=Question(State($x, Gap()), about=Gap()))
 Reading(on=Whether(), pattern=Whether($p), becomes=Question($p))
 
 // Contractions of "is": "what's in X", "it's broken", "that's wrong". Each is the two words.
@@ -258,6 +262,7 @@ Concept(WhatIs(), Lemma("what's"), Form("whats"), Form("wats"), Form("wuts"),
   Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())))
 Concept(WhereIs(), Lemma("where's"), Form("wheres"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
 Concept(WhoIs(), Lemma("who's"), Form("whos"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(HowIs(), Lemma("how's"), Form("hows"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
 Concept(ItIs(), Lemma("it's"), Form("its"), Form("itss"),
   Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())),
   Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())),
@@ -273,6 +278,7 @@ Reading(on=WhatIs(), pattern=WhatIs(theme=$x), becomes=Question(Be(Gap(), $x), a
 Reading(on=WhatIs(), pattern=WhatIs(attribute=$p), becomes=What(topic=Be(agent=Gap(), attribute=$p)))
 Reading(on=WhereIs(), pattern=WhereIs(theme=$x), becomes=Question(BeIn($x, Gap()), about=Gap()))
 Reading(on=WhoIs(), pattern=WhoIs(theme=$x), becomes=Question(And(Be(Gap(), $x), Be(Gap(), Someone())), about=Gap()))
+Reading(on=HowIs(), pattern=HowIs(theme=$x), becomes=Question(State($x, Gap()), about=Gap()))
 Reading(on=ItIs(), pattern=ItIs(attribute=$p), becomes=Be(agent=It(), attribute=$p))
 Reading(on=ItIs(), pattern=ItIs(theme=$x), becomes=Be(agent=It(), theme=$x))
 Reading(on=ItIs(), pattern=ItIs(location=$r), becomes=Be(agent=It(), location=$r))

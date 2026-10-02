@@ -42,6 +42,8 @@ class Failed extends Error {
   }
 }
 
+/** Who each participant is, as the answer names them: the assistant itself, and the user. */
+const PARTICIPANT = { Addressee: "Self", Speaker: "User" } as const;
 const SPEECH_ACTS = new Set(["Question", "Assert", "Directive", "Advice", "Constraint"]);
 /** Pure primitives Suppose may run, within this many calls (runtime.md 10.1). */
 const SUPPOSE_CALLS = 20;
@@ -104,9 +106,11 @@ export class Evaluator {
         return o;
       }
     }
-    // No speech act: a social turn gets its reply if the seed has one, else nothing is run.
+    // No speech act: a social turn gets its reply if the seed has one, else nothing is run. The
+    // reply is the turn's answer (runtime.md 8.2: an act or an answer), so a reading that has one
+    // does not rest on Unworked alone to beat an imported sense that has none.
     const reply = c("Reply", lf);
-    if (this.canSay(reply)) return { ...this.out(), said: [reply] };
+    if (this.canSay(reply)) return { ...this.out(), said: [reply], reachedAct: true };
     return this.stuck(lf);
   }
 
@@ -521,12 +525,23 @@ export class Evaluator {
       return { ...r, said: r.said.map((x) => (isHead(x, "Outcome") && (asked || role(x, "result")?.kind === "boolean") ? ({ ...x, args: [{ value: lf }, ...x.args.slice(1)] } as Call) : x)) };
     }
     if (this.mode === "Doing") this.conversation.lastQuestion = lf;
+    // Where the answer is depends on what the question is about (design section 14b). A question
+    // about someone in the conversation ("how are you", "what's my name") is answered from what the
+    // graph holds about them, or honestly not at all: the world's sources know neither of them.
+    const who = this.participant(p);
+    if (who) {
+      const r = this.fromGraph(p, who);
+      if (r) return { ...this.out(), said: [c("Outcome", lf, ["result", r])], reachedAct: true };
+      return this.stuck(lf, c("NoSource", lf, ["about", c(PARTICIPANT[who])]));
+    }
     // Nothing here answers it: the need is knowledge, and Know is the one door to it (runtime.md
     // 11b, phase 2; 14). The question's words are the query. In Suppose it answers from the cache
-    // only; a lookup that would go out counts as reaching an answer.
+    // only; a lookup that would go out counts as reaching an answer. A question whose words name
+    // nothing outside the conversation ("what's up"), or that asks about what a pointer ("it")
+    // points at, has nothing to look up in the world.
     const know = this.world.know;
-    if (!know || !this.said) return this.stuck(lf);
-    const topic = this.topicText() ?? this.topicOf(p);
+    const words = this.topicText();
+    if (!know || !this.said || !words || this.asksOfPointer(p)) return this.stuck(lf);
     // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
     // explanation is found by the whole question, a description by the thing it is about.
     const about = this.asksExplanation() ? "reason" : "thing";
@@ -539,7 +554,7 @@ export class Evaluator {
     if (!cached && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
       return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
     try {
-      const k = cached ?? (await know.answer(this.said, topic, about));
+      const k = cached ?? (await know.answer(this.said, words, about));
       if (k) return { ...this.out(), said: [this.found(lf, k)], reachedAct: true };
     } catch {
       // A source that fails is no answer, not an error to show.
@@ -570,14 +585,46 @@ export class Evaluator {
     return words.length ? words.join(" ") : undefined;
   }
 
-  /** What a question is about, in words: its first named thing (a literal, or a word's lemma). */
-  private topicOf(p: Expr): string | undefined {
+  /**
+   * The conversation participant a question is about, if any: one that stands beside the gap in
+   * the same proposition ("how are you": State(Addressee(), Gap())), or owns the referent asked
+   * about ("your name"). One nested deeper ("do you know who wrote it") is not what it is about.
+   */
+  private participant(p: Expr): "Addressee" | "Speaker" | undefined {
+    const isWho = (x: Expr | undefined) => (isHead(x, "Addressee") ? "Addressee" : isHead(x, "Speaker") ? "Speaker" : undefined);
     for (const y of walk(p)) {
-      if (y.kind === "string") return y.value;
-      if (isCall(y) && !STRUCTURAL.logicalForm.names.includes(y.head as never) && y.head !== "Gap") {
-        const l = this.store.facts(y.head, "Lemma").map((f) => positional(f.claim as Call)[0])[0];
-        if (l?.kind === "string" && !this.store.facts(y.head).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))))) return l.value;
-      }
+      if (!isCall(y)) continue;
+      const vals = y.args.map((a) => a.value);
+      const owner = isHead(y, "Ref") ? isWho(role(y, "of")) : undefined;
+      if (owner) return owner;
+      if (vals.some((v) => isHead(v, "Gap"))) for (const v of vals) if (isWho(v)) return isWho(v);
+    }
+    return undefined;
+  }
+
+  /** Whether the thing beside the gap is a referent that only points (no kind, no name said). */
+  private asksOfPointer(p: Expr): boolean {
+    const pointer = (x: Expr) => isHead(x, "Ref") && !role(x, "kind") && ![...walk(role(x, "said") ?? x)].some((y) => y.kind === "string");
+    return [...walk(p)].some((y) => isCall(y) && y.args.some((a) => isHead(a.value, "Gap")) && y.args.some((a) => pointer(a.value)));
+  }
+
+  /**
+   * What the graph holds about a participant that answers the question: a fact on the
+   * participant whose claim is the relation the question asks for (the head beside the gap, or
+   * the kind of the referent it owns). Said as that relation of the participant.
+   */
+  private fromGraph(p: Expr, who: keyof typeof PARTICIPANT): Expr | undefined {
+    const relations: string[] = [];
+    for (const y of walk(p)) {
+      if (!isCall(y)) continue;
+      if (isHead(y, "Ref") && isHead(role(y, "of"), who) && isCall(role(y, "kind"))) relations.push((role(y, "kind") as Call).head);
+      const vals = y.args.map((a) => a.value);
+      if (vals.some((v) => isHead(v, "Gap")) && vals.some((v) => isHead(v, who))) relations.push(y.head);
+    }
+    for (const rel of relations) {
+      const f = this.store.facts(who, rel)[0];
+      const v = f && positional(f.claim as Call)[0];
+      if (v) return c(rel, c(PARTICIPANT[who]), v);
     }
     return undefined;
   }
