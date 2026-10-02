@@ -29,3 +29,4 @@ Every change to the seed after its first review, with its reason, during week 1 
 | 2026-10-02 | 3. bridge | VerbNet's function is working; making a command or a program work is running it; reading or showing what a command gives is running it | "run git status" and "run `pwd`" reached no primitive, so a rule about running git was about containing | +5 |
 | 2026-10-02 | 8. realizations | A blocked command says which rule it ran into and what it did not run | "You said not to `git ...`" left out the verb | +2 |
 | 2026-10-02 | 3. bridge | Saying something that is read is reading it out, chosen by the score | "repeat the readme" said the file's name | +1 |
+| 2026-10-02 | 8. realizations | A command line with no arguments is its program alone | "run `pwd`" offered `pwd args` | +1 |

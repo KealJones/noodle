@@ -31,6 +31,7 @@ Reading(on=Code(), mode=Speaking(), pattern=$x, wants=IsA($x, Name()), becomes=C
 
 // A command line is code: the program, then its arguments, with spaces between.
 Reading(on=Run(), mode=Speaking(), pattern=Run($p, $args), becomes=Code(Paragraph($p, " ", $args)))
+Reading(on=Run(), mode=Speaking(), pattern=Run($p, Args()), becomes=Code(Paragraph($p)))
 Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
 
