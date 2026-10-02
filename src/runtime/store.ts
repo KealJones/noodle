@@ -125,6 +125,16 @@ export class Store {
     return item;
   }
 
+  /** Adds one reading at runtime (a rewrite the user taught, design section 17). */
+  addReading(r: Omit<ReadingItem, "kind" | "meta">, from: Expr, status: Status = "Active"): ReadingItem {
+    const item: ReadingItem = { kind: "reading", ...r, meta: { id: this.nextId++, from, status } };
+    this.concepts.add(item.owner);
+    push(this.readingsByOwner, item.owner, item);
+    push(this.readingsByPatternHead, isCall(item.pattern) ? item.pattern.head : "", item);
+    this.persist(item);
+    return item;
+  }
+
   /** Keeps a content block; identical content is one block (ncon.md section 6). */
   addBlock(body: string, media: string, from: Expr): BlockItem {
     const id = "b_" + createHash("sha256").update(body).digest("hex").slice(0, 16);

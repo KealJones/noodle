@@ -253,9 +253,12 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
     }
   });
 
-  // A token with no candidate can only be skipped or taken as a literal (runtime.md 3.3).
+  // A token with no candidate can only be skipped or taken as a literal (runtime.md 3.3). One whose
+  // only candidates are spelling corrections keeps itself as a literal too: "yeet" may be a new
+  // word, not "yet" misspelt, and the chart and score decide.
   tokens.forEach((tok, i) => {
-    if (!candidates[i].some((x) => x.end === i + 1)) add({ start: i, end: i + 1, literal: str(tok.text), features: [], source: "Unknown", distance: 0 });
+    const own = candidates[i].filter((x) => x.end === i + 1);
+    if (!own.length || own.every((x) => x.source === "SpellDistance")) add({ start: i, end: i + 1, literal: str(tok.text), features: [], source: "Unknown", distance: 0 });
   });
   return { tokens, candidates, aside };
 }

@@ -87,3 +87,14 @@ Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("seco
   const s2 = createSession(store2, root, { grants: ["UnknownEffects"] });
   assert.match((await s2.turn("zap")).text, ranFirst ? /second/ : /first/);
 });
+
+test("a word taught with \"X means Y\" is echoed, kept when confirmed, and used", async () => {
+  const store = seededStore();
+  store.load(LEXICON);
+  const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")));
+  const echo = await s.turn("yeet means push");
+  assert.equal(echo.text, 'So when you say "yeet", you mean "push"? I\'ll remember it if so.');
+  assert.equal((await s.turn("yes")).text, 'Got it: "yeet" means "push".');
+  await s.turn("dont push yet");
+  assert.equal((await s.turn("yeet")).text, "You said not to push yet. Do it now?");
+});
