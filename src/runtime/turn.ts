@@ -21,7 +21,7 @@ export interface TurnOptions {
   derivations: number;
 }
 
-export const DEFAULT_TURN: TurnOptions = { stageTwo: 16, derivations: 4 };
+export const DEFAULT_TURN: TurnOptions = { stageTwo: 16, derivations: 6 };
 
 interface Reading {
   lfs: Expr[];
@@ -93,7 +93,12 @@ export class Session {
     record.tone = toneOf(this.store, hearing);
 
     // Segmentations: at most two, ranked by the score of their best covers (runtime.md 3.2).
-    const segs = segmentations(this.store, hearing).map((ss) => ss.map(([a, b2]) => ({ a, b2, covers: new Chart(this.store, hearing, a, b2, this.weights.get).build().covers() })));
+    const segs = segmentations(this.store, hearing).map((ss) =>
+      ss.map(([a, b2]) => {
+        const chart = new Chart(this.store, hearing, a, b2, this.weights.get).build();
+        return { a, b2, chart, covers: chart.covers() };
+      }),
+    );
     const segScore = (ss: typeof segs[number]) => ss.reduce((n, x) => n + (x.covers[0]?.score ?? 0), 0);
     segs.sort((x, y) => segScore(y) - segScore(x));
     const chosen = segs[0] ?? [];
@@ -109,21 +114,8 @@ export class Session {
     const acts: Expr[] = [];
     for (const seg of chosen) {
       const segText = textOf(text, hearing, seg.a, seg.b2);
-      const readings = this.readings(seg.covers, rewriter);
-      if (!readings.length) continue;
-      // Stage two: Suppose the top few, rerank (runtime.md 8.2).
-      const top = readings.slice(0, this.opts.stageTwo);
-      for (const r of top) {
-        const o = await this.suppose(r, segText);
-        const f2: Features = new Map();
-        addFeature(f2, "ReachedAct", o.reachedAct ? 1 : 0);
-        addFeature(f2, "Unworked", -o.unworked);
-        addFeature(f2, "Blocked", o.blocked);
-        addFeature(f2, "ChecksWouldPass", o.checksPassed);
-        r.features = mergeFeatures(r.features, f2);
-        r.score = scoreOf(r.features, this.weights.get);
-      }
-      top.sort((x, y) => y.score - x.score);
+      const top = await this.readings(seg.covers, seg.chart, rewriter, segText);
+      if (!top.length) continue;
       const win = top[0];
       record.reasons.push(choice(`reading of "${segText}"`, top.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 0));
       record.heard.push(...win.cover.edges.map((e) => e.expr));
@@ -206,16 +198,49 @@ export class Session {
     return { said, steps: alt.steps };
   }
 
-  /** Stage one: covers, each edge rewritten, combined; scored by chart and rewriting features. */
-  private readings(covers: Cover[], rewriter: Rewriter): Reading[] {
+  /**
+   * The readings of a segment, scored in both stages. A cover's edges are fragments that do not
+   * depend on each other, so each edge's derivations are dry run on their own and the best kept
+   * (stage one plus stage two, runtime.md 8): linear in the fragments, where taking the product
+   * of their alternatives crowded the right reading out of the dry runs.
+   */
+  private async readings(covers: Cover[], chart: Chart, rewriter: Rewriter, segText: string): Promise<Reading[]> {
+    type Alt = { expr: Expr; steps: Step[]; features: Features; reached: boolean };
+    const perEdge = new Map<string, Alt[]>();
     const out: Reading[] = [];
     for (const cv of covers) {
-      let combos: { lfs: Expr[]; steps: Step[]; features: Features }[] = [{ lfs: [], steps: [], features: cv.features }];
+      const chosen: Alt[][] = [];
       for (const e of cv.edges) {
-        const ds: Derivation[] = rewriter.normalize(e.expr).slice(0, this.opts.derivations);
-        combos = combos.flatMap((cmb) => ds.map((d) => ({ lfs: [...cmb.lfs, d.expr], steps: [...cmb.steps, ...d.steps], features: mergeFeatures(cmb.features, d.features) }))).slice(0, 24);
+        const k = key(e.expr);
+        let alts: Alt[] | undefined = perEdge.get(k);
+        if (!alts) {
+          alts = [] as Alt[];
+          for (const d of chart.variants(e).flatMap((v) => rewriter.normalize(v.expr).slice(0, this.opts.derivations))) {
+            const o = await this.suppose({ lfs: [d.expr], steps: d.steps, features: d.features, score: 0, cover: cv }, segText);
+            const f2: Features = new Map();
+            addFeature(f2, "Unworked", -o.unworked);
+            addFeature(f2, "Blocked", o.blocked);
+            addFeature(f2, "ChecksWouldPass", o.checksPassed);
+            alts.push({ expr: d.expr, steps: d.steps, features: mergeFeatures(d.features, f2), reached: o.reachedAct });
+          }
+          // An edge's best alternative, counting what reaching an act is worth.
+          const value = (x: Alt) => scoreOf(x.features, this.weights.get) + (x.reached ? this.weights.get("ReachedAct") : 0);
+          alts.sort((x, y) => value(y) - value(x));
+          perEdge.set(k, alts);
+        }
+        if (alts.length) chosen.push(alts);
       }
-      for (const cmb of combos) out.push({ ...cmb, score: scoreOf(cmb.features, this.weights.get), cover: cv });
+      // The cover's best reading, and beside it each fragment's runners-up with the others at
+      // their best: the alternatives a correction can flip to (design section 17).
+      const assemble = (pick: Alt[]) => {
+        let features = cv.features;
+        for (const a of pick) features = mergeFeatures(features, a.features);
+        features = mergeFeatures(features, new Map([["ReachedAct", pick.some((a) => a.reached) ? 1 : 0]]));
+        out.push({ lfs: pick.map((a) => a.expr), steps: pick.flatMap((a) => a.steps), features, score: scoreOf(features, this.weights.get), cover: cv });
+      };
+      const best = chosen.map((alts) => alts[0]);
+      assemble(best);
+      chosen.forEach((alts, i) => alts.slice(1, 4).forEach((alt) => assemble(best.map((b, j) => (j === i ? alt : b)))));
     }
     const seen = new Set<string>();
     return out
