@@ -39,7 +39,19 @@ in words Noodle does not know yet; and multi-act requests whose steps include an
 acts are mostly command names used as ordinary English ("add", "show", "log", "list"), which
 WordNet's senses and the score's evidence are meant to separate.
 
-### What to compare against
+### Against command-name match (`node scripts/baseline.mjs`)
 
-The baselines of PLAN.md phase 1 (Napkin, command-name match, BM25) have not been run on the same
-split yet. Until they are, these numbers say where Noodle is, not whether it is better.
+The zero-effort baseline of design section 29: every learned command whose name appears in the
+prompt as a word. Same labels, same split, same learned commands, same 150-word limit.
+
+| Measure | Noodle | Command-name match |
+|---|---|---|
+| acts: exact act set | 2.4% | 5.1% |
+| acts: first act right | 6.0% | 11.3% |
+| acts: any act right | 13.7% | 23.6% |
+| no act: no act | 74.9% | 65.4% |
+| no act: a false act | 25.1% | 34.6% |
+
+Command-name match finds more of the labelled acts; Noodle makes fewer false acts. With no content
+words, a request Noodle cannot parse around its command word does not reach the act, where a name
+match does not need to parse at all. The other baselines (Napkin, BM25) have not been run yet.
