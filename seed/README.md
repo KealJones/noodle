@@ -11,14 +11,20 @@ and the bridge names no domain command.
 | Part | File | Entries | Estimate |
 |---|---|---|---|
 | 1. Core meanings | `core.ncon` | 141 | ~300 |
-| 2. Function-word lexicon | `function-words.ncon` | 505 | ~400 |
-| 3. The bridge | `bridge.ncon` | 47 | ~50 |
+| 2. Function-word lexicon | `function-words.ncon` | 529 | ~400 |
+| 3. The bridge | `bridge.ncon` | 75 | ~50 |
 | 4. Lexical rules | `lexical-rules.ncon` | 33 | ~30 |
 | 5. Initial weights | `weights.ncon` | 17 | ~10 |
 | 6. Default policies | `policies.ncon` | 13 | ~20 |
 | 7. Genre shapes | `genres.ncon` | 13 | ~10 |
-| 8. English realizations | `realizations.ncon` | 90 | ~90 |
-| Total | | 859 | ~1,000 |
+| 8. English realizations | `realizations.ncon` | 107 | ~90 |
+| Total | | 928 | ~1,000 |
+
+These are the counts after building the first runtime against the draft (the draft committed at
+859); every change since is in the git history. The bridge grew by VerbNet's predicates (design
+section 6 names them as part of the bridge) and two domain-general entries; the lexicon by
+contractions of "is" and readings found missing by running it; the realizations by outcomes of
+commands and declines.
 
 Findings against the estimates (design section 6: a part far from its estimate is reported):
 
@@ -27,7 +33,7 @@ Findings against the estimates (design section 6: a part far from its estimate i
   primitives, Speaker and Addressee) and with no composite meanings (give, fix, delete): those
   are learned from definitions, and adding them here would be hand-writing knowledge. The kill
   test is what says whether 141 is enough.
-- **The function-word lexicon is a quarter over.** Most of the excess is messy spellings and
+- **The function-word lexicon is about a third over.** Most of the excess is messy spellings and
   contractions as forms (Keal's "dont", "cna", "taht"), tone words, and markdown marks; the closed
   classes themselves are about the size expected. An entry is one top-level form, so a word with
   many forms is still one entry.

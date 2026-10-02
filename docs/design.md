@@ -1158,6 +1158,17 @@ What a request asks to produce decides the document; the medium decides only how
 file written to disk is written in its own medium (a `.md` file as markdown source, never wrapped in
 a fence).
 
+## 25c. Talking to chat UIs
+
+Keal: "a streaming openai and/or anthropic endpoint would be sick so we can slide noodle into any
+open source chat ui that supports those". So Noodle speaks both APIs (`src/serve/`): OpenAI's chat
+completions and Anthropic's messages, streaming and not, with the model name `noodle`. The
+adapter is outside the runtime, like a terminal: it carries text in and Say's printed document out,
+in markdown (the chat's medium, a fact on the conversation). A chat UI sends the whole conversation
+each time; a conversation is known by its first user message, only the last user message is a new
+turn, and a conversation the assistant has not seen (a restart) is not replayed, so nothing runs
+twice. Token counts are words: there is no tokenizer, by design.
+
 ## 26. Evaluation
 
 **The corpus**: 1,595 items with model-drafted expectations, normalized into test cases in

@@ -67,6 +67,17 @@ Run in parallel with the end of phase 0. Mostly Keal's work, with help.
 - **The baseline**: score Napkin (the prototype) and the simple baselines on the labelled items with
   `scripts/corpus.mjs`, so every later number has something to be compared with.
 
+**Progress (2026-10-01)**: the seed is drafted (0.1.0, `seed/README.md`, counted by `pnpm
+seed:count`). On Keal's instruction to keep going without waiting, phase 2's core was built ahead of
+the kill test, piece by piece against its spec: the store, hearing, the chart, rewriting, the
+two-stage score, evaluation with rules and guards, Speaking, the primitives, corrections with the
+capped perceptron, and the chat endpoints (design section 25c); also phase 3's importers (WordNet,
+VerbNet: written and tested on invented fixtures, not yet run on the real files, `docs/imports.md`)
+and the first part of phase 4 (a tool's man pages give its commands' words senses that run them,
+offered first). The seed changed while building (now 928 entries); those changes are before its
+first review, so they are in the git history, not `seed/CHANGES.md`. The kill test is still Keal's,
+and the seed is still unreviewed: if either moves, the core moves with it.
+
 **Checkpoint 1**: the kill test passes; the seed is drafted and counted; the capture hook is
 running; the baseline numbers exist; the accrual rate of qualifying requests is measured.
 
