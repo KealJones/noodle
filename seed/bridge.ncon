@@ -79,6 +79,15 @@ Reading(on=Read(), pattern=Try(theme=See(experiencer=Addressee(), stimulus=$x)),
 Reading(on=Read(), pattern=Question(BeIn(Gap(), $h), about=Gap()), becomes=Question(Read($h), about=Gap()))
 Reading(on=Read(), pattern=Question(And(BeIn(Gap(), $h), $k), about=Gap()), becomes=Question(Read($h), about=Gap()))
 Reading(on=Read(), pattern=Question(Contains($h, Gap()), about=Gap()), becomes=Question(Read($h), about=Gap()))
+// Here, for the assistant, is the workspace it works in, which Read knows as "." (its root).
+// What is here is what is in it; the place we are in is here, and asking which place that is
+// asks where it is ("what's in here", "where are we", "what folder are we in").
+Reading(on=Here(), pattern=Read(Here()), becomes=Read("."))
+Reading(on=Here(), pattern=BeIn(And(Speaker(), Addressee()), $p), becomes=Be($p, Here()))
+Reading(on=Here(), pattern=Be(agent=And(Speaker(), Addressee()), location=$p), becomes=Be($p, Here()))
+Reading(on=Here(), pattern=BeIn(Speaker(), $p), becomes=Be($p, Here()))
+Reading(on=Here(), pattern=Be(agent=Speaker(), location=$p), becomes=Be($p, Here()))
+Reading(on=Read(), pattern=Question(And(Be(Gap(), Here()), $k), about=Gap()), becomes=Question(Read(Here()), about=Place()))
 // Asking what a named thing is can be looking at it, when it is something that can be read.
 Reading(on=Read(), pattern=Question(Be(Gap(), $x), about=Gap()), becomes=Question(Read($x), about=Gap()))
 
@@ -128,6 +137,9 @@ Reading(on=Compare(), pattern=Same($a, $b), becomes=Compare($a, $b, Same()))
 Reading(on=Compare(), pattern=More($a, standard=$b, attribute=$k), becomes=Compare($a, $b, $k))
 Reading(on=Compare(), pattern=Less($a, standard=$b, attribute=$k), becomes=Compare($b, $a, $k))
 Reading(on=Now(), pattern=Now(), becomes=Now())
+// Asking which time it is now is reading the clock. The kind asked for (a time of day, a day) is
+// kept as what the question is about, so the answer is said as that kind.
+Reading(on=Now(), pattern=Question(Be(Gap(), $k, time=Now()), about=Gap()), becomes=Question(Now(), about=$k))
 
 // ---------------------------------------------------------------------------------------------
 // Time
@@ -138,6 +150,12 @@ Reading(on=Schedule(), pattern=Do(theme=$a, time=After($t)), wants=IsA($t, Time(
 
 Reading(on=Schedule(), pattern=Wait(agent=Addressee(), time=Until($t)), wants=IsA($t, Time()),
   becomes=Schedule($t, Now()), effects=ChangesLocal())
+
+// Telling of an act still to come, at a later time ("remind me tomorrow to call mom": cause me to
+// know it then): Schedule the saying of it, in the words it was asked in.
+Reading(on=Schedule(), pattern=Say(Future($x), time=$t), becomes=Schedule($t, Say($x)), effects=ChangesLocal())
+// What the assistant will say later is what is scheduled ("what will you remind me about").
+Reading(on=Read(), pattern=Question(Say(Gap(), time=Future()), about=Gap()), becomes=Question(Read(Schedule()), about=Gap()))
 
 // ---------------------------------------------------------------------------------------------
 // Doing in order
@@ -167,12 +185,18 @@ Concept(Utilize())
 Concept(Desire())
 Concept(Destroyed())
 Concept(HasAttribute())
+Concept(HasInformation())
 
 Reading(on=HasLocation(), pattern=HasLocation($x, $y), becomes=BeIn($x, $y))
 Reading(on=Location(), pattern=Location($x, $y), becomes=BeIn($x, $y))
 Reading(on=HasPossession(), pattern=HasPossession($h, $x), becomes=Have($h, $x))
 Reading(on=HasState(), pattern=HasState($x, $v), becomes=Be($x, $v))
 Reading(on=HasAttribute(), pattern=HasAttribute($x, $a, $v), becomes=Be($x, $v, attribute=$a))
+// (Read only for an act still to come, "remind me to stretch", and for what is asked, "what will
+// you remind me of": the general reading, informing of anything, reaches Say for any topic, and a
+// Say the chat cannot show yet is worse than saying it is stuck.)
+Reading(on=HasInformation(), pattern=HasInformation($x, Future($a)), becomes=Know(experiencer=$x, theme=Future($a)))
+Reading(on=HasInformation(), pattern=HasInformation($x, Gap()), becomes=Know(experiencer=$x, theme=Gap()))
 Reading(on=Motion(), pattern=Motion($x), becomes=Move(theme=$x))
 Reading(on=Motion(), pattern=Motion($x, $path), becomes=Move(theme=$x, path=$path))
 Reading(on=Transfer(), pattern=Transfer($a, $t, $r), becomes=Cause(agent=$a, result=Become(Have($r, $t))))

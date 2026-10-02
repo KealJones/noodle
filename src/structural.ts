@@ -54,7 +54,9 @@ export const STRUCTURAL = {
       // LF argument kinds (logical-form.md section 3.1), checked when an LF is built.
       "Prop", "Act", "Thing", "Time", "Kind", "Rule",
       // Roles the LF heads take.
-      "About", "To", "For", "Over", "Where", "Except", "Else", "Said",
+      // (To, a link's target, is a role the seed declares; as a head it is only ever the word "to",
+      // which is read away, so it is not listed: a "to" left unread counts as unworked.)
+      "About", "For", "Over", "Where", "Except", "Else", "Said",
       // Seed draft: what a core meaning takes, read by the LF kind check.
       "Frame",
     ],
@@ -94,6 +96,8 @@ export const STRUCTURAL = {
     why: "seed draft: what Say is handed to realize, and the printing step of design section 25b",
     names: [
       "Offer", "Echo", "Outcome", "Reply", "Target", "Checked", "Output", "Stopped",
+      // An act kept for later (Schedule) whose time has come, said at the start of a turn.
+      "Due",
       "Print", "Medium", "Printed", "Escaped", "Escapes", "Fenced", "Repeated", "Uppercase", "Capitalized",
       "Block", "Min", "Pad",
       // Run's argument list, which a command line is realized from.
@@ -126,6 +130,9 @@ export const STRUCTURAL = {
       "Name", "Same",
       // What Remember keeps and returns (a rewrite the user taught).
       "Rewrite", "Remembered",
+      // What Schedule keeps, and the schedule Read(Schedule()) lists it in; a unit's length in
+      // seconds, which Schedule reads to work out a time ("in 10 minutes").
+      "Scheduled", "Schedule", "Lasts",
     ],
   },
 } as const satisfies Record<string, Group>;

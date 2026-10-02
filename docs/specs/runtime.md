@@ -363,7 +363,10 @@ run         the code
 - effectful primitives are **captured**, not applied: the call, its arguments and its declared
   effects are recorded as planned effects, and the result is a placeholder of the declared kind;
 - **pure** primitives run, within a budget (default 200 ms and 20 calls per Suppose);
-- Know answers only from the graph and the cache; the network is never used;
+- Know answers only from the graph and the cache; the network is never used; an answer from the
+  cache is not counted as reaching an act, so a reading is chosen by what the graph can do with it,
+  not by whether its words were looked up before (a question once answered from Wikipedia is read
+  anew once the graph can answer it);
 - standing rules and guards are checked as if Doing, and blocks are recorded.
 
 The result is the value (or placeholders), the planned effects, blocks, needs met and unmet, and

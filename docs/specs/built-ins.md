@@ -39,12 +39,12 @@ may run them.
 | `Count(set)` | yes | none | none | none | yes |
 | `Rank(set, by)`, `Sort(set, by)`, `Filter(set, where)` | yes | none | none | none | yes |
 | `Arithmetic(op, args)` | yes | none | none | none | later |
-| `Now()` | yes | none | none | none | yes |
+| `Now()` | yes | none | none | none | yes: the present moment in the user's time, `At(iso, year=, month=, day=, weekday=, hour=, minute=)`; what is said about it is the seed's wording |
 | `Read(source)` | yes | none (Reads) | a block or structure came back | none | **yes** |
 | `Write(target, content)` | no | ChangesLocal, or Deletes if it replaces content not saved elsewhere | the target has the content | restore the old block | **yes** |
 | `Edit(target, change)` | no | ChangesLocal | the target has the change | reverse the change | **yes** |
 | `Run(program, args)` | no | from the program's learned effects; Unknown if none | exit status and expected output | where the program's documentation gives one | **yes** |
-| `Schedule(when, act)` | no | ChangesLocal | the schedule holds it | cancel | later |
+| `Schedule(when, act)` | no | ChangesLocal | the schedule holds it | cancel | yes: `when` is a time expression (`Now`, `At`, `After(t, extent=d)`, `Before`, or a duration, that long from now; durations count units with a `Lasts` fact), `act` a primitive call kept in the user's words; items are facts on `Schedule`, `Read(Schedule())` lists them, and what falls due is done at the start of the next turn |
 | `Say(expr)` | no | Speaks | none | none | **yes** |
 | `Ask(question)` | no | Speaks | none | none | **yes** |
 | `Suppose(expr)` | yes | none (captures others) | none | none | **yes** |

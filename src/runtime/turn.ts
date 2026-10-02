@@ -73,6 +73,31 @@ export class Session {
     this.medium = isCall(m) ? m.head : "";
   }
 
+  /**
+   * What was scheduled and has fallen due (Schedule; built-ins.md section 2), through a pure
+   * primitive. The chat has no timer, so a due act is done at the start of the next turn: what it
+   * says is said first, and it is taken off the schedule (retracted, so the record keeps it).
+   */
+  private async due(): Promise<Expr[]> {
+    const read = this.primitives.get("Read");
+    if (!read) return [];
+    let schedule: Expr;
+    try {
+      schedule = await read.run([c("Schedule")], this.world);
+    } catch {
+      return [];
+    }
+    const out: Expr[] = [];
+    for (const item of isCall(schedule) ? positional(schedule) : []) {
+      const due = role(item, "due");
+      const id = role(item, "item");
+      if (!(due?.kind === "boolean" && due.value) || id?.kind !== "number") continue;
+      out.push(c("Due", positional(item as Call)[0]));
+      this.store.retract(id.value);
+    }
+    return out;
+  }
+
   /** Focus, phase 1 (runtime.md 11b): names in the workspace, through a pure primitive. */
   private async surroundings(): Promise<string[]> {
     const read = this.primitives.get("Read");
@@ -98,6 +123,7 @@ export class Session {
     const record: TurnRecord = { index: conv.turnIndex, who: "User", text, heard: [], lf: [], said: [], reasons: [], tone: [], asides: [] };
     conv.turns.push(record);
 
+    const due = opts.dry ? [] : await this.due();
     const hearing = hear(this.store, text, { names: await this.surroundings() });
     record.tone = toneOf(this.store, hearing);
 
@@ -129,7 +155,13 @@ export class Session {
       // Two readings too close (design sections 9 and 23): when the best two tie exactly and lead
       // to different acts, nothing says which was meant, so it asks instead of picking one.
       const runner = top[1];
-      const actsOf = (r: Reading) => ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map(key);
+      // Acts are compared as they would be done, in the user's words: two readings that differ
+      // only inside what is quoted ("to call mom", read two ways) do the same thing.
+      const actsOf = (r: Reading) => {
+        const w = new Map<string, string>();
+        for (const e of r.cover.edges) collectWords(e, text, hearing, w);
+        return ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map((x) => key(this.inWords(x, w, r.steps)));
+      };
       if (opts.ask !== false && runner && runner.score === win.score && actsOf(win).length && actsOf(runner).length && actsOf(win).join() !== actsOf(runner).join()) {
         const a = win.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
         const b2 = runner.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
@@ -144,7 +176,7 @@ export class Session {
       for (const e of win.cover.edges) collectWords(e, text, hearing, words);
       allSteps.push(...win.steps);
       choices.push({ segText, readings: top, winner: win, words });
-      const ev = new Evaluator(this.store, this.primitives, this.world, conv, opts.dry ? "Supposing" : "Doing", win.steps, segText, (x) => this.canSay(x));
+      const ev = new Evaluator(this.store, this.primitives, this.world, conv, opts.dry ? "Supposing" : "Doing", win.steps, segText, (x) => this.canSay(x), (x) => this.inWords(x, words, win.steps, true));
       const segSaid: Expr[] = [];
       let reached = false;
       for (const lf of win.lfs) {
@@ -235,6 +267,7 @@ export class Session {
       said.length = 0;
       said.push(...rest);
     }
+    said.unshift(...due);
     const spoken = said.map((x) => this.inWords(x, words, allSteps));
     record.said = spoken;
     const out = spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean).join("\n\n");
@@ -342,7 +375,7 @@ export class Session {
   }
 
   /** Acts and referents are said in the words the user used for them, where there are some. */
-  private inWords(e: Expr, words: Map<string, string>, steps: Step[]): Expr {
+  private inWords(e: Expr, words: Map<string, string>, steps: Step[], parts = false): Expr {
     if (!isCall(e)) return e;
     const find = (x: Expr): string | undefined => {
       const seen = new Set<string>();
@@ -355,22 +388,28 @@ export class Session {
         const w = words.get(k);
         if (w) return w;
         for (const st of steps) if (key(st.after) === k) stack.push(st.before);
+        // What is kept in the user's words (a reminder) is found as a whole even where its parts
+        // were read on their own ("check the oven", whose "the oven" became a referent): with its
+        // parts put back as they were heard.
+        if (parts && isCall(y)) {
+          const back = mapExpr(y, (z) => (z === y ? undefined : steps.find((st) => key(st.after) === key(z))?.before));
+          if (key(back) !== k) stack.push(back);
+        }
       }
       return undefined;
     };
     if (e.head === "Reply") return e;
-    return {
-      ...e,
-      args: e.args.map((a) => ({
-        ...a,
-        value: mapExpr(a.value, (x) => {
-          // A primitive call is said by its own realization (a command line, a file's content).
-          if (!isCall(x) || this.primitives.has(x.head) || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply") return undefined;
-          const w = find(x);
-          return w ? s(w) : undefined;
-        }),
-      })),
+    const said = (x: Expr): Expr | undefined => {
+      // A primitive call is said by its own realization (a command line, a file's content).
+      if (!isCall(x) || this.primitives.has(x.head) || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply") return undefined;
+      // The kind a question asks for decides how its answer is said ("what day is it" is said as a
+      // day), so it stays a kind; the rest of the question is in the user's words.
+      const about = role(x, "about");
+      if (x.head === "Question" && about && !(isCall(about) && about.head === "Gap")) return { ...x, args: x.args.map((a) => (a.name === "about" ? a : { ...a, value: mapExpr(a.value, said) })) };
+      const w = find(x);
+      return w ? s(w) : undefined;
     };
+    return { ...e, args: e.args.map((a) => ({ ...a, value: mapExpr(a.value, said) })) };
   }
 }
 

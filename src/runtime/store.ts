@@ -237,6 +237,12 @@ export class Store {
     return this.add<ReadingItem>({ kind: "reading", ...r, meta: { id: 0, from, status } });
   }
 
+  /** Retracts an item by id: it stays in the record, and is no longer read (a reminder said). */
+  retract(id: number) {
+    this.db.prepare("UPDATE items SET status = 'Retracted' WHERE id = ?").run(id);
+    this.clearCaches();
+  }
+
   /** Keeps a content block; identical content is one block (ncon.md section 6). */
   addBlock(body: string, media: string, from: Expr): BlockItem {
     const id = "b_" + createHash("sha256").update(body).digest("hex").slice(0, 16);
