@@ -1,0 +1,109 @@
+// The structural concepts (docs/specs/built-ins.md section 4): the only concept names runtime code
+// may refer to. Each group says why its names cannot be data on a word. A name used in runtime
+// code, or in the seed without a declaration there, must be in this list (testing.md section 2).
+//
+// Groups marked "seed draft" were proposed while drafting the seed (seed/README.md) and are
+// listed in built-ins.md beside the ones the specs fixed.
+
+export interface Group {
+  why: string;
+  names: readonly string[];
+}
+
+export const STRUCTURAL = {
+  dataModel: {
+    why: "the shape of the data (ncon.md); the store and matcher cannot work without them",
+    names: [
+      "Concept", "Fact", "Reading", "Block", "Pack", "Retract",
+      "Lemma", "Form", "Sense", "SenseOf", "PartOfSpeech", "Sounds", "IsA", "SameAs", "Said",
+      "Active", "Proposed", "Pending", "Retracted",
+      "Expand", "Collapse", "All",
+      "Speaking", "Supposing", "Doing",
+    ],
+  },
+  formFeatures: {
+    why: "seed draft: what imports put on forms and what lexical rules are triggered by",
+    names: ["Plural", "Past", "Present", "PastParticiple", "Gerund", "ThirdSingular"],
+  },
+  chart: {
+    why: "the chart's six steps read these facts and compare these categories by identity",
+    names: [
+      "Category", "Takes", "Modifies", "Joins", "FillsGap", "Tone", "OpensClause", "EndsClause",
+      "SetsAside", "KeyNeighbours", "HasShape", "Left", "Right", "Modifier",
+      // Arguments of Takes, Modifies, Joins and FillsGap.
+      "Side", "Role", "Head", "Optional",
+      // The categories (built-ins.md section 4.2; Mark from the seed draft).
+      "Noun", "Thing", "Act", "Clause", "Relation", "Property", "Manner", "Mark",
+      // Seed draft: an entry's wrapper, the gap filler in heard expressions, the correction and
+      // aside marks, role filling in lexical rules and readings, and Indent (runtime.md 3.2).
+      "Wraps", "Gap", "Corrects", "Aside", "WithRoles", "Indent",
+    ],
+  },
+  shapes: {
+    why: "the shape interpreter reads them (runtime.md section 3.4)",
+    names: ["Digits", "Letter", "Digit", "Lower", "Upper", "Space", "Any", "Literal", "Seq", "OneOf", "Repeat"],
+  },
+  logicalForm: {
+    why: "evaluation has one rule per speech act and rule checking reads Not and Only (logical-form.md); protected base",
+    names: [
+      "Question", "Assert", "Directive", "Advice", "Constraint",
+      "Not", "Only", "Every", "Some", "If", "And", "Or", "Then", "Quote", "Mention", "Permit",
+      "Hole", "Label", "Outscopes", "Ref",
+      "Now", "Past", "Future", "At", "Since", "Until", "During", "Before", "After", "Told", "LastChange",
+      "Written", "Speaker", "Addressee",
+      // LF argument kinds (logical-form.md section 3.1), checked when an LF is built.
+      "Prop", "Act", "Thing", "Time", "Kind", "Rule",
+      // Roles the LF heads take.
+      "About", "To", "For", "Over", "Where", "Except", "Else", "Said",
+      // Seed draft: what a core meaning takes, read by the LF kind check.
+      "Frame",
+    ],
+  },
+  scoring: {
+    why: "want heads the runtime computes, feature templates (runtime.md 8.1, 8.2), and their weights",
+    names: [
+      "Near", "Doable",
+      "WordsUsed", "CandidateSource", "WantedKind", "ShapeFit", "Neighbour", "SenseFrequency",
+      "Evidence", "Match", "Trust", "Coverage", "FocusSource",
+      "ReachedAct", "NeedsMet", "ChecksWouldPass", "Blocked", "UnknownEffects", "Unworked",
+      "Feature", "Weight",
+      "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",
+    ],
+  },
+  effects: {
+    why: "guards attach to effect classes (runtime.md section 12); protected base",
+    names: [
+      "Deletes", "OverwritesHistory", "Publishes", "SendsOutside", "Spends", "UnknownEffects",
+      "ChangesLocal", "ChangesGraph", "Speaks", "Reads",
+    ],
+  },
+  trustAndConversation: {
+    why: "the trust rules and the conversation structure are runtime mechanism over them (runtime.md 11 to 13)",
+    names: [
+      "Source", "TrustLevel", "Seed", "Derived", "Correction", "Config", "User", "Self",
+      "Conversation", "Turn", "Event", "InPlay", "StandingRule", "Proposal", "Grant",
+    ],
+  },
+  stuck: {
+    why: "seed draft: the reasons the runtime records for an unworked expression (design section 23)",
+    names: ["NoSense", "NoReading", "NeedUnmet", "NoSource", "NoPermission", "TooClose", "BlockedBy"],
+  },
+  speaking: {
+    why: "seed draft: what Say is handed to realize, and the printing step of design section 25b",
+    names: [
+      "Offer", "Echo", "Outcome", "Reply", "Target", "Checked", "Output", "Stopped",
+      "Print", "Medium", "Printed", "Escaped", "Escapes", "Fenced", "Repeated", "Uppercase", "Capitalized",
+      "Block", "Min", "Pad",
+    ],
+  },
+  primitives: {
+    why: "the only code that touches the world (built-ins.md section 2)",
+    names: [
+      "Store", "Remove", "Contains", "Set", "Remember", "Compare", "Count", "Rank", "Sort", "Filter",
+      "Arithmetic", "Now", "Read", "Write", "Edit", "Run", "Schedule", "Say", "Ask", "Suppose", "Sequence",
+    ],
+  },
+} as const satisfies Record<string, Group>;
+
+/** Every structural name, once. */
+export const STRUCTURAL_NAMES: ReadonlySet<string> = new Set(Object.values(STRUCTURAL).flatMap((g) => g.names));

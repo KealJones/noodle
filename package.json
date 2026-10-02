@@ -1,13 +1,14 @@
 {
   "name": "noodle",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "An assistant that understands and acts without a language model, built as a graph of nested concepts (N-Con).",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "pnpm build && node --test 'dist/**/*.test.js'",
-    "test:capture": "node --test scripts/capture.test.mjs"
+    "test:capture": "node --test scripts/capture.test.mjs",
+    "seed:count": "pnpm build && node dist/seed/count.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
