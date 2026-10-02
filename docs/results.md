@@ -68,3 +68,10 @@ the denominators (so the no-act count is 345, not 358).
 | acts: any act right | 13.7% | 17.3% (58/335) | 23.6% (79/335) |
 | no act: no act | 74.9% | 71.3% (246/345) | 64.1% (221/345) |
 | no act: a false act | 25.1% | 28.7% (99/345) | 35.9% (124/345) |
+
+## 2026-10-01, later: runtime 0.17.1 (after the review fixes)
+
+The review's safety fixes (src/runtime/review.test.ts) first blocked every primitive call with any
+role left over, which dropped acts-any to 14.3%; narrowed to leftovers that limit what may run (a
+word whose readings make a prohibition, restriction or condition), the numbers are back to 0.14.1's:
+acts exact 3.0%, first 8.7%, any 17.3%; no act 71.3%, false act 28.7%.
