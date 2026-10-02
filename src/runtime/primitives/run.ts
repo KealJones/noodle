@@ -29,8 +29,11 @@ export const Run: Primitive = {
     const list = argv(args);
     if (world.programs && !world.programs.has(name)) throw new Error(`${name} is not a program Run may start`);
     const cwd = resolveInside(world, ".");
+    // Run is not interactive: no terminal, no input, and no editor or pager to wait on, so a
+    // program that would ask fails fast instead of hanging until the time limit.
+    const env = { ...process.env, EDITOR: "false", VISUAL: "false", PAGER: "cat", TERM: "dumb" };
     const done = await new Promise<{ code: number; out: string; err: string }>((resolve, reject) => {
-      execFile(name, list, { cwd, shell: false, timeout: world.timeoutMs ?? 30000, maxBuffer: 64 * 1024 * 1024, encoding: "utf8" }, (error, out, err) => {
+      const child = execFile(name, list, { cwd, shell: false, env, timeout: world.timeoutMs ?? 30000, maxBuffer: 64 * 1024 * 1024, encoding: "utf8" }, (error, out, err) => {
         if (!error) return resolve({ code: 0, out, err });
         const e = error as NodeJS.ErrnoException & { killed?: boolean; signal?: string };
         if (typeof e.code === "number") return resolve({ code: e.code, out, err });
@@ -38,10 +41,14 @@ export const Run: Primitive = {
         if (e.signal) return resolve({ code: -1, out, err });
         reject(new Error(`could not start ${name}: ${e.message}`));
       });
+      child.stdin?.end();
     });
-    const out = world.store.addBlock(done.out, "text/plain", SELF);
-    const err = world.store.addBlock(done.err, "text/plain", SELF);
-    return c("Ran", s(name), args as Expr, ["exit", n(done.code)], ["output", blockRef(out.id)], ["error", blockRef(err.id)]);
+    // Output and error are there only when the program wrote something: no output is structure
+    // ("it said nothing"), not an empty block to look inside.
+    const parts: [string, Expr][] = [["exit", n(done.code)]];
+    if (done.out) parts.push(["output", blockRef(world.store.addBlock(done.out, "text/plain", SELF).id)]);
+    if (done.err) parts.push(["error", blockRef(world.store.addBlock(done.err, "text/plain", SELF).id)]);
+    return c("Ran", s(name), args as Expr, ...parts);
   },
   async check(_args, result) {
     return role(result, "exit")?.kind === "number" && (role(result, "exit") as { value: number }).value === 0;

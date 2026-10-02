@@ -32,6 +32,8 @@ export interface World {
   ask(question: Expr): void;
   /** Programs Run may start (the config's grant, design section 20); undefined means any. */
   programs?: ReadonlySet<string>;
+  /** Effect classes a level 1 grant (the config, design section 20) lets run without an offer. */
+  grants?: ReadonlySet<EffectClass>;
   /** Run's time limit in milliseconds. */
   timeoutMs?: number;
 }

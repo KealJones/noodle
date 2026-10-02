@@ -198,10 +198,13 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
         }
       }
     }
-    for (const name of surroundings.names) {
-      const d = editDistance(tok.text.toLowerCase(), name.toLowerCase(), 2);
-      if (d <= 2 && d <= Math.floor(name.length / 4)) add({ start: i, end: i + 1, literal: str(name), features: [], source: "InPlay", distance: d, kind: "Name" });
-    }
+    // Names in the surroundings: an exact name (case aside) is the candidate; only with none are
+    // names a small spelling distance away proposed, as for words.
+    const near = surroundings.names
+      .map((name) => ({ name, d: editDistance(tok.text.toLowerCase(), name.toLowerCase(), 2) }))
+      .filter(({ name, d }) => d <= 2 && d <= Math.floor(name.length / 4));
+    const same = near.filter((x) => x.d === 0);
+    for (const { name, d } of same.length ? same : near) add({ start: i, end: i + 1, literal: str(name), features: [], source: "InPlay", distance: d, kind: "Name" });
   });
 
   // Multi-word lemmas ("go ahead", "never mind") enter as spans.
