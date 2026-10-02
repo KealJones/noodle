@@ -91,6 +91,28 @@ interface Frame {
   predicates: string[];
 }
 
+/**
+ * The kind of place a frame's preposition must mark, from its restriction: VerbNet's preposition
+ * types, in its own hierarchy (spatial, then path and location; source, direction and
+ * destination under path), named by the seed's core roles. None where nothing is restricted.
+ */
+function prepKind(prep: XmlElement): string | undefined {
+  const types = new Set<string>();
+  const visit = (x: XmlElement) => {
+    if (x.name === "SELRESTR" && x.attrs.Value === "+" && x.attrs.type) types.add(x.attrs.type);
+    for (const k of x.children) visit(k);
+  };
+  visit(prep);
+  const kinds: Record<string, string> = {
+    spatial: "Spatial", path: "Path", dir: "Path", src: "Source", src_conf: "Source", src_dir: "Source",
+    dest: "Destination", dest_conf: "Destination", dest_dir: "Destination", loc: "Location", location: "Location",
+  };
+  // Of several, the one the others are kinds of is what all of them have in common: Spatial if
+  // they differ in kind, else the kind itself.
+  const named = [...new Set([...types].map((t) => kinds[t]).filter(Boolean))];
+  return named.length === 1 ? named[0] : named.length > 1 ? "Spatial" : undefined;
+}
+
 /** One frame: its syntax as a chart entry, its semantics as what the verb becomes. */
 function readFrame(frame: XmlElement): Frame | undefined {
   const syntax = child(frame, "SYNTAX");
@@ -117,9 +139,18 @@ function readFrame(frame: XmlElement): Frame | undefined {
     else if (e.name === "PREP" || e.name === "LEX") {
       const np = els[i + 1];
       if (!np || np.name !== "NP") return undefined;
-      const preps = (e.attrs.value ?? "").split(/\s+/).filter(Boolean);
-      const prepHead = preps.length === 1 && /^[a-z]+$/.test(preps[0]) ? encodeLemma(preps[0]) : undefined;
-      takes.push(c("Takes", ["side", c("Right")], ["category", c("Relation")], ["role", c(addRole(np.attrs.value))], ...(prepHead ? ([["head", c(prepHead)]] as [string, Expr][]) : [])));
+      // Which prepositions the phrase may have: those the frame lists ("at against on"), or those
+      // of the kind its restriction names (VerbNet's preposition types: a source, a path, a
+      // destination, a location), which the seed's prepositions mark.
+      const preps = (e.attrs.value ?? "").split(/\s+/).filter((x) => /^[a-z]+$/.test(x)).map((x) => encodeLemma(x)).filter((x): x is string => !!x);
+      const restrict: [string, Expr][] = [];
+      if (preps.length === 1) restrict.push(["head", c(preps[0])]);
+      else if (preps.length > 1) restrict.push(["head", c("OneOf", ...preps.map((x) => c(x)))]);
+      else {
+        const kind = prepKind(e);
+        if (kind) restrict.push(["marks", c(kind)]);
+      }
+      takes.push(c("Takes", ["side", c("Right")], ["category", c("Relation")], ["role", c(addRole(np.attrs.value))], ...restrict));
       i++;
     } else if (e.name === "ADJ") takes.push(c("Takes", ["side", c("Right")], ["category", c("Property")], ["role", c(addRole(e.attrs.value ?? "Result"))]));
     else if (e.name === "ADV") takes.push(c("Takes", ["side", c("Right")], ["category", c("Manner")], ["optional", { kind: "boolean", value: true, pos: { line: 0, column: 0 } }]));

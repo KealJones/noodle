@@ -36,6 +36,11 @@ Concept(Source(), IsA(Role()))         // where it starts or comes from
 Concept(Destination(), IsA(Role()))    // where it ends up
 Concept(Location(), IsA(Role()))       // where it is or happens
 Concept(Path(), IsA(Role()))           // the way it goes
+Concept(Spatial(), IsA(Role()))        // where, in space: a location or a path
+Fact(Path(), IsA(Spatial()))
+Fact(Location(), IsA(Spatial()))
+Fact(Source(), IsA(Path()))            // where a path starts
+Fact(Destination(), IsA(Path()))       // where a path ends
 Concept(Instrument(), IsA(Role()))     // what it is done with
 Concept(Topic(), IsA(Role()))          // what it is about
 Concept(Attribute(), IsA(Role()))      // which property

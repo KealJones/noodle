@@ -232,7 +232,9 @@ every edge of that category), a form feature (`Plural`, `Past`, `Present`, `Past
 `Gerund`, `ThirdSingular`: to edges of words in that form), or a word (`Be`). Its pattern and
 becomes are wrapped in the edge's category (`pattern=Act($e)`, `becomes=Clause(Imperative($e))`), so
 a rule can change the category of the edge it adds. `WithRoles($e, theme=$x)` is `$e` with those
-roles filled, for when the head is not known; patterns never have a variable head. The passive puts
+roles filled, for when the head is not known; in a pattern, `WithRoles($e, role=x)` matches
+anything that has those roles and binds `$e` to it without them ("don't push without asking":
+`Constraint(Not(WithRoles($a, modifier=Without($b))))`), so patterns still never have a variable head. The passive puts
 the subject of "be" in `theme` and "by" in `agent`; a bare Act is an imperative; fronted phrases
 attach by their own `Modifies(side=Right(), category=Clause())` entries. Written in the seed,
 counted (design section 6, part 4). A category concept may also carry an entry of its own:
