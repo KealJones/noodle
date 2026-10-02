@@ -135,7 +135,8 @@ export class Chart {
   private wordEdges(cand: Candidate): Edge[] {
     const out: Edge[] = [];
     const features: Features = new Map();
-    addFeature(features, "WordsUsed", cand.end - cand.start);
+    // A word nothing knows, taken as a literal, covers its token without being a word understood.
+    if (cand.source !== "Unknown") addFeature(features, "WordsUsed", cand.end - cand.start);
     addFeature(features, `CandidateSource:${cand.source}`, cand.distance || 1);
     if (cand.kind) addFeature(features, `ShapeFit:${cand.kind}`, 1);
     if (cand.concept) {
@@ -450,6 +451,11 @@ export class Chart {
     return out;
   }
 
+  /** What an edge of a cover may be as a whole segment or fragment: itself, and its moods. */
+  variants(e: Edge): Edge[] {
+    return [e, ...this.applyRules({ ...e, byRule: false }, this.segmentRules)];
+  }
+
   /** Every edge spanning [s, e). */
   edges(s = this.from, e = this.to): Edge[] {
     return this.cell(s, e);
@@ -468,8 +474,9 @@ export class Chart {
       const k = `${s}:${e}`;
       let t = tops.get(k);
       if (!t) {
-        const plain = this.cell(s, e).filter((x) => this.complete(x) && x.category !== "Mark" && !x.gap);
-        t = [...plain, ...plain.flatMap((x) => this.applyRules({ ...x, byRule: false }, this.segmentRules))];
+        // Mood and fragment variants (segment rules) are chosen per edge, after the cover
+        // (Chart.variants), so they do not multiply the covers.
+        t = this.cell(s, e).filter((x) => this.complete(x) && x.category !== "Mark" && !x.gap);
         tops.set(k, t);
       }
       return t;
