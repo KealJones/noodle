@@ -282,6 +282,12 @@ export class Evaluator {
     // A rewrite the user teaches applies after it is echoed and confirmed (design sections 19 and
     // 20): a misheard rule must not quietly become behaviour.
     const taught = p.name === "Remember" && isHead(args[0], "Rewrite");
+    // The function-word lexicon is protected (design section 20): "I mean X" is not teaching "I".
+    if (taught) {
+      const from = positional(args[0] as Call)[0];
+      if (isCall(from) && (STRUCTURAL.logicalForm.names.includes(from.head as never) || this.primitives.has(from.head) || this.store.facts(from.head).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))))))
+        return this.stuck(act, c("NoPermission", act));
+    }
     if ((guarded.length || taught) && !granted) {
       if (this.mode === "Doing") {
         // Acts offered in one turn are one proposal, in order ("show me the diff and the log").

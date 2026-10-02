@@ -137,7 +137,9 @@ export class Chart {
     const features: Features = new Map();
     // A word nothing knows, taken as a literal, covers its token without being a word understood.
     if (cand.source !== "Unknown") addFeature(features, "WordsUsed", cand.end - cand.start);
-    addFeature(features, `CandidateSource:${cand.source}`, cand.distance || 1);
+    // Where the candidate came from: the word as said (1), a correction a distance away (minus the
+    // distance), or nothing known (0) (runtime.md 3.3 and 8.1).
+    addFeature(features, `CandidateSource:${cand.source}`, cand.source === "Unknown" ? 0 : cand.distance ? -cand.distance : 1);
     if (cand.kind) addFeature(features, `ShapeFit:${cand.kind}`, 1);
     if (cand.concept) {
       const { entries, joins } = this.entries(cand.concept);

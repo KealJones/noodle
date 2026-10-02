@@ -345,7 +345,7 @@ that matters.
    counted.
 5. **Initial weights**: the score's starting weights before any learning (the sense-frequency prior,
    words used, roles filled with a wanted kind, shape fit, and, in stage two, "reached an act or an
-   answer" at weight 1, and in stage two "unworked" (expressions left that no reading applied to) at 1 as well, because without it a reading that leaves a word unread ties with one that reads it, which running the seed showed; everything else at 0), counted and frozen for arm A. "Reached an act" is a
+   answer" at weight 1, and in stage two "unworked" (expressions left that no reading applied to) at 1 as well, because without it a reading that leaves a word unread ties with one that reads it, which running the seed showed; and the candidate's source at 1, because otherwise a spelling correction scores the same as the word as said; everything else at 0), counted and frozen for arm A. "Reached an act" is a
    strong prior toward the executable reading (it is what lets the git sense of "push" beat the
    physical one); it is named, and ablated in the experiment.
 6. **Default policies**: the lessons of section 17 that act as defaults ("keep going until done",
