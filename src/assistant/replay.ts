@@ -71,7 +71,7 @@ export class ReplayGate {
   private async hear(item: Item, weights: Weights): Promise<{ right: boolean; features: Set<string> }> {
     const world: World = { root: mkdtempSync(join(tmpdir(), "noodle-replay-")), store: this.store, now: () => new Date(), say() {}, ask() {} };
     const session = new Session(this.store, PRIMITIVES, world, undefined, weights);
-    const r = await session.turn(item.text, { dry: true });
+    const r = await session.turn(item.text, { dry: true, ask: false });
     const got = new Set(r.acts.flatMap(named));
     const right = item.want.length ? item.want.every((w) => got.has(w)) : r.acts.length === 0;
     const features = new Set(r.record.reasons.flatMap((c) => c.candidates.flatMap((x) => x.features.map(([k]) => k))));
