@@ -21,3 +21,4 @@ Every change to the seed after its first review, with its reason, during week 1 
 | 2026-10-01 | core | Two facts on Addressee: Name("Noodle"), State(Good()) | A question about the assistant is answered from what the graph holds about it (design section 14b) | +2 facts |
 | 2026-10-01 | realizations | Answers about the assistant's state and name and the user's name; the honest line for a question about the assistant or the user the graph holds nothing on | The wording of the above (design section 23) | +6 readings |
 | 2026-10-01 | 3. bridge | Asking to be told something is asking what it is; a directive whose content is a question is that question | "tell me your name" had no route to the question about the assistant | +2 |
+| 2026-10-01 | 3. bridge | Putting a number into a number, or taking one out, is adding or subtracting | "add 5 to 10" stored 5 in a holder named 10 | +2 |

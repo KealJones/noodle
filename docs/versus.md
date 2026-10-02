@@ -1,12 +1,12 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 05:37 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 06:13 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
 | | RIGHT | HONEST | WRONG | ERROR |
 |---|---|---|---|---|
-| Noodle | 19 | 62 | 13 | 0 |
+| Noodle | 35 | 41 | 18 | 0 |
 | Napkin | 31 | 49 | 14 | 0 |
 
 By session (RIGHT / HONEST / WRONG / ERROR):
@@ -15,18 +15,18 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|
 | small talk | 5 / 3 / 0 / 0 | 6 / 1 / 1 / 0 |
 | facts | 5 / 1 / 2 / 0 | 2 / 5 / 1 / 0 |
-| math | 0 / 5 / 2 / 0 | 5 / 1 / 1 / 0 |
-| units | 0 / 5 / 0 / 0 | 2 / 3 / 0 / 0 |
-| time and reminders | 0 / 3 / 2 / 0 | 4 / 1 / 0 / 0 |
-| lists and memory | 0 / 7 / 2 / 0 | 2 / 5 / 2 / 0 |
+| math | 5 / 1 / 1 / 0 | 5 / 1 / 1 / 0 |
+| units | 1 / 4 / 0 / 0 | 2 / 3 / 0 / 0 |
+| time and reminders | 2 / 2 / 1 / 0 | 4 / 1 / 0 / 0 |
+| lists and memory | 2 / 4 / 3 / 0 | 2 / 5 / 2 / 0 |
 | definitions | 2 / 3 / 1 / 0 | 3 / 1 / 2 / 0 |
-| files | 1 / 6 / 1 / 0 | 0 / 7 / 1 / 0 |
-| git | 1 / 6 / 1 / 0 | 0 / 8 / 0 / 0 |
-| instructions | 2 / 2 / 0 / 0 | 0 / 4 / 0 / 0 |
-| multi-step | 0 / 5 / 0 / 0 | 0 / 4 / 1 / 0 |
-| typos and messy phrasing | 1 / 6 / 1 / 0 | 2 / 5 / 1 / 0 |
-| near-misses | 2 / 4 / 1 / 0 | 2 / 3 / 2 / 0 |
-| conversation | 0 / 6 / 0 / 0 | 3 / 1 / 2 / 0 |
+| files | 3 / 4 / 1 / 0 | 0 / 7 / 1 / 0 |
+| git | 2 / 2 / 4 / 0 | 0 / 8 / 0 / 0 |
+| instructions | 2 / 1 / 1 / 0 | 0 / 4 / 0 / 0 |
+| multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
+| typos and messy phrasing | 2 / 5 / 1 / 0 | 2 / 5 / 1 / 0 |
+| near-misses | 3 / 3 / 1 / 0 | 2 / 3 / 2 / 0 |
+| conversation | 0 / 5 / 1 / 0 | 3 / 1 / 2 / 0 |
 
 ## small talk
 
@@ -49,7 +49,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 10 | who wrote pride and prejudice | From Wikipedia, [Pride & Prejudice (2005 film)](https://en.wikipedia.org/wiki/Pride_%26_Prejudice_(2005_film)):<br><br>Pride & Prejudice is a 2005 period romance film directed by Joe Wright, in his feature directorial debut, based on Jane Austen's 1813 novel of the same name. The film features five sisters from an English family of landed gentry as they deal with issues of marriage, morality, and  ... | RIGHT | I don't know that yet. | HONEST |
 | 11 | how many legs does a spider have | I couldn't work out "how many legs does a spider have". | HONEST | I heard that as "how many legs does have spider", but couldn't work it out. Could you put it another way? | HONEST |
 | 12 | what's the boiling point of water in celsius | From Wikipedia, [Celsius](https://en.wikipedia.org/wiki/Celsius):<br><br>The degree Celsius is the unit of temperature on the Celsius temperature scale, one of two temperature scales used in the International System of Units (SI), the other being the closely related Kelvin scale. The degree Celsius can refer to a specific point on the Celsius temperature scale or to a difference or range between t ... | WRONG | I don't know boiling point of water in celsius yet. | HONEST |
-| 13 | who painted the mona lisa? | From Wikipedia, [Mona Lisa](https://en.wikipedia.org/wiki/Mona_Lisa):<br><br>The Mona Lisa is a half-length portrait painting by the Italian artist Leonardo da Vinci. Considered an archetypal masterpiece of the Italian Renaissance, it has been described as "the best known, the most visited, the most written about, the most sung about, \[and\] the most parodied work of art in the world". The painti ... | RIGHT | Leonardo da Vinci. | RIGHT |
+| 13 | who painted the mona lisa? | From Wikipedia, [Mona Lisa](https://en.wikipedia.org/wiki/Mona_Lisa):<br><br>The Mona Lisa is a half-length portrait painting by the Italian artist Leonardo da Vinci. Considered an archetypal masterpiece of the Italian Renaissance, it has been described as "the best known, the most visited, the most written about, the most sung about, \[and\] the most parodied work of art in the world". The painti ... | RIGHT | Leonardo Da Vinci. | RIGHT |
 | 14 | what year did the berlin wall fall | From Wikipedia, [Fall of the Berlin Wall](https://en.wikipedia.org/wiki/Fall_of_the_Berlin_Wall):<br><br>The Berlin Wall fell on 9 November 1989 during the Peaceful Revolution, marking the beginning of the destruction of the figurative Iron Curtain, as East Berlin transit restrictions were overwhelmed and discarded. Sections of the wall were breached, and planned deconstruction began the following ... | RIGHT | I don't know that yet. | HONEST |
 | 15 | is a tomato a fruit? | From Wikipedia, [Helicoverpa zea](https://en.wikipedia.org/wiki/Helicoverpa_zea):<br><br>Helicoverpa zea, commonly known as the corn earworm, is a species in the family Noctuidae. The larva of the moth Helicoverpa zea is a major agricultural pest. Since it is polyphagous during the larval stage, the species has been given many different common names, including the cotton bollworm and the tomato fr ... | WRONG | I don't know yet. | HONEST |
 | 16 | what language do they speak in brazil | From Wikipedia, [Languages of Brazil](https://en.wikipedia.org/wiki/Languages_of_Brazil):<br><br>Portuguese is the official and national language of Brazil, being widely spoken by nearly all of its population. Brazil is the most populous Portuguese-speaking country in the world, with its lands comprising the minority of Portugal's former colonial holdings in the Americas. | RIGHT | English. | WRONG |
@@ -58,21 +58,21 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 17 | what's 12 times 7 | I couldn't 12: no such file or directory: 12<br><br>I couldn't work out "what's 12 times 7". | HONEST | 84. | RIGHT |
-| 18 | what is 15% of 200 | I couldn't 15%: no such file or directory: 15%<br><br>I couldn't work out "what is 15% of 200". | HONEST | 30. | RIGHT |
-| 19 | add 45 and 38 | Do you mean `git add`, or `git add`? | WRONG | 83 | RIGHT |
-| 20 | whats 100 divided by 8 | I couldn't work out "whats 100 divided by 8". | HONEST | 12.5. | RIGHT |
-| 21 | square root of 144? | From Wikipedia, [Square root of 10](https://en.wikipedia.org/wiki/Square_root_of_10):<br><br>In mathematics, the square root of 10 is the positive real number that, when multiplied by itself, gives the number 10. It is approximately equal to 3.16. | WRONG | 12 | RIGHT |
-| 22 | 2+2 | I don't know what `2+2` means here. | HONEST | I see. | WRONG |
+| 17 | what's 12 times 7 | 12 times 7 is 84. | RIGHT | 84. | RIGHT |
+| 18 | what is 15% of 200 | 15% of 200 is 30. | RIGHT | 30. | RIGHT |
+| 19 | add 45 and 38 | I can run `git add`, but I don't know yet what it changes. Go ahead? | WRONG | 83 | RIGHT |
+| 20 | whats 100 divided by 8 | 100 divided by 8 is 12.5. | RIGHT | 12.5. | RIGHT |
+| 21 | square root of 144? | the square root of 144 is 12. | RIGHT | 12 | RIGHT |
+| 22 | 2+2 | 2 plus 2 is 4. | RIGHT | I see. | WRONG |
 | 23 | if i have 3 apples and eat one how many are left | I couldn't work out "if i have 3 apples and eat one how many are left". | HONEST | I don't know how many are left yet. | HONEST |
 
 ## units
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 24 | how many inches in a foot | I couldn't work out "how many inches in a foot". | HONEST | 12 inches. | RIGHT |
+| 24 | how many inches in a foot | From Wikipedia, [Inch](https://en.wikipedia.org/wiki/Inch):<br><br>The inch is a unit of length in the British Imperial and the United States customary systems of measurement. It is equal to ⁠1/36⁠ yard or ⁠1/12⁠ of a foot. Derived from the Roman uncia ("twelfth"), the word inch is also sometimes used to translate similar units in other measurement systems, usually understood as deriving from the  ... | RIGHT | 12 inches. | RIGHT |
 | 25 | convert 5 km to miles | I couldn't work out "convert 5 km to miles". | HONEST | 5 km is 3.106855961 miles. | RIGHT |
-| 26 | what is 70 fahrenheit in celsius | I couldn't 70: no such file or directory: 70<br><br>I couldn't work out "what is 70 fahrenheit in celsius". | HONEST | I don't know that yet. | HONEST |
+| 26 | what is 70 fahrenheit in celsius | I couldn't 70: Read's source must be a string<br><br>I couldn't work out "what is 70 fahrenheit in celsius". | HONEST | I don't know that yet. | HONEST |
 | 27 | how many grams are in a pound | I couldn't work out "how many grams are in a pound". | HONEST | I don't know yet. | HONEST |
 | 28 | how many minutes are in 3 hours | I couldn't work out "how many minutes are in 3 hours". | HONEST | I don't know yet. | HONEST |
 
@@ -80,9 +80,9 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | From Wikipedia, [Time](https://en.wikipedia.org/wiki/Time):<br><br>Time is the continuous progression of existence that occurs in an apparently irreversible succession from the past, through the present, and into the future. Time dictates all forms of action, age, and causality, being a component quantity of various measurements used to sequence events, to compare the duration of events or the int ... | WRONG | It is 10:42 PM. | RIGHT |
-| 30 | what day is it today | I couldn't work out "what day is it today". | HONEST | Thursday. | RIGHT |
-| 31 | what's the date tomorrow | From Wikipedia, [Date palm](https://en.wikipedia.org/wiki/Date_palm):<br><br>Phoenix dactylifera, commonly known as the date palm, is a flowering-plant species in the palm family Arecaceae, native to the region from the Gulf States and Iraq to Pakistan and India. It is cultivated for its edible sweet fruit called dates. The species is widely cultivated across northern Africa, the Middle East, Aust ... | WRONG | Friday, October 2, 2026 | RIGHT |
+| 29 | what time is it | It's 11:14 PM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 30 | what day is it today | Today is Thursday, October 1. | RIGHT | Thursday. | RIGHT |
+| 31 | what's the date tomorrow | Today is Thursday, October 1. | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
 | 33 | how many days until christmas | I couldn't work out "how many days until christmas". | HONEST | 85 days. | RIGHT |
 
@@ -93,12 +93,12 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 34 | start a grocery list | I couldn't work out "start a grocery list". | HONEST | I don't know how to start yet. | HONEST |
 | 35 | add eggs and milk to it | I can run `git add`, but I don't know yet what it changes. Go ahead? | WRONG | Added eggs and milk to your start. | RIGHT |
 | 36 | also add bread | I couldn't work out "also add bread". | HONEST | I don't know how to add yet. | HONEST |
-| 37 | what's on my grocery list? | You haven't told me that. | HONEST | I don't know yet. | HONEST |
+| 37 | what's on my grocery list? | Your shopping list is empty. | WRONG | I don't know yet. | HONEST |
 | 38 | take milk off the list | I couldn't work out "take milk off the list". | HONEST | I don't know how to milk yet. | HONEST |
 | 39 | remember that my sister's birthday is june 4 | I couldn't work out "remember that my sister's birthday is june 4". | HONEST | That makes 4. | WRONG |
 | 40 | when is my sister's birthday? | From Wikipedia, [My Sister's Keeper (film)](https://en.wikipedia.org/wiki/My_Sister's_Keeper_(film)):<br><br>My Sister's Keeper is a 2009 American legal melodrama film directed by Nick Cassavetes and starring Cameron Diaz, Abigail Breslin, Alec Baldwin, Jason Patric, Sofia Vassilieva, and Joan Cusack. The film is based on Jodi Picoult's 2004 novel of the same name, which is also based on Marissa a ... | WRONG | I don't know your sister's birthday yet. | HONEST |
-| 41 | my name is sam | I couldn't work out "my name is sam". | HONEST | I see. | WRONG |
-| 42 | what's my name | You haven't told me that. | HONEST | Sam. | RIGHT |
+| 41 | my name is sam | Got it: your name is sam. | RIGHT | I see. | WRONG |
+| 42 | what's my name | Your name is sam. | RIGHT | Sam. | RIGHT |
 
 ## definitions
 
@@ -116,10 +116,10 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 49 | what files are in this folder | From Wikipedia, [File folder](https://en.wikipedia.org/wiki/File_folder):<br><br>A file folder is a kind of folder that holds papers together for organization and protection. File folders usually consist of a sheet of heavy paper stock or other thin, but stiff, material which is folded in half, and are used to keep paper documents. They are often used in conjunction with a filing cabinet for stora ... | WRONG | I don't know yet. | HONEST |
-| 50 | show me the readme | I couldn't work out "show me the readme". | HONEST | I worked that out, but I don't know how to say it yet: Readme() | HONEST |
+| 50 | show me the readme | `README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: Readme() | HONEST |
 | 51 | what's in notes.txt | `notes.txt`:<br><br>```<br>buy milk<br>call mom<br>fix the bike<br>``` | RIGHT | I don't know yet. | HONEST |
 | 52 | how many lines are in notes.txt | I couldn't work out "how many lines are in notes.txt". | HONEST | I don't know yet. | HONEST |
-| 53 | create a file called ideas.md with the text 'build a robot' | I don't know what `ideas.md` means here. | HONEST | I worked that out, but I don't know how to say it yet: Robot() | HONEST |
+| 53 | create a file called ideas.md with the text 'build a robot' | ideas.md | RIGHT | I worked that out, but I don't know how to say it yet: Robot() | HONEST |
 | 54 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
 | 55 | rename ideas.md to plans.md | I don't know these words yet: ideas.md and plans.md. | HONEST | I don't know how to rename yet. | HONEST |
 | 56 | delete plans.md | I don't know what `plans.md` means here. | HONEST | I don't know how to delete yet. | HONEST |
@@ -128,21 +128,21 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | You haven't told me that. | HONEST | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-Nk7IJz`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | I couldn't work out "show me the git log". | HONEST | I don't know how to log yet. | HONEST |
-| 60 | commit my changes with the message 'update readme' | I couldn't work out "commit my changes with the message 'update readme'". | HONEST | I don't know how to commit yet. | HONEST |
-| 61 | yes go ahead | There's nothing I'm waiting to do. | HONEST | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
+| 59 | show me the git log | - `.git/`<br>- `README.md`<br>- `notes.txt`<br>- `package.json`<br>- `src/` | WRONG | I don't know how to log yet. | HONEST |
+| 60 | commit my changes with the message 'update readme' | I can run `git commit my changes`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
+| 61 | yes go ahead | `git commit your change` failed (exit 1):<br><br>```<br>Aborting commit due to empty commit message.<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
 | 62 | is the working tree clean now? | I couldn't work out "is the working tree clean now?". | HONEST | I don't know yet. | HONEST |
 | 63 | create a branch called feature-login | I don't know what `feature-login` means here. | HONEST | I worked that out, but I don't know how to say it yet: BudgetExceeded(kind="steps", limit=4000) | HONEST |
-| 64 | push it | Do you mean `git push`, or `git push`? | RIGHT | I don't know how to push yet. | HONEST |
+| 64 | push it | I can run `git push it`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
 
 ## instructions
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 65 | don't run any git commands without asking me first | Got it: I won't not any git commands.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
-| 66 | show me the git status | I couldn't work out "show me the git status". | HONEST | I don't know how to status yet. | HONEST |
+| 66 | show me the git status | Your name is sam. | WRONG | I don't know how to status yet. | HONEST |
 | 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short". | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
 | 68 | stop | Stopped. | RIGHT | I worked that out, but I don't know how to say it yet: Stop() | HONEST |
 
@@ -153,8 +153,8 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 69 | read notes.txt and tell me how many lines it has | I couldn't work out "read notes.txt and tell me how many lines it has". | HONEST | I don't know how to note yet. | HONEST |
 | 70 | make a file called a.txt, then another called b.txt | I don't know these words yet: a.txt and b.txt. | HONEST | I don't know how to called yet. | HONEST |
 | 71 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
-| 72 | list the files and then show me package.json | I couldn't work out "list the files and then show me package.json". | HONEST | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
-| 73 | what's 6 times 7 and what's the capital of italy | I couldn't 6: no such file or directory: 6<br><br>I couldn't work out "what's 6 times 7 and what's the capital of italy".<br><br>I couldn't the capital of italy: no such file or directory: italy | HONEST | I don't know how to multiply yet. | HONEST |
+| 72 | list the files and then show me package.json | `package.json`:<br><br>```<br>{<br>  "name": "shop",<br>  "version": "1.0.0"<br>}<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
+| 73 | what's 6 times 7 and what's the capital of italy | 6 times 7 is 42.<br><br>I couldn't the capital of italy: no such file or directory: italy | WRONG | I don't know how to multiply yet. | HONEST |
 
 ## typos and messy phrasing
 
@@ -163,29 +163,29 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 74 | waht is teh capitol of france | I couldn't work out "waht is teh capitol of france". | HONEST | Paris. | RIGHT |
 | 75 | hwo many days in a leap yeer | I couldn't work out "hwo many days in a leap yeer". | HONEST | I don't know that yet. | HONEST |
 | 76 | pls show me whats in teh readme | Do you mean `git show`, or `git show you`? | WRONG | I don't know how to what yet. | HONEST |
-| 77 | whats 9 tims 9 | I couldn't work out "whats 9 tims 9". | HONEST | I don't know yet. | HONEST |
+| 77 | whats 9 tims 9 | 9 times 9 is 81. | RIGHT | I don't know yet. | HONEST |
 | 78 | remmber my fav color is green | I couldn't work out "remmber my fav color is green". | HONEST | I don't know how to is yet. | HONEST |
 | 79 | wats my fav color | You haven't told me that. | HONEST | I see. | WRONG |
-| 80 | can u tell me the tiem | I couldn't work out "can u tell me the tiem". | HONEST | It is 10:49 PM. | RIGHT |
+| 80 | can u tell me the tiem | I couldn't work out "can u tell me the tiem". | HONEST | It is 11:06 PM. | RIGHT |
 | 81 | sooo how r u | I'm good, thanks. | RIGHT | I don't know what sooo is yet. Tell me (like "sooo is ...") and I'll remember. | HONEST |
 
 ## near-misses
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 82 | i pushed the code yesterday | I couldn't work out "i pushed the code yesterday". | HONEST | I'm sorry to hear that. | RIGHT |
+| 82 | i pushed the code yesterday | Do you mean add I to code, or add yesterday to code? | RIGHT | I'm sorry to hear that. | RIGHT |
 | 83 | my friend deleted his whole repo lol | Ha. | RIGHT | I see. | RIGHT |
 | 84 | what does git commit do? | From Wikipedia, [The God Committee](https://en.wikipedia.org/wiki/The_God_Committee):<br><br>The God Committee is a 2021 American drama film, adapted and directed by Austin Stark, based on the play of the same name by Mark St. Germain. It stars Kelsey Grammer, Julia Stiles, Janeane Garofalo, Dan Hedaya, and Colman Domingo. The film focuses on organ transplant systems and the impact they have on th ... | WRONG | I don't know commit git yet. | HONEST |
-| 85 | the word delete has six letters | I couldn't work out "the word delete has six letters". | HONEST | I don't know how to letters yet. | HONEST |
+| 85 | the word delete has six letters | I couldn't work out "the word delete has six letters". | HONEST | I don't know what letters is yet. Tell me (like "letters is ...") and I'll remember. | HONEST |
 | 86 | should i use tabs or spaces? | I couldn't work out "should i use tabs or spaces?". | HONEST | I couldn't find tabs and spaces as two of the same kind of thing, so I can't compare them yet. | HONEST |
-| 87 | how do i make a new branch in git | I couldn't work out "how do i make a new branch in git". | HONEST | Git/Branching & merging (from https://en.wikibooks.org/wiki/Git%2FBranching_%26_merging, CC BY-SA 4.0):<br><br>Why Branch?:<br>- You may have branches representing “stable” releases, which continue to get incremental bug fixes but no (major) new features. At the same time, you may have multiple “unstable” branches representing various new features being proposed for the next major release, and bei ... | WRONG |
+| 87 | how do i make a new branch in git | I couldn't work out "how do i make a new branch in git". | HONEST | Git/Branching & merging (from https://en.wikibooks.org/wiki/Git%2FBranching_%26_merging, CC BY-SA 4.0):<br><br>Why Branch?:<br>- You may have branches representing “stable” releases, which continue to get incremental bug fixes but no (major) new features. At the same time, you may have multiple “unstable” branches representing various new features being proposed for the next major release, and bei | WRONG |
 | 88 | never mind | Stopped. | RIGHT | Have you followed the value of dollar lately? A mind is a combination of cognitive faculties that provides consciousness, thinking, reasoning, perception, and judgement in humans and potentially other life forms. | WRONG |
 
 ## conversation
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 89 | tell me a joke | I couldn't work out "tell me a joke". | HONEST | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
+| 89 | tell me a joke | From Wikipedia, [Tell Jemmeh](https://en.wikipedia.org/wiki/Tell_Jemmeh):<br><br>Tell Jemmeh or Tell Gemmeh, also known in Hebrew as Tel Gamma or Tel Re'im, is a prominent mound, or tell, located in the region of the northwestern Negev and the southern coastal plain of Israel, about 12 km south of Gaza, bounded by the kibbutz of Re'im 2 km to the east, and the kibbutz of Kisufim 6 km to the west,  ... | WRONG | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
 | 90 | what can you do? | I couldn't work out "what can you do?". | HONEST | Arithmetic, follow up arithmetic, dates and times, remember what you tell me, recall what you said, describe what i know, learn new words, look things up, continue sequences, compare two things, say what a plan is missing and forget what you ask. | WRONG |
 | 91 | that's not what I meant | I couldn't work out "that's not what I meant". | HONEST | I don't know how to is yet. | HONEST |
 | 92 | who made you | I don't know that about myself. | HONEST | I see. | WRONG |

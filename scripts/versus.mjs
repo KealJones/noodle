@@ -294,7 +294,12 @@ function verdict(item, reply, root) {
 // ---------------------------------------------------------------------------------------------
 // The run
 
-const systems = [await noodle(), ...(skipNapkin || !existsSync(NAPKIN_CLI) ? [] : [napkin()])];
+// Napkin does not change between Noodle's runs, and its run is most of the hour: with
+// --reuse-napkin its replies and verdicts come from the last full run (docs/versus-napkin.json).
+const NAPKIN_CACHE = join(ROOT, "docs", "versus-napkin.json");
+const reuse = process.argv.includes("--reuse-napkin") && existsSync(NAPKIN_CACHE) ? JSON.parse(readFileSync(NAPKIN_CACHE, "utf8")) : undefined;
+const cached = (rows) => ({ name: "Napkin", cached: rows, session: () => async () => undefined, done() {} });
+const systems = [await noodle(), ...(skipNapkin || !existsSync(NAPKIN_CLI) ? [] : [reuse ? cached(reuse) : napkin()])];
 const rows = [];
 let n = 0;
 for (const [title, items] of SESSIONS) {
@@ -304,6 +309,14 @@ for (const [title, items] of SESSIONS) {
   }
   const out = items.map((item) => ({ n: ++n, item, title, replies: {}, verdicts: {} }));
   for (const sys of systems) {
+    if (sys.cached) {
+      for (const row of out) {
+        const was = sys.cached[row.n];
+        row.replies[sys.name] = was?.reply;
+        row.verdicts[sys.name] = was?.verdict ?? "ERROR";
+      }
+      continue;
+    }
     const root = workspace();
     const say = sys.session(root);
     for (const row of out) {
@@ -351,4 +364,6 @@ for (const title of new Set(rows.map((r) => r.title))) {
 }
 const text = md.join("\n") + "\n";
 if (!only) writeFileSync(join(ROOT, "docs", "versus.md"), text);
+if (!only && systems.some((x) => x.name === "Napkin" && !x.cached))
+  writeFileSync(NAPKIN_CACHE, JSON.stringify(Object.fromEntries(rows.map((r) => [r.n, { prompt: r.item.p, reply: r.replies.Napkin, verdict: r.verdicts.Napkin }])), null, 1) + "\n");
 console.log(text);

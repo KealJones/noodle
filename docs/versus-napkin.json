@@ -1,0 +1,472 @@
+{
+ "1": {
+  "prompt": "hey there",
+  "reply": "Hello!",
+  "verdict": "RIGHT"
+ },
+ "2": {
+  "prompt": "how are you doing today?",
+  "reply": "I'm doing well, thanks for asking!",
+  "verdict": "RIGHT"
+ },
+ "3": {
+  "prompt": "good morning!",
+  "reply": "Hello!",
+  "verdict": "RIGHT"
+ },
+ "4": {
+  "prompt": "what's up",
+  "reply": "Which up do you mean: the animated film, the public university, or the album?",
+  "verdict": "RIGHT"
+ },
+ "5": {
+  "prompt": "lol ok",
+  "reply": "Got it.",
+  "verdict": "RIGHT"
+ },
+ "6": {
+  "prompt": "you're pretty smart",
+  "reply": "That's great! In means automotive marque, in inception February 1994, in named after intelligence, in operator smart automobile, in industry automotive industry, in owned by Mercedes Benz, in owned by Geely, in product or material produced electric vehicle, in headquarters location Stuttgart, in is a car brand, in means monitoring system for computer hard disk drives, in is a system, in used by dr ...",
+  "verdict": "WRONG"
+ },
+ "7": {
+  "prompt": "thanks a lot",
+  "reply": "You are welcome. In means French department, in france country, in located in the administrative territorial entity Occitania, in shares border with Aveyron, in shares border with cantal, in shares border with Corr Ze, in shares border with Dordogne, in cahors capital, in inception Thursday, March 4, 1790, in contains the administrative territorial entity Arrondissement Of Cahors, in contains the  ...",
+  "verdict": "RIGHT"
+ },
+ "8": {
+  "prompt": "see you later",
+  "reply": "I heard that as \"noted later\", but couldn't work it out. Could you put it another way?",
+  "verdict": "HONEST"
+ },
+ "9": {
+  "prompt": "what is the capital of japan?",
+  "reply": "Tokyo.",
+  "verdict": "RIGHT"
+ },
+ "10": {
+  "prompt": "who wrote pride and prejudice",
+  "reply": "I don't know that yet.",
+  "verdict": "HONEST"
+ },
+ "11": {
+  "prompt": "how many legs does a spider have",
+  "reply": "I heard that as \"how many legs does have spider\", but couldn't work it out. Could you put it another way?",
+  "verdict": "HONEST"
+ },
+ "12": {
+  "prompt": "what's the boiling point of water in celsius",
+  "reply": "I don't know boiling point of water in celsius yet.",
+  "verdict": "HONEST"
+ },
+ "13": {
+  "prompt": "who painted the mona lisa?",
+  "reply": "Leonardo Da Vinci.",
+  "verdict": "RIGHT"
+ },
+ "14": {
+  "prompt": "what year did the berlin wall fall",
+  "reply": "I don't know that yet.",
+  "verdict": "HONEST"
+ },
+ "15": {
+  "prompt": "is a tomato a fruit?",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "16": {
+  "prompt": "what language do they speak in brazil",
+  "reply": "English.",
+  "verdict": "WRONG"
+ },
+ "17": {
+  "prompt": "what's 12 times 7",
+  "reply": "84.",
+  "verdict": "RIGHT"
+ },
+ "18": {
+  "prompt": "what is 15% of 200",
+  "reply": "30.",
+  "verdict": "RIGHT"
+ },
+ "19": {
+  "prompt": "add 45 and 38",
+  "reply": "83",
+  "verdict": "RIGHT"
+ },
+ "20": {
+  "prompt": "whats 100 divided by 8",
+  "reply": "12.5.",
+  "verdict": "RIGHT"
+ },
+ "21": {
+  "prompt": "square root of 144?",
+  "reply": "12",
+  "verdict": "RIGHT"
+ },
+ "22": {
+  "prompt": "2+2",
+  "reply": "I see.",
+  "verdict": "WRONG"
+ },
+ "23": {
+  "prompt": "if i have 3 apples and eat one how many are left",
+  "reply": "I don't know how many are left yet.",
+  "verdict": "HONEST"
+ },
+ "24": {
+  "prompt": "how many inches in a foot",
+  "reply": "12 inches.",
+  "verdict": "RIGHT"
+ },
+ "25": {
+  "prompt": "convert 5 km to miles",
+  "reply": "5 km is 3.106855961 miles.",
+  "verdict": "RIGHT"
+ },
+ "26": {
+  "prompt": "what is 70 fahrenheit in celsius",
+  "reply": "I don't know that yet.",
+  "verdict": "HONEST"
+ },
+ "27": {
+  "prompt": "how many grams are in a pound",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "28": {
+  "prompt": "how many minutes are in 3 hours",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "29": {
+  "prompt": "what time is it",
+  "reply": "It is 10:59 PM.",
+  "verdict": "RIGHT"
+ },
+ "30": {
+  "prompt": "what day is it today",
+  "reply": "Thursday.",
+  "verdict": "RIGHT"
+ },
+ "31": {
+  "prompt": "what's the date tomorrow",
+  "reply": "Friday, October 2, 2026",
+  "verdict": "RIGHT"
+ },
+ "32": {
+  "prompt": "remind me to call the dentist at 3pm",
+  "reply": "I don't know how to remind yet.",
+  "verdict": "HONEST"
+ },
+ "33": {
+  "prompt": "how many days until christmas",
+  "reply": "85 days.",
+  "verdict": "RIGHT"
+ },
+ "34": {
+  "prompt": "start a grocery list",
+  "reply": "I don't know how to start yet.",
+  "verdict": "HONEST"
+ },
+ "35": {
+  "prompt": "add eggs and milk to it",
+  "reply": "Added eggs and milk to your start.",
+  "verdict": "RIGHT"
+ },
+ "36": {
+  "prompt": "also add bread",
+  "reply": "I don't know how to add yet.",
+  "verdict": "HONEST"
+ },
+ "37": {
+  "prompt": "what's on my grocery list?",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "38": {
+  "prompt": "take milk off the list",
+  "reply": "I don't know how to milk yet.",
+  "verdict": "HONEST"
+ },
+ "39": {
+  "prompt": "remember that my sister's birthday is june 4",
+  "reply": "That makes 4.",
+  "verdict": "WRONG"
+ },
+ "40": {
+  "prompt": "when is my sister's birthday?",
+  "reply": "I don't know your sister's birthday yet.",
+  "verdict": "HONEST"
+ },
+ "41": {
+  "prompt": "my name is sam",
+  "reply": "I see.",
+  "verdict": "WRONG"
+ },
+ "42": {
+  "prompt": "what's my name",
+  "reply": "Sam.",
+  "verdict": "RIGHT"
+ },
+ "43": {
+  "prompt": "what does ephemeral mean",
+  "reply": "\"ephemeral\" means: lasting for a short period of time.",
+  "verdict": "RIGHT"
+ },
+ "44": {
+  "prompt": "define ubiquitous",
+  "reply": "An ubiquitous is the property of being present everywhere.",
+  "verdict": "RIGHT"
+ },
+ "45": {
+  "prompt": "what's a synonym for happy",
+  "reply": "I don't know synonym for happy yet.",
+  "verdict": "HONEST"
+ },
+ "46": {
+  "prompt": "what is photosynthesis",
+  "reply": "A photosynthesis is a biological process to convert light into chemical energy.",
+  "verdict": "RIGHT"
+ },
+ "47": {
+  "prompt": "what does idempotent mean in programming",
+  "reply": "\"programming\" means: the designing, scheduling or planning of a radio or television program/programme.",
+  "verdict": "WRONG"
+ },
+ "48": {
+  "prompt": "meaning of the word serendipity",
+  "reply": "I see.",
+  "verdict": "WRONG"
+ },
+ "49": {
+  "prompt": "what files are in this folder",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "50": {
+  "prompt": "show me the readme",
+  "reply": "I worked that out, but I don't know how to say it yet: Readme()",
+  "verdict": "HONEST"
+ },
+ "51": {
+  "prompt": "what's in notes.txt",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "52": {
+  "prompt": "how many lines are in notes.txt",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "53": {
+  "prompt": "create a file called ideas.md with the text 'build a robot'",
+  "reply": "I worked that out, but I don't know how to say it yet: Robot()",
+  "verdict": "HONEST"
+ },
+ "54": {
+  "prompt": "yes",
+  "reply": "Got it.",
+  "verdict": "WRONG"
+ },
+ "55": {
+  "prompt": "rename ideas.md to plans.md",
+  "reply": "I don't know how to rename yet.",
+  "verdict": "HONEST"
+ },
+ "56": {
+  "prompt": "delete plans.md",
+  "reply": "I don't know how to delete yet.",
+  "verdict": "HONEST"
+ },
+ "57": {
+  "prompt": "what branch am i on",
+  "reply": "I don't know what branch on you yet.",
+  "verdict": "HONEST"
+ },
+ "58": {
+  "prompt": "what changed since the last commit",
+  "reply": "I don't know changed since last commit yet.",
+  "verdict": "HONEST"
+ },
+ "59": {
+  "prompt": "show me the git log",
+  "reply": "I don't know how to log yet.",
+  "verdict": "HONEST"
+ },
+ "60": {
+  "prompt": "commit my changes with the message 'update readme'",
+  "reply": "I don't know how to commit yet.",
+  "verdict": "HONEST"
+ },
+ "61": {
+  "prompt": "yes go ahead",
+  "reply": "I worked that out, but I don't know how to say it yet: GoAhead()",
+  "verdict": "HONEST"
+ },
+ "62": {
+  "prompt": "is the working tree clean now?",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "63": {
+  "prompt": "create a branch called feature-login",
+  "reply": "I worked that out, but I don't know how to say it yet: BudgetExceeded(kind=\"steps\", limit=4000)",
+  "verdict": "HONEST"
+ },
+ "64": {
+  "prompt": "push it",
+  "reply": "I don't know how to push yet.",
+  "verdict": "HONEST"
+ },
+ "65": {
+  "prompt": "don't run any git commands without asking me first",
+  "reply": "I worked that out, but I don't know how to say it yet: Not(NoCode())",
+  "verdict": "HONEST"
+ },
+ "66": {
+  "prompt": "show me the git status",
+  "reply": "I don't know how to status yet.",
+  "verdict": "HONEST"
+ },
+ "67": {
+  "prompt": "from now on, keep your answers short",
+  "reply": "I worked that out, but I don't know how to say it yet: Short()",
+  "verdict": "HONEST"
+ },
+ "68": {
+  "prompt": "stop",
+  "reply": "I worked that out, but I don't know how to say it yet: Stop()",
+  "verdict": "HONEST"
+ },
+ "69": {
+  "prompt": "read notes.txt and tell me how many lines it has",
+  "reply": "I don't know how to note yet.",
+  "verdict": "HONEST"
+ },
+ "70": {
+  "prompt": "make a file called a.txt, then another called b.txt",
+  "reply": "I don't know how to called yet.",
+  "verdict": "HONEST"
+ },
+ "71": {
+  "prompt": "yes",
+  "reply": "Got it.",
+  "verdict": "WRONG"
+ },
+ "72": {
+  "prompt": "list the files and then show me package.json",
+  "reply": "I worked that out, but I don't know how to say it yet: PackageJson()",
+  "verdict": "HONEST"
+ },
+ "73": {
+  "prompt": "what's 6 times 7 and what's the capital of italy",
+  "reply": "I don't know how to multiply yet.",
+  "verdict": "HONEST"
+ },
+ "74": {
+  "prompt": "waht is teh capitol of france",
+  "reply": "Paris.",
+  "verdict": "RIGHT"
+ },
+ "75": {
+  "prompt": "hwo many days in a leap yeer",
+  "reply": "I don't know that yet.",
+  "verdict": "HONEST"
+ },
+ "76": {
+  "prompt": "pls show me whats in teh readme",
+  "reply": "I don't know how to what yet.",
+  "verdict": "HONEST"
+ },
+ "77": {
+  "prompt": "whats 9 tims 9",
+  "reply": "I don't know yet.",
+  "verdict": "HONEST"
+ },
+ "78": {
+  "prompt": "remmber my fav color is green",
+  "reply": "I don't know how to is yet.",
+  "verdict": "HONEST"
+ },
+ "79": {
+  "prompt": "wats my fav color",
+  "reply": "I see.",
+  "verdict": "WRONG"
+ },
+ "80": {
+  "prompt": "can u tell me the tiem",
+  "reply": "It is 11:06 PM.",
+  "verdict": "RIGHT"
+ },
+ "81": {
+  "prompt": "sooo how r u",
+  "reply": "I don't know what sooo is yet. Tell me (like \"sooo is ...\") and I'll remember.",
+  "verdict": "HONEST"
+ },
+ "82": {
+  "prompt": "i pushed the code yesterday",
+  "reply": "I'm sorry to hear that.",
+  "verdict": "RIGHT"
+ },
+ "83": {
+  "prompt": "my friend deleted his whole repo lol",
+  "reply": "I see.",
+  "verdict": "RIGHT"
+ },
+ "84": {
+  "prompt": "what does git commit do?",
+  "reply": "I don't know commit git yet.",
+  "verdict": "HONEST"
+ },
+ "85": {
+  "prompt": "the word delete has six letters",
+  "reply": "I don't know what letters is yet. Tell me (like \"letters is ...\") and I'll remember.",
+  "verdict": "HONEST"
+ },
+ "86": {
+  "prompt": "should i use tabs or spaces?",
+  "reply": "I couldn't find tabs and spaces as two of the same kind of thing, so I can't compare them yet.",
+  "verdict": "HONEST"
+ },
+ "87": {
+  "prompt": "how do i make a new branch in git",
+  "reply": "Git/Branching & merging (from https://en.wikibooks.org/wiki/Git%2FBranching_%26_merging, CC BY-SA 4.0):\n\nWhy Branch?:\n- You may have branches representing \u201cstable\u201d releases, which continue to get incremental bug fixes but no (major) new features. At the same time, you may have multiple \u201cunstable\u201d branches representing various new features being proposed for the next major release, and bei ...",
+  "verdict": "WRONG"
+ },
+ "88": {
+  "prompt": "never mind",
+  "reply": "Have you followed the value of dollar lately? A mind is a combination of cognitive faculties that provides consciousness, thinking, reasoning, perception, and judgement in humans and potentially other life forms.",
+  "verdict": "WRONG"
+ },
+ "89": {
+  "prompt": "tell me a joke",
+  "reply": "A joke is a short fictional story with the intent to make people laugh.",
+  "verdict": "RIGHT"
+ },
+ "90": {
+  "prompt": "what can you do?",
+  "reply": "Arithmetic, follow up arithmetic, dates and times, remember what you tell me, recall what you said, describe what i know, learn new words, look things up, continue sequences, compare two things, say what a plan is missing and forget what you ask.",
+  "verdict": "WRONG"
+ },
+ "91": {
+  "prompt": "that's not what I meant",
+  "reply": "I don't know how to is yet.",
+  "verdict": "HONEST"
+ },
+ "92": {
+  "prompt": "who made you",
+  "reply": "I see.",
+  "verdict": "WRONG"
+ },
+ "93": {
+  "prompt": "wow",
+  "reply": "Glad you like it!",
+  "verdict": "RIGHT"
+ },
+ "94": {
+  "prompt": "nice",
+  "reply": "Glad you like it!",
+  "verdict": "RIGHT"
+ }
+}
