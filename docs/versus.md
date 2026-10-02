@@ -1,12 +1,12 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 06:16 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 06:19 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
 | | RIGHT | HONEST | WRONG | ERROR |
 |---|---|---|---|---|
-| Noodle | 34 | 46 | 14 | 0 |
+| Noodle | 34 | 47 | 13 | 0 |
 | Napkin | 31 | 49 | 14 | 0 |
 
 By session (RIGHT / HONEST / WRONG / ERROR):
@@ -22,7 +22,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | definitions | 2 / 4 / 0 / 0 | 3 / 1 / 2 / 0 |
 | files | 3 / 4 / 1 / 0 | 0 / 7 / 1 / 0 |
 | git | 2 / 2 / 4 / 0 | 0 / 8 / 0 / 0 |
-| instructions | 2 / 1 / 1 / 0 | 0 / 4 / 0 / 0 |
+| instructions | 2 / 2 / 0 / 0 | 0 / 4 / 0 / 0 |
 | multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
 | typos and messy phrasing | 2 / 5 / 1 / 0 | 2 / 5 / 1 / 0 |
 | near-misses | 3 / 3 / 1 / 0 | 2 / 3 / 2 / 0 |
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 11:17 PM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 11:19 PM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Thursday, October 1. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | Today is Thursday, October 1. | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -128,7 +128,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-PekaNW`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-K1RkSV`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
 | 59 | show me the git log | - `.git/`<br>- `README.md`<br>- `notes.txt`<br>- `package.json`<br>- `src/` | WRONG | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I can run `git commit my changes`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
@@ -142,7 +142,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 65 | don't run any git commands without asking me first | Got it: I won't not any git commands.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
-| 66 | show me the git status | Your name is sam. | WRONG | I don't know how to status yet. | HONEST |
+| 66 | show me the git status | I couldn't work out "show me the git status". | HONEST | I don't know how to status yet. | HONEST |
 | 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short". | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
 | 68 | stop | Stopped. | RIGHT | I worked that out, but I don't know how to say it yet: Stop() | HONEST |
 

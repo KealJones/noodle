@@ -292,8 +292,9 @@ export class Evaluator {
       }
       if (said && isCall(cand.expr) && this.store.facts(cand.expr.head, "Said").some((x) => key(positional(x.claim as Call)[0]) === key(said))) addFeature(f, "Match:Said", 1);
       // One of the user's things kept from before is meant only when it is named as it was said, or
-      // by a kind narrower than anything at all: "that" or "this" is not the user's name.
-      if (cand.source === "UserFacts" && !f.get("Match:Said") && (!isCall(kind) || kind.head === "Thing")) continue;
+      // by its kind or the one above it ("the list" for the shopping list, two steps up): "that" is not
+      // the user's name, nor is "the git status" (a name is a status only far up WordNet).
+      if (cand.source === "UserFacts" && !f.get("Match:Said") && (!isCall(kind) || kind.head === "Thing" || (f.get("WantedKind") ?? 0) < -2)) continue;
       addFeature(f, `FocusSource:${cand.source}`, cand.salience);
       const score = scoreOf(f, this.weights.get) + (f.get("Match:Said") ?? 0) * 1e-6;
       if (!best || score > best.score || (score === best.score && cand.salience > best.salience)) best = { expr: cand.expr, score, salience: cand.salience };
