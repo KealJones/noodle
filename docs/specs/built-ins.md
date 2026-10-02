@@ -34,7 +34,7 @@ may run them.
 | `Remove(holder, item)` | no | ChangesGraph for a holder in the graph (a file holder would be Deletes) | holder does not contain item | Store | **yes**: holders in the graph |
 | `Contains(holder, item)` | yes | none | none | none | **yes** |
 | `Set(thing, property, value)` | no | ChangesLocal | property has value | Set to old value | later |
-| `Remember(item)` | no | ChangesGraph | the fact or reading is in the store | Retract | **yes**: a fact, or a rewrite the user taught (`Rewrite(from, to)`), confirmed first |
+| `Remember(item)` | no | ChangesGraph | the fact or reading is in the store | `Remember(Retract(Fact(id)))`, bringing back what it replaced | **yes**: a fact, or a rewrite the user taught (`Rewrite(from, to)`), confirmed first |
 | `Compare(a, b, by)` | yes | none | none | none | later |
 | `Count(set)` | yes | none | none | none | yes |
 | `Rank(set, by)`, `Sort(set, by)`, `Filter(set, where)` | yes | none | none | none | yes |
@@ -44,7 +44,7 @@ may run them.
 | `Write(target, content)` | no | ChangesLocal, or Deletes if it replaces content not saved elsewhere | the target has the content | restore the old block | **yes** |
 | `Edit(target, change)` | no | ChangesLocal | the target has the change | reverse the change | **yes** |
 | `Run(program, args)` | no (pure when held to reading) | Unknown, unless the readings that led to it claim `Reads` and it can be held to reading: run confined so that it can neither write a file nor reach the network (design section 15) | exit status and expected output | where the program's documentation gives one | **yes** |
-| `Schedule(when, act)` | no | ChangesLocal | the schedule holds it | cancel | yes: `when` is a time expression (`Now`, `At`, `After(t, extent=d)`, `Before`, or a duration, that long from now; durations count units with a `Lasts` fact), `act` a primitive call kept in the user's words; items are facts on `Schedule`, `Read(Schedule())` lists them, and what falls due is done at the start of the next turn |
+| `Schedule(when, act)` | no | ChangesLocal | the schedule holds it | cancel: `Remember(Retract(Fact(id)))` | yes: `when` is a time expression (`Now`, `At`, `After(t, extent=d)`, `Before`, or a duration, that long from now; durations count units with a `Lasts` fact), `act` a primitive call kept in the user's words; items are facts on `Schedule`, `Read(Schedule())` lists them, and what falls due is done at the start of the next turn |
 | `Say(expr)` | no | Speaks | none | none | **yes** |
 | `Ask(question)` | no | Speaks | none | none | **yes** |
 | `Suppose(expr)` | yes | none (captures others) | none | none | **yes** |
@@ -60,6 +60,17 @@ may run them.
   it. That is why taking out what the user put in is not a guarded Deletes and is not offered every
   time: Deletes is for what cannot be had back. Store takes a referent nothing fits yet as its
   holder (`makes`) and words as its item (`concepts`); Remove takes only a holder that exists.
+- **Undo** (design section 26b): every act that changes something records, in the event record,
+  the inverse its primitive gives from what it did (Store's is Remove, a Write's restores the
+  block it replaced, an Edit's is the reverse edit, Remember's and Schedule's retract what they
+  kept). "undo", "undo that" or "undo the last change" (`Directive(Undo(...))`) takes back the last
+  act of the conversation that changed something and is not undone, by running its inverse as any
+  act is run: under the rules and the guards, and checked. An inverse a guard holds is offered
+  (`Outcome(Undo(act))`); one that ran is said as `Outcome(Undo(act), result=..., checked=...)`;
+  an act with no inverse (a Run) says so (`NoInverse(act)`), and with nothing done there is
+  nothing to undo. Undoing again takes back the act before. Remember's inverse is Remember of a
+  `Retract`: only what the user said can be retracted this way, never the seed's or an import's,
+  and what a claim replaced ("my name is Sam" after "Keal") comes back.
 - **Referents** are resolved by the score (logical-form.md section 4): candidates are what is in
   play and the user's things; features are WantedKind (the referent's kind among the candidate's
   noun kinds), Match:Said (said with the same words) and FocusSource (salience); a thing not of the

@@ -149,6 +149,14 @@ export class Chart {
    * counts as one sense more than it has. The seed's own entries for a word are given, not
    * counted, and a word with no senses has no prior.
    */
+  /** A word's Zipf frequency (wordfreq's); the list's floor (1) if the store has frequencies but not this word's. */
+  private frequency(concept: string): number | undefined {
+    const f = this.store.facts(concept, "Frequency")[0];
+    const z = f && positional(f.claim as Call)[0];
+    if (z?.kind === "number") return z.value;
+    return this.store.factsWithHead("Frequency").length ? 1 : undefined;
+  }
+
   private categoryPrior(concept: string): Map<string, number> | undefined {
     if (this.priors.has(concept)) return this.priors.get(concept);
     let out: Map<string, number> | undefined;
@@ -201,6 +209,15 @@ export class Chart {
     // A candidate covering several tokens (a URL, a multi-word name) counts for each of them.
     addFeature(features, `CandidateSource:${cand.source}`, cand.source === "Unknown" ? 0 : cand.distance ? -cand.distance : cand.end - cand.start);
     if (cand.kind) addFeature(features, `ShapeFit:${cand.kind}`, 1);
+    // Of the words a token may be heard as but was not written as (spelling corrections, another
+    // case, a stretch), the more common is the likelier: its Zipf frequency below the most common
+    // of them, so frequency ranks the corrections without making a correction likelier than the
+    // word as written (runtime.md 8.1, WordFrequency).
+    if (corrected(cand)) {
+      const z = this.frequency(cand.concept!);
+      const top = Math.max(...this.hearing.candidates[cand.start].filter((x) => x.end === cand.end && corrected(x)).map((x) => this.frequency(x.concept!) ?? 0));
+      if (z !== undefined) addFeature(features, "WordFrequency", z - top);
+    }
     // A noun the lexicon lists as one word ("shopping list"), read as that noun: +1 per token past
     // the first, so the listed compound is preferred to the same nouns put together by the chart.
     const joined = (f: Features, category: string) => {
@@ -623,6 +640,8 @@ export function entriesOf(store: Store, concept: string) {
 const headOf = (e: Expr | undefined) => (isCall(e) ? e.head : undefined);
 const boolOf = (e: Expr | undefined) => e?.kind === "boolean" && e.value;
 const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1);
+/** A word candidate the token was not written as: a spelling correction, another case, a stretch. */
+const corrected = (x: Candidate) => !!x.concept && (x.source === "SpellDistance" || x.source === "CaseMatch" || x.source === "Stretched");
 
 /**
  * A word taken where an entry asks for that very word ("cause" takes "to" and an act) fits the

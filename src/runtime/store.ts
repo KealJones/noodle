@@ -115,6 +115,7 @@ export class Store {
       lemmas: "SELECT text, concept, features FROM lemmas WHERE lower = ? ORDER BY item",
       lemmaTexts: "SELECT DISTINCT lower FROM lemmas",
       block: "SELECT id, json FROM items WHERE kind = 'block' AND owner = ?",
+      byId: "SELECT id, json, status FROM items WHERE id = ?",
       has: "SELECT 1 AS x FROM concepts WHERE name = ? UNION ALL SELECT 1 FROM items WHERE owner = ? LIMIT 1",
       pack: "SELECT hash FROM packs WHERE name = ?",
       setPack: "INSERT OR REPLACE INTO packs VALUES (?, ?, ?)",
@@ -264,6 +265,24 @@ export class Store {
   retract(f: FactItem | number) {
     if (typeof f === "number") this.db.prepare("UPDATE items SET status = 'Retracted' WHERE id = ?").run(f);
     else this.db.prepare("UPDATE items SET status = 'Retracted', json = ? WHERE id = ?").run(toJson({ ...f, meta: { ...f.meta, status: "Retracted" } }), f.meta.id);
+    this.clearCaches();
+  }
+
+  /** An item by its id, whatever its status (an act's inverse names what it made by id). */
+  item(id: number): Item | undefined {
+    const r = this.q.byId.get(id) as { id: number; json: string; status: Status } | undefined;
+    if (!r) return undefined;
+    const item = fromJson(r.json) as Item;
+    item.meta.id = r.id;
+    item.meta.status = r.status;
+    return item;
+  }
+
+  /** Brings a retracted item back (an undo of what retracted it). */
+  restore(id: number) {
+    const it = this.item(id);
+    if (!it) return;
+    this.db.prepare("UPDATE items SET status = 'Active', json = ? WHERE id = ?").run(toJson({ ...it, meta: { ...it.meta, status: "Active" } }), id);
     this.clearCaches();
   }
 

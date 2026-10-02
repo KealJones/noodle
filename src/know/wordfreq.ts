@@ -3,8 +3,12 @@
 // Used to pick the most common words for measuring how much of the language bottoms out (design
 // section 6: coverage of the most common lemmas). Only the parts of msgpack the lists use are read.
 
-/** The words of a wordfreq cBpack list, most frequent first. */
-export function wordfreqWords(buf: Uint8Array): string[] {
+import { type Expr, c, s } from "../runtime/expr.js";
+import type { Store } from "../runtime/store.js";
+import { format } from "../ncon/index.js";
+
+/** The buckets of a wordfreq cBpack list: the i-th holds the words at -i centibels. */
+function buckets(buf: Uint8Array): string[][] {
   let i = 0;
   const text = new TextDecoder();
   const u = (n: number) => {
@@ -58,5 +62,36 @@ export function wordfreqWords(buf: Uint8Array): string[] {
     return o;
   };
   const all = read() as unknown[];
-  return all.slice(1).flatMap((bucket) => (Array.isArray(bucket) ? (bucket as string[]) : []));
+  return all.slice(1).map((bucket) => (Array.isArray(bucket) ? (bucket as string[]) : []));
+}
+
+/** The words of a wordfreq cBpack list, most frequent first. */
+export function wordfreqWords(buf: Uint8Array): string[] {
+  return buckets(buf).flat();
+}
+
+/**
+ * Each word with its Zipf frequency (log10 of its count per billion words: 9 minus its bucket's
+ * centibels over 100), most frequent first.
+ */
+export function wordfreqZipf(buf: Uint8Array): [string, number][] {
+  return buckets(buf).flatMap((ws, i) => ws.map((w): [string, number] => [w, Math.round((9 - i / 100) * 100) / 100]));
+}
+
+/**
+ * The frequency pack: a Frequency fact on each word concept whose lemma the list has (design
+ * section 9: how common a word is ranks the words a token may be a correction of). The list is by
+ * written word, so a lemma gets its own written frequency, not its forms'.
+ */
+export function frequencyPack(buf: Uint8Array, store: Store, opts: { version: string }): { text: string; words: number } {
+  const out: Expr[] = [c("Pack", ["name", s("wordfreq")], ["version", s(opts.version)], ["from", c("Wordfreq", s(`large_en-${opts.version}`))], ["license", s("CC BY-SA 4.0")])];
+  const done = new Set<string>();
+  for (const [w, z] of wordfreqZipf(buf)) {
+    for (const h of store.lookup(w)) {
+      if (h.text !== w || h.features.length || done.has(h.concept)) continue;
+      done.add(h.concept);
+      out.push(c("Fact", c(h.concept), c("Frequency", { kind: "number", value: z, pos: { line: 0, column: 0 } })));
+    }
+  }
+  return { text: format({ forms: out as never }), words: done.size };
 }

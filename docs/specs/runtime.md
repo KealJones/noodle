@@ -99,8 +99,13 @@ feature saying where it came from:
   pronunciations. See open question 3.
 - Candidates are proposed, never chosen silently: "taht" yields *that* and *Taht*, and the chart and
   score decide (design section 8).
-- Multi-word lemmas (idioms, phrasal verbs, names) are found by a trie over lemma sequences and
-  enter as spans.
+- Multi-word lemmas (names, compounds) are found by a trie over lemma sequences and enter as
+  spans. A concept said as words in order (an idiom or a phrasal verb, imported as
+  `Words(Give(), Up())`, each part a word concept, a part given in a form as `Bean(Plural())`)
+  enters as a span wherever its parts are heard in order, each part in any form unless it is
+  given in one; the span carries the form features its free parts were heard with ("gave up" is
+  GiveUp in the past). Spelling corrections are not parts. Parts must be adjacent: a separated
+  phrasal verb ("give it up") is not heard as one yet.
 
 ### 3.4 Shapes
 
@@ -303,6 +308,7 @@ Templates (design section 9):
 | `ShapeFit` | per shape want: whether it fits; `Head` (+1 per argument taken where an entry asks for that very word, "cause" taking "to" and an act); `Frame` (in understanding a definition only: +1 when the reading leaves open as many objects as the sense's WordNet frames say it takes, -1 when not) |
 | `Neighbour` | per want naming a neighbour: exact word, else its kind, else the conversation topic (backoff) |
 | `SenseFrequency` | log of the imported sense count, smoothed: a sense's prior in rewriting (section 7); `Category` on a word edge, the log of the share of the word's senses whose part of speech gives the edge's category (a category none of them gives counts as one sense more), for words whose entries the seed does not give |
+| `WordFrequency` | for a token heard as a word it was not written as (a spelling correction, another case, a stretch): the word's Zipf frequency from wordfreq minus 4 (an everyday word, ten in a million), a word the list lacks at its floor (1); only where the store has frequencies. A common word is the likelier correction ("teh" is "the", not "tea"); seed weight 0.25 |
 | `Evidence` | log counts of (word, neighbour, chosen sense) and (word, neighbour, chosen reading), with backoff from neighbour to neighbour kind |
 | `Match` | the scored match's features (section 6.2) |
 | `Unmatched` | minus the roles of the expression a reading's pattern did not name, carried over (section 6.1): of two readings of the same expression, the one that accounts for more of it fits better (seed weight 0.25) |
@@ -450,10 +456,18 @@ relevant.
   and the want features like any other. Only when every source fails does the need become an Ask;
   then it stays unworked (section 7).
 - **Budget** per turn: lookups per source, a network time limit, and a cap on how far back past
-  conversations are searched unless the words ask ("the list from last month").
+  conversations are searched unless the words ask ("the list from last month"). The budget is a
+  policy fact on `Focus` per source (`Budget(World(), lookups=2)`, `Budget(Workspace(), lookups=1,
+  candidates=200)`, `Budget(UserFacts(), candidates=20)`): `lookups` is how many times a turn may
+  ask the source, `candidates` how many one search may take from it, most salient (then most
+  recent) first. A source with no budget is unbounded. A need the world cannot be asked for, the
+  budget spent, stays unmet and says so (`NeedUnmet(Budget(World()))`).
 - A candidate that fits no need and no reference is dropped.
 - **Recorded**: what was pulled in, from where, for which need, and which features won go in the
-  reasons log (section 8.3), so a correction can move them.
+  reasons log (section 8.3), so a correction can move them: each `focus:` choice point names the
+  need (a referent, a question to the world, the workspace's names), its candidates by source
+  with their features and scores, and the winner. Only the turn's own evaluation is recorded, not
+  its dry runs.
 - **Trust**: past conversations and user facts are level 1 when the user said them; workspace files
   keep their origin's trust (section 13); world facts keep their source's.
 - **In the experiment**: only the current conversation and the workspace, both from the fixture.

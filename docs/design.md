@@ -239,6 +239,12 @@ Evidence picks: capitalization or quotes raise the name readings, "watch" or "th
 film, and "he's a real man of steel" keeps the literal reading; close ones are asked about like any
 other.
 
+An idiom or a phrasal verb Wiktionary lists is a concept whose words are its parts, a fact on it:
+`Words(Spill(), The(), Bean(Plural()))`, each part a word concept, never a string with spaces
+(2026-10-02, docs/imports.md). Hearing proposes it as a span wherever its parts are heard in order,
+in any form ("spilled the beans"), beside the words themselves, and the score picks; what the
+idiom means comes from its senses' definitions, understood like any other.
+
 **The content store** keeps text that is content, not meaning (file contents, a draft, a quote, a
 URL, a source's original words) as blocks with ids that concepts refer to. Blocks never decide
 meaning.
@@ -783,7 +789,8 @@ it, then ask, then stay unworked honestly).
   world), its kind match, its salience in the event record, its recency, and its trust.
 - Each turn has a budget: a bounded number of lookups per source, a time limit for the network, and
   a cap on how far back past conversations are searched unless the words ask for it ("the list from
-  last month").
+  last month"). The numbers are a default policy in the seed, a `Budget` fact per source on `Focus`
+  (runtime.md 11b); a need the budget leaves unmet says so.
 - A candidate that fits no need and no reference is dropped, not kept "in case".
 
 **Recorded.**
@@ -1276,7 +1283,9 @@ twice. Token counts are words: there is no tokenizer, by design.
 - **A plan that fails partway** stops at the failing step, reports what ran and what did not, and
   offers to undo what it can.
 - **Undo**: primitives declare an inverse where one exists (a created branch can be deleted, an edit
-  reverted); where none exists, the guard says so before acting.
+  reverted); where none exists, the guard says so before acting. The inverse is recorded with the
+  act in the event record, from what the act did, and "undo that" runs the last one not yet undone,
+  under the guards and checked (built-ins.md section 2).
 - **Interruption**: a plan checkpoints between steps; "stop" means no further steps.
 - **Other processes**: the world is observed before acting (the file and the branch as they are
   now), not assumed from the last look.

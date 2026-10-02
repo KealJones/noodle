@@ -16,11 +16,11 @@ import { seededStore } from "../runtime/seed.js";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { learnTool } from "./tooldocs.js";
 import { importVerbNet } from "./verbnet.js";
-import { importWiktionary } from "./wiktionary.js";
+import { importWiktionary, importWiktionaryPhrases } from "./wiktionary.js";
 import { STORE, packedStore } from "../assistant/index.js";
 import { importFrames, importWordNet } from "./wordnet.js";
 import { Understander, coverage, definitionsPack, firstSenses } from "./definitions.js";
-import { wordfreqWords } from "./wordfreq.js";
+import { frequencyPack, wordfreqWords } from "./wordfreq.js";
 import { format } from "../ncon/index.js";
 
 export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "packs");
@@ -56,6 +56,20 @@ if (source === "wordnet" && path) {
   const r = await importWiktionary(path, words, { version: version ?? "latest" });
   writeFileSync(join(PACKS, "wiktionary.ncon"), r.text);
   console.log(`wiktionary: ${r.forms} forms for ${r.words} words -> ${join(PACKS, "wiktionary.ncon")}`);
+} else if (source === "wiktionary-phrases" && path) {
+  // Alternative forms, idioms and phrasal verbs, over the words the other packs have (import
+  // wordnet and wiktionary first). Two packs, so either can be taken out on its own.
+  const words = packedStore(PACKS);
+  const r = await importWiktionaryPhrases(path, words, { version: version ?? "latest" });
+  writeFileSync(join(PACKS, "wiktionary-alternatives.ncon"), r.alternatives.text);
+  writeFileSync(join(PACKS, "wiktionary-idioms.ncon"), r.idioms.text);
+  console.log(`wiktionary-alternatives: ${r.alternatives.forms} forms for ${r.alternatives.words} words -> ${join(PACKS, "wiktionary-alternatives.ncon")}`);
+  console.log(`wiktionary-idioms: ${r.idioms.phrases} phrases (${r.idioms.known} already words, given their parts), ${r.idioms.senses} senses with definitions, ${r.idioms.skipped} skipped (a part with no word) -> ${join(PACKS, "wiktionary-idioms.ncon")}`);
+} else if (source === "wordfreq" && path) {
+  // How common each word is, for the words the other packs have (WordFrequency, runtime.md 8.1).
+  const r = frequencyPack(gunzipSync(readFileSync(path)), packedStore(PACKS), { version: version ?? "3.0" });
+  writeFileSync(join(PACKS, "wordfreq.ncon"), r.text);
+  console.log(`wordfreq: frequencies for ${r.words} words -> ${join(PACKS, "wordfreq.ncon")}`);
 } else if (source === "tool" && path) {
   // A tool's own documentation, read from the local man pages: no download. Its summaries are
   // understood over the words the other packs give, without any tool's readings (a command is not

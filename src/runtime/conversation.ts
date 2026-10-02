@@ -5,6 +5,16 @@
 import type { Expr } from "./expr.js";
 import type { ChoicePoint } from "./score.js";
 
+/**
+ * What Focus pulled in this turn (runtime.md 11b): each lookup, the need that asked for it, the
+ * source, what came back and which won, as a choice point for the reasons log; and how many
+ * lookups each source has had, against the turn's budget.
+ */
+export interface FocusRecord {
+  lookups: Map<string, number>;
+  log: ChoicePoint[];
+}
+
 export interface StandingRule {
   /** Not(x) or Only(x) (logical-form.md section 7). */
   rule: Expr;
@@ -20,6 +30,12 @@ export interface Event {
   result?: Expr;
   checked?: boolean;
   error?: string;
+  /** Whether the act changed something (an effect beyond reading and speaking). */
+  effectful?: boolean;
+  /** What would undo it, from its primitive's inverse, when it has one (built-ins.md section 2). */
+  undo?: Expr;
+  /** Undone already, or itself an undoing: not what a later "undo" takes back. */
+  undone?: boolean;
 }
 
 export interface Proposal {
@@ -53,6 +69,8 @@ export class Conversation {
   /** The turn a proposal was last permitted in. */
   permittedTurn?: number;
   lastQuestion?: Expr;
+  /** This turn's Focus: started afresh each turn. */
+  focus: FocusRecord = { lookups: new Map(), log: [] };
 
   /** A copy to work on without changing this one (a dry run). Expressions are immutable values. */
   clone(): Conversation {

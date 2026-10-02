@@ -278,6 +278,16 @@ Concept(Day(), Lasts(86400))`);
   assert.deepEqual(positional(list as never).map((x) => role(x, "due")), [b(false), b(false)]);
   now = new Date(2026, 9, 1, 21, 20);
   assert.deepEqual(positional((await run(w, "Read", c("Schedule"))) as never).map((x) => role(x, "due")), [b(true), b(false)]);
+  // Cancelled through its inverse: what it kept is taken back, checked, and no longer listed.
+  const cancel = await prim("Schedule").inverse!([], r2, w);
+  assert.deepEqual(cancel, c("Remember", c("Retract", c("Fact", role(r2, "item")!))));
+  const [item] = positional(cancel as never);
+  const done = await run(w, "Remember", item);
+  assert.equal(await prim("Remember").check!([item], done, w), true);
+  assert.deepEqual(positional((await run(w, "Read", c("Schedule"))) as never).map((x) => key(positional(x as never)[0])), [key(act)]);
+  // Only what the user said can be taken back this way.
+  const seeded = w.store.facts("Minute", "Lasts")[0];
+  await assert.rejects(run(w, "Remember", c("Retract", c("Fact", n(seeded.meta.id)))), /not something you told me/);
 });
 
 test("Count, Filter, Sort and Rank over a set", async () => {
