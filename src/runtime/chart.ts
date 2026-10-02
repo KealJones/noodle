@@ -303,6 +303,11 @@ export class Chart {
     });
   }
 
+  private noise(token: number): boolean {
+    const cs = this.hearing.candidates[token];
+    return cs.every((x) => x.source === "Unknown") || cs.some((x) => x.concept && this.store.facts(x.concept, "Tone").length > 0);
+  }
+
   /** Skip: a token is left out, at its cost (runtime.md 4.2 step 4). */
   private skip(e: Edge, token: number, side: "Left" | "Right"): Edge {
     const features = new Map(e.features);
@@ -371,31 +376,36 @@ export class Chart {
   // -------------------------------------------------------------------------------------------
   // Building
 
+  private sigs = new Map<string, Map<string, Edge>>();
+
+  /**
+   * Adds an edge to its span unless an equal edge scores as well, and keeps at most k edges per
+   * category and pending state as they arrive (runtime.md 4.4), so a span never grows past what
+   * pruning would keep.
+   */
   private add(s: number, e: number, edge: Edge, agenda: Edge[]) {
-    const cell = this.cell(s, e);
+    const cellKey = `${s}:${e}`;
+    let sigs = this.sigs.get(cellKey);
+    if (!sigs) this.sigs.set(cellKey, (sigs = new Map()));
     const sig = signature(edge);
-    const same = cell.find((x) => signature(x) === sig);
-    if (same) {
-      if (same.score >= edge.score) return;
-      cell.splice(cell.indexOf(same), 1);
+    const same = sigs.get(sig);
+    if (same && same.score >= edge.score) return;
+    const cell = this.cell(s, e);
+    const g = group(edge);
+    const rivals = cell.filter((x) => group(x) === g);
+    if (!same && rivals.length >= this.opts.k) {
+      const worst = rivals.reduce((a, b2) => (b2.score < a.score ? b2 : a));
+      if (worst.score >= edge.score) return;
+      cell.splice(cell.indexOf(worst), 1);
+      sigs.delete(signature(worst));
     }
+    if (same) cell.splice(cell.indexOf(same), 1);
     cell.push(edge);
+    sigs.set(sig, edge);
     agenda.push(edge);
   }
 
-  private prune(s: number, e: number) {
-    const cell = this.cell(s, e);
-    const groups = new Map<string, Edge[]>();
-    for (const x of cell) {
-      const g = `${x.category}|${x.pending.length}|${x.gap ?? ""}|${x.joinRight ? "j" : ""}`;
-      if (!groups.has(g)) groups.set(g, []);
-      groups.get(g)!.push(x);
-    }
-    const kept: Edge[] = [];
-    for (const g of groups.values()) kept.push(...g.sort((a, b) => b.score - a.score).slice(0, this.opts.k));
-    cell.length = 0;
-    cell.push(...kept);
-  }
+  private prune(_s: number, _e: number) {}
 
   build(): this {
     const { from, to } = this;
@@ -408,10 +418,13 @@ export class Chart {
           for (const a of this.cell(s, m))
             for (const b2 of this.cell(m, e)) for (const x of this.combine(a, b2)) this.add(s, e, x, agenda);
         }
-        // Skip: an edge passes over up to maxSkip tokens at either side.
-        for (let k = 1; k <= this.opts.maxSkip && k < len; k++) {
-          for (const x of this.cell(s, e - k)) if (k === 1 || x.step === "Skip") this.add(s, e, this.skip(x, e - 1, "Right"), agenda);
-          for (const x of this.cell(s + k, e)) if (k === 1 || x.step === "Skip") this.add(s, e, this.skip(x, s, "Left"), agenda);
+        // Skip inside an edge: an edge passes over an adjacent token that is noise to it (a word it
+        // has no candidate for, or a tone word), so the words around it still combine. Skipping a
+        // known word happens between the edges of a cover instead, at the same cost; doing it here
+        // too multiplies the chart without adding a reading the cover cannot reach.
+        if (len > 1) {
+          if (this.noise(e - 1)) for (const x of this.cell(s, e - 1)) this.add(s, e, this.skip(x, e - 1, "Right"), agenda);
+          if (this.noise(s)) for (const x of this.cell(s + 1, e)) this.add(s, e, this.skip(x, s, "Left"), agenda);
         }
         // Unary closure, bounded.
         for (let guard = 0; agenda.length && guard < 400; guard++) {
@@ -539,7 +552,21 @@ function addArg(e: Expr, path: number[], roleName: string | undefined, value: Ex
   return { ...e, args };
 }
 
+function group(x: Edge): string {
+  return `${x.category}|${x.pending.length}|${x.gap ?? ""}|${x.joinRight ? "j" : ""}|${x.wraps ?? ""}${x.heads ?? ""}`;
+}
+
+const signatures = new WeakMap<Edge, string>();
+
 function signature(e: Edge): string {
+  const have = signatures.get(e);
+  if (have) return have;
+  const sig = computeSignature(e);
+  signatures.set(e, sig);
+  return sig;
+}
+
+function computeSignature(e: Edge): string {
   return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.length, e.byRule].join("|");
 }
 
