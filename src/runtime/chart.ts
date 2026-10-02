@@ -171,6 +171,9 @@ export class Chart {
     }
     if (cand.literal !== undefined && !out.length) {
       out.push(this.make({ start: cand.start, end: cand.end, category: "Thing", expr: cand.literal, word: cand.kind, features, step: "literal", back: [] }));
+      // A name in the surroundings can follow a determiner, as a noun does: "the readme".
+      if (cand.source === "InPlay")
+        out.push(this.make({ start: cand.start, end: cand.end, category: "Noun", expr: cand.literal, word: cand.kind, features: new Map(features), step: "literal", back: [] }));
     }
     return out;
   }
