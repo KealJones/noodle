@@ -57,7 +57,7 @@ for (const l of labels) {
   let acts = [];
   const t0 = performance.now();
   try {
-    acts = (await s.turn(text, { dry: true })).acts.map(named).filter(Boolean);
+    acts = (await s.turn(text, { dry: true, ask: false })).acts.map(named).filter(Boolean);
     const ms = performance.now() - t0;
     if (args.includes("--progress")) console.error(`${l.i}\t${text.split(/\s+/).length}w\t${ms.toFixed(0)}ms`);
   } catch (e) {

@@ -88,8 +88,10 @@ export class Session {
   /**
    * One turn. With dry, the winner is evaluated in Suppose instead of Doing: nothing effectful
    * runs and nothing is stored, and the acts it would run are returned (for scoring against labels).
+   * With ask false it never asks which of two tied readings was meant (the zero-shot arms, design
+   * section 29: asking is off where there is no calibration).
    */
-  async turn(text: string, opts: { dry?: boolean } = {}): Promise<TurnResult> {
+  async turn(text: string, opts: { dry?: boolean; ask?: boolean } = {}): Promise<TurnResult> {
     // A dry run works on a copy of the conversation, so nothing of it is kept.
     const conv = opts.dry ? this.conversation.clone() : this.conversation;
     conv.decay();
@@ -128,7 +130,7 @@ export class Session {
       // to different acts, nothing says which was meant, so it asks instead of picking one.
       const runner = top[1];
       const actsOf = (r: Reading) => r.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map(key);
-      if (runner && runner.score === win.score && actsOf(win).length && actsOf(runner).length && actsOf(win).join() !== actsOf(runner).join()) {
+      if (opts.ask !== false && runner && runner.score === win.score && actsOf(win).length && actsOf(runner).length && actsOf(win).join() !== actsOf(runner).join()) {
         const a = win.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
         const b2 = runner.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
         record.reasons.push(choice(`reading of "${segText}" (too close)`, top.slice(0, 2).map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
