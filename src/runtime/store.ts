@@ -74,7 +74,13 @@ export class Store {
   private blocks = new Map<string, BlockItem>();
   private packs: { name: string; version: string; hash: string }[] = [];
 
+  /** Every item, in id order: what export writes. */
+  private all: (FactItem | ReadingItem | BlockItem)[] = [];
+  /** Whether items are written to SQLite: a store opened on a file keeps everything there. */
+  private readonly durable: boolean;
+
   constructor(path = ":memory:") {
+    this.durable = path !== ":memory:";
     this.db = new DatabaseSync(path);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, kind TEXT, owner TEXT, head TEXT, text TEXT, pack TEXT);
@@ -83,7 +89,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS items_head ON items(head);
     `);
     const rows = this.db.prepare("SELECT id, text, pack FROM items ORDER BY id").all() as { id: number; text: string; pack: string | null }[];
-    for (const r of rows) this.index(parse(r.text).forms[0], undefined, r.pack ?? undefined, r.id);
+    for (const r of rows) this.all.push(...this.index(parse(r.text).forms[0], undefined, r.pack ?? undefined, r.id));
     if (rows.length) this.nextId = rows[rows.length - 1].id + 1;
     this.packs = this.db.prepare("SELECT name, version, hash FROM packs").all() as { name: string; version: string; hash: string }[];
   }
@@ -149,6 +155,10 @@ export class Store {
   }
 
   private persist(item: FactItem | ReadingItem | BlockItem) {
+    this.all.push(item);
+    // An in-memory store is rebuilt from its packs each time; writing each item to SQLite there is
+    // all cost and no record (it was half of loading the imported packs).
+    if (!this.durable) return;
     const owner = item.kind === "fact" ? item.subject : item.kind === "reading" ? item.owner : item.id;
     const head = item.kind === "fact" && isCall(item.claim) ? item.claim.head : item.kind === "reading" && isCall(item.pattern) ? item.pattern.head : null;
     this.db
@@ -328,8 +338,7 @@ export class Store {
 
   /** Every item as one `.ncon` text, in id order (ncon-format.md section 6, rule 3). */
   export(): string {
-    const rows = this.db.prepare("SELECT text FROM items ORDER BY id").all() as { text: string }[];
-    const file: NconFile = { forms: rows.map((r) => parse(r.text).forms[0]) };
+    const file: NconFile = { forms: [...this.all].sort((a, b) => a.meta.id - b.meta.id).map(toForm) };
     return format(file);
   }
 

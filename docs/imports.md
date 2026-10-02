@@ -1,14 +1,15 @@
 # Imports: what to download, and how to load it
 
 Noodle's seed knows only function words and core meanings. Content words ("push", "file",
-"commit") come from imports (design section 22; PLAN.md phase 3). The importers are written and
-tested on small invented fixtures; the real files have not been downloaded, because downloading is
-Keal's call. Once they are in `~/.noodle/sources/`, two commands build the packs, and `pnpm chat`
-and `pnpm serve` load them after the seed.
+"commit") come from imports (design section 22; PLAN.md phase 3). Keal approved the downloads on
+2026-10-01, and these are imported on this machine: Open English WordNet 2025 (128,001 words,
+107,519 senses), VerbNet 3.4 (4,325 verbs, 1,533 frames read, 69 skipped), and Wiktionary's forms
+and sounds from the Kaikki extract (99,639 forms for 58,928 words). `pnpm chat` and `pnpm serve`
+load every pack in `~/.noodle/packs/` after the seed (about 4 seconds).
 
 | Source | Where | License | What it gives |
 |---|---|---|---|
-| Open English WordNet 2024, WN-LMF XML | the `english-wordnet-2024.xml.gz` asset on <https://github.com/globalwordnet/english-wordnet/releases> (tens of MB compressed; check the page) | CC BY 4.0 | words, parts of speech, irregular forms, senses (synsets) with their kinds and definitions |
+| Open English WordNet 2025, WN-LMF XML | the `english-wordnet-2025.xml.gz` asset on <https://github.com/globalwordnet/english-wordnet/releases> (tens of MB compressed; check the page) | CC BY 4.0 | words, parts of speech, irregular forms, senses (synsets) with their kinds and definitions |
 | VerbNet 3.4 | the `verbnet3.4/` directory of <https://github.com/cu-clear/verbnet> (a `git clone --depth 1` of the repository) | VerbNet license (permissive) | what verbs take (frames) and what they do (event semantics), which the bridge relates to core meanings |
 
 ```bash
@@ -22,7 +23,7 @@ git clone --depth 1 https://github.com/cu-clear/verbnet
 Download the WordNet asset from the release page into `~/.noodle/sources/`, then:
 
 ```bash
-pnpm import wordnet ~/.noodle/sources/english-wordnet-2024.xml.gz
+pnpm import wordnet ~/.noodle/sources/english-wordnet-2025.xml.gz 2025
 ```
 
 ```bash
@@ -31,11 +32,11 @@ pnpm import verbnet ~/.noodle/sources/verbnet/verbnet3.4
 
 ## Not yet
 
-- **Wiktionary (Kaikki)**: regular inflections ("pushed", "pushes"), pronunciations, idioms. WordNet
-  has only irregular forms, so until this is imported a regular past tense is a spelling candidate,
-  not a form. The English dump is large (gigabytes); a filtered extract is the likely route.
-- **wordfreq**: sense frequency needs counts; WordNet's release has none. Until then
-  `SenseFrequency` has no data and senses tie.
+- **Wiktionary forms** are imported (`pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz`,
+  from the 523 MB gzipped Kaikki extract); its idioms and definitions are not yet.
+- **wordfreq** is downloaded (`~/.noodle/sources/wordfreq-large_en.msgpack.gz`) but not imported:
+  sense frequency needs counts per sense, which neither it nor WordNet's release has, so
+  `SenseFrequency` still has no data and senses tie.
 - **gitglossary(7) and the git man pages** need no download: they are read from the local `man`
   pages by `Read(ManPage(...))` (phase 4).
 
