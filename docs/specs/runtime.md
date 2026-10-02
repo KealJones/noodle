@@ -284,7 +284,7 @@ Templates (design section 9):
 
 | Template | Value |
 |---|---|
-| `WordsUsed` | tokens covered (+1 each), `Skipped` per skipped token by candidate type (-1 each; a tone word 0), and `Fragments` (-0.5 per edge of a cover after the first, so a partial parse is allowed but one reading of the same words is preferred) |
+| `WordsUsed` | tokens covered (+1 each), `Skipped` per skipped token by candidate type (-1 each; a tone word 0), `Fragments` (-0.5 per edge of a cover after the first, so a partial parse is allowed but one reading of the same words is preferred), and `Joined` (+1 per token past the first of a noun the lexicon lists as one word, "shopping list", so the compound is preferred to the same nouns put together) |
 | `CandidateSource` | the token candidate's source and distance (section 3.3) |
 | `WantedKind` | per filled role with a want: minus the kind distance to the wanted kind |
 | `ShapeFit` | per shape want: whether it fits |

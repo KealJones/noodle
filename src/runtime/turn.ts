@@ -4,6 +4,7 @@
 // recorded with its candidates and features.
 
 import { type Call, type Expr, c, isCall, key, positional, rewrite as mapExpr, role, s } from "./expr.js";
+import { alike } from "./canonical.js";
 import { Chart, type Cover, type Edge } from "./chart.js";
 import { Conversation, type TurnRecord } from "./conversation.js";
 import { Evaluator, type Outcome } from "./evaluate.js";
@@ -126,14 +127,20 @@ export class Session {
       const top = await this.readings(seg.covers, seg.chart, rewriter, segText, conv);
       if (!top.length) continue;
       const win = top[0];
-      // Two readings too close (design sections 9 and 23): when the best two tie exactly and lead
-      // to different acts, nothing says which was meant, so it asks instead of picking one.
-      const runner = top[1];
-      const actsOf = (r: Reading) => ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map(key);
-      if (opts.ask !== false && runner && runner.score === win.score && actsOf(win).length && actsOf(runner).length && actsOf(win).join() !== actsOf(runner).join()) {
+      // Two readings too close (design sections 9 and 23): when the best readings tie exactly and
+      // lead to different acts, nothing says which was meant, so it asks instead of picking one.
+      // The rival is the first tied reading whose act differs: ties among ways of saying the same
+      // act are not a choice.
+      const actsOf = (r: Reading) => ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure));
+      // Acts that run the same are one act: roles left on a primitive call are input it does not
+      // take, and two words for the same thing ("eggs", and "egg" in the plural) are one thing.
+      const given = (x: Expr): Expr => (isCall(x) ? { ...x, args: x.args.filter((a) => a.name === undefined) } : x);
+      const differ = (a: Expr[], b2: Expr[]) => a.length !== b2.length || a.some((x, i) => !alike(this.store, given(x), given(b2[i])));
+      const runner = actsOf(win).length ? top.slice(1).find((r) => r.score === win.score && actsOf(r).length && differ(actsOf(win), actsOf(r))) : undefined;
+      if (opts.ask !== false && runner) {
         const a = win.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
         const b2 = runner.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
-        record.reasons.push(choice(`reading of "${segText}" (too close)`, top.slice(0, 2).map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
+        record.reasons.push(choice(`reading of "${segText}" (too close)`, [win, runner].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
         said.push(c("TooClose", a, b2));
         anything = true;
         continue;

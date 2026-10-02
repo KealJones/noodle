@@ -18,7 +18,7 @@ built. This brief is the map of the code so each builder can start fast.
 | primitives | `src/runtime/primitives/` | the only code that touches the world; registry in `index.ts`; interface in `src/runtime/primitive.ts` |
 | Know | `src/runtime/know/` | the door to outside knowledge (Wikipedia, Wikidata, Wiktionary, web, URLs) |
 | Speaking | `src/runtime/speak.ts` + `seed/realizations.ncon` | realization readings (mode=Speaking) into a document, printed as markdown |
-| imports | `src/know/` | WordNet, VerbNet, Wiktionary forms, tool man pages into packs (`~/.noodle/packs/`); `pnpm import ...` |
+| imports | `src/know/` | WordNet, VerbNet, Wiktionary forms, tool man pages into packs (`~/.noodle/packs/`); `pnpm run import ...` |
 | chat | `src/assistant/` | `createSession`, `packedStore()`, `pnpm chat -- --why` (shows the reasons log) |
 
 Packs imported on this machine: WordNet 2025, VerbNet 3.4, Wiktionary forms, git and gh man pages.

@@ -131,6 +131,12 @@ Facts are never edited. A fact stops holding by a later fact (`holds` closing it
 A kind is an ordinary concept. `IsA(K())` on X makes K a kind of X; `IsA` is transitive. The
 **kind hierarchy** is the `IsA` graph, and **kind distance** (used by the score and the match
 relation) is the number of `IsA` steps between two concepts through their nearest common ancestor.
+A word is what its senses are: a word's kinds are its senses' kinds, and a broader sense is a kind
+of each word it is a sense of ("shopping list" is a list: its sense's broader sense is a sense of
+"list"). Those steps cost nothing; a word's own senses do not lead to their synonyms, and a word
+reached from a broader sense does not lead to its other meanings. Asked for one chart category
+(a thing is what its noun senses are), only senses of that part of speech are followed. A want
+`IsA($x, K)` is met when K is among $x's kinds, however far below K $x is.
 Kinds are weighted guesses (design principle 5): an `IsA` fact can carry a weight in its meta, which
 enters the score as evidence, never as a switch.
 

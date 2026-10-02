@@ -10,6 +10,7 @@ import { blockRef, SELF, str } from "./args.js";
 import { logCount, readBranches, readLog, readStatus } from "./git.js";
 import { readManPage } from "./manpage.js";
 import { mediaFor, resolveInside } from "./paths.js";
+import { holds, isThing, readThing } from "./hold.js";
 
 const entryKind = (dir: string, d: fs.Dirent): Expr => {
   let isDir = d.isDirectory();
@@ -37,6 +38,8 @@ export const Read: Primitive = {
       if (!k) throw new Error(`could not read ${source.value}`);
       return c("Page", ["path", s(source.value)], ["title", s(k.title)], ["content", c("Block", s(k.block))]);
     }
+    // A thing the user has in the graph (their list, their name): what the graph holds of it.
+    if (isCall(source) && isThing(world.store, source)) return readThing(world.store, source);
     if (isCall(source)) {
       switch (source.head) {
         case "GitStatus":
@@ -82,9 +85,12 @@ export const Read: Primitive = {
 export const Contains: Primitive = {
   name: "Contains",
   params: ["holder", "item"],
+  concepts: ["item"],
   pure: true,
   effects: () => [],
   async run([holder, item], world) {
+    // A holder in the graph.
+    if (isThing(world.store, holder)) return b(item !== undefined && holds(world.store, holder, item));
     if (isCall(holder)) return b(positional(holder).some((m) => item !== undefined && key(m) === key(item)));
     const rel = str(holder, "Contains's holder");
     const abs = resolveInside(world, rel);

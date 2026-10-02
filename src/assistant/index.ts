@@ -26,10 +26,10 @@ export interface AssistantOptions {
 
 /** The store: one SQLite file, imported into once, queried as it is used (ncon.md section 9). */
 export const STORE = process.env.NOODLE_STORE ?? join(homedir(), ".noodle", "store.db");
-export const PACKS = join(homedir(), ".noodle", "packs");
+export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "packs");
 
 /**
- * The durable store with the seed and every pack in ~/.noodle/packs/ in it (pnpm import). A part or
+ * The durable store with the seed and every pack in ~/.noodle/packs/ in it (pnpm run import). A part or
  * pack already there with the same text is not read again, so this is fast after the first time.
  * What was learned and taught is in the same database, kept across sessions.
  */
