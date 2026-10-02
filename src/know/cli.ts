@@ -3,12 +3,15 @@
 // assistant loads every pack there after the seed.
 //   pnpm import wordnet ~/.noodle/sources/english-wordnet-2024.xml.gz
 //   pnpm import verbnet ~/.noodle/sources/verbnet/verbnet3.4
+//   pnpm import tool git       (from the local man pages)
 
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { seededStore } from "../runtime/seed.js";
+import { PRIMITIVES } from "../runtime/primitives/index.js";
+import { learnTool } from "./tooldocs.js";
 import { importVerbNet } from "./verbnet.js";
 import { importWordNet } from "./wordnet.js";
 
@@ -34,7 +37,13 @@ if (source === "wordnet" && path) {
   const r = importVerbNet(files, store, { version: version ?? "3.4" });
   writeFileSync(join(PACKS, "verbnet.ncon"), r.text);
   console.log(`verbnet: ${r.classes} classes, ${r.verbs} verbs, ${r.frames} frames read, ${r.skippedFrames} skipped -> ${join(PACKS, "verbnet.ncon")}`);
+} else if (source === "tool" && path) {
+  // A tool's own documentation, read from the local man pages: no download.
+  const world = { root: process.cwd(), store, now: () => new Date(), say() {}, ask() {} };
+  const r = await learnTool(path, PRIMITIVES.get("Read")!, world, store);
+  writeFileSync(join(PACKS, `tool-${path}.ncon`), r.text);
+  console.log(`tool-${path}: ${r.commands.length} commands learned, ${r.skipped.length} pages skipped -> ${join(PACKS, `tool-${path}.ncon`)}`);
 } else {
-  console.error("usage: pnpm import wordnet <english-wordnet-YYYY.xml[.gz]> | pnpm import verbnet <dir of class .xml files>");
+  console.error("usage: pnpm import tool <program> | pnpm import wordnet <english-wordnet-YYYY.xml[.gz]> | pnpm import verbnet <dir of class .xml files>");
   process.exitCode = 1;
 }

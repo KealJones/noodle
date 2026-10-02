@@ -168,7 +168,10 @@ export class Evaluator {
         if (r.until && isHead(r.until, "Told") && target && this.ruleMatches(r, target)) this.conversation.rules.splice(i, 1);
       }
     const prop = this.conversation.proposal;
+    // A second go-ahead in the same turn ("ok, go ahead") has nothing left to permit; it is not stuck.
+    if (!prop && this.conversation.permittedTurn === this.conversation.turnIndex) return { ...this.out(), reachedAct: true };
     if (!prop || !target) return this.stuck(x, c("NeedUnmet", c("Proposal")));
+    if (this.mode === "Doing") this.conversation.permittedTurn = this.conversation.turnIndex;
     if (this.mode === "Doing") this.conversation.proposal = undefined;
     const prim = this.primitiveCall(prop.act);
     if (!prim) return this.stuck(prop.act, c("NoReading", prop.act));

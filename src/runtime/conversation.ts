@@ -47,6 +47,8 @@ export class Conversation {
   readonly events: Event[] = [];
   readonly inPlay = new Map<string, { expr: Expr; salience: number }>();
   proposal?: Proposal;
+  /** The turn a proposal was last permitted in. */
+  permittedTurn?: number;
   lastQuestion?: Expr;
 
   get turnIndex(): number {
