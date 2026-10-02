@@ -56,6 +56,8 @@ export interface BlockItem {
 export interface LemmaHit {
   concept: string;
   features: string[];
+  /** The lemma or form as written, case kept ("WHO", "Ada"). */
+  text: string;
 }
 
 
@@ -236,7 +238,7 @@ export class Store {
           const features = positional(f.claim)
             .slice(1)
             .flatMap((x) => (isCall(x) ? [x.head] : []));
-          push(this.lemmas, text.value.toLowerCase(), { concept: f.subject, features });
+          push(this.lemmas, text.value.toLowerCase(), { concept: f.subject, features, text: text.value });
         }
       }
     }

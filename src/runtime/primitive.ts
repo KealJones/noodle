@@ -4,6 +4,7 @@
 // never strings pasted into a shell.
 
 import type { Expr } from "./expr.js";
+import type { Know } from "./know/know.js";
 import type { Store } from "./store.js";
 
 export type EffectClass =
@@ -40,6 +41,8 @@ export interface World {
   confirm?(readingKey: string): void;
   /** Keeps what the user taught beyond this session (a top-level N-Con form); the channel decides where. */
   keep?(form: Expr): void;
+  /** The door to outside knowledge (runtime.md 14), if this session may use it. */
+  know?: Know;
   /** Run's time limit in milliseconds. */
   timeoutMs?: number;
 }

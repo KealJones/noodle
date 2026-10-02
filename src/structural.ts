@@ -100,6 +100,10 @@ export const STRUCTURAL = {
       "Args",
     ],
   },
+  know: {
+    why: "Know, the one door to outside knowledge (runtime.md 14): what it keeps and the sources it asks",
+    names: ["Know", "Found", "Page", "Title", "Wikipedia", "Wiktionary", "Wikidata", "Web", "AnswerShape", "Explanation", "Description"],
+  },
   primitives: {
     why: "the only code that touches the world (built-ins.md section 2)",
     names: [

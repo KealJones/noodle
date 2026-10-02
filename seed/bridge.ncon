@@ -78,6 +78,9 @@ Reading(on=Read(), pattern=Try(theme=See(experiencer=Addressee(), stimulus=$x)),
 // Asking what is in a holder is looking in it: Read it ("what's in the fridge", "what is in X").
 Reading(on=Read(), pattern=Question(BeIn(Gap(), $h), about=Gap()), becomes=Question(Read($h), about=Gap()))
 Reading(on=Read(), pattern=Question(And(BeIn(Gap(), $h), $k), about=Gap()), becomes=Question(Read($h), about=Gap()))
+Reading(on=Read(), pattern=Question(Contains($h, Gap()), about=Gap()), becomes=Question(Read($h), about=Gap()))
+// Asking what a named thing is can be looking at it, when it is something that can be read.
+Reading(on=Read(), pattern=Question(Be(Gap(), $x), about=Gap()), becomes=Question(Read($x), about=Gap()))
 
 // The assistant asking: Ask.
 Reading(on=Ask(), pattern=Cause(result=Become(Know(experiencer=Addressee(), theme=$x))), wants=IsA($x, Prop()),

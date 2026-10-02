@@ -226,6 +226,15 @@ Concept(How(), Lemma("how"),
   Category(Clause(), Takes(side=Right(), category=Property()), Takes(side=Right(), category=Clause(), role=Topic())))
 Concept(Whether(), Lemma("whether"), Category(Clause(), Takes(side=Right(), category=Clause())))
 
+// What shape of answer each word that asks wants: a description of a thing, or an explanation.
+Fact(What(), AnswerShape(Description()))
+Fact(Who(), AnswerShape(Description()))
+Fact(Which(), AnswerShape(Description()))
+Fact(Where(), AnswerShape(Description()))
+Fact(When(), AnswerShape(Description()))
+Fact(Why(), AnswerShape(Explanation()))
+Fact(How(), AnswerShape(Explanation()))
+
 Reading(on=What(), pattern=What(topic=$p), becomes=Question($p, about=Gap()))
 Reading(on=What(), pattern=What($k, topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Gap()))
 Reading(on=Which(), pattern=Which($k, topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Gap()))

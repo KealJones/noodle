@@ -5,8 +5,10 @@ import { createSession, packedStore, readConfig } from "./index.js";
 
 const why = process.argv.includes("--why");
 const config = readConfig();
-const session = createSession(packedStore(), process.env.NOODLE_ROOT ?? config.root ?? process.cwd(), { ...config, learn: config.learn ?? true });
+const session = createSession(packedStore(), process.env.NOODLE_ROOT ?? config.root ?? process.cwd(), { ...config, learn: config.learn ?? true, know: config.know ?? true });
 const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "> " });
+let closed = false;
+rl.on("close", () => (closed = true));
 rl.prompt();
 for await (const line of rl) {
   if (line.trim()) {
@@ -18,5 +20,5 @@ for await (const line of rl) {
         r.candidates.slice(0, 4).forEach((cand, i) => console.log(`    ${i === r.winner ? "*" : " "} ${cand.score.toFixed(2)} ${cand.label}`));
       }
   }
-  rl.prompt();
+  if (!closed) rl.prompt();
 }
