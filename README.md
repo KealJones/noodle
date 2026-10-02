@@ -16,3 +16,18 @@ The lineage: spoon, soup, napkin, and now noodle.
 - `docs/specs/`: the phase 0 specs (data model, format, logical form, runtime, built-ins, testing).
 
 Status: design done, specs drafted and in review. No runtime yet.
+
+## Talking to it from a chat UI
+
+`pnpm serve` builds and starts an HTTP server (default `127.0.0.1:8787`; pass `--port`, `--host` and
+`--api-key` after it) that any chat UI speaking the OpenAI or Anthropic API can use. Both streaming
+and non-streaming requests work.
+
+- OpenAI-style clients: set the base URL to `http://127.0.0.1:8787/v1`.
+- Anthropic-style clients: set the base URL to `http://127.0.0.1:8787`.
+- The model name is `noodle`.
+- The API key is optional. Set one with `--api-key KEY` or the `NOODLE_API_KEY` environment variable
+  and clients must send it as a bearer token or an `x-api-key` header. Without one, any key a client
+  insists on sending is accepted.
+
+Token counts in the usage fields are whitespace-separated words, since there is no tokenizer.
