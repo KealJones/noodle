@@ -13,7 +13,10 @@ export interface TakesSpec {
   side: "Left" | "Right";
   category: string;
   role?: string;
-  head?: string;
+  /** The word the argument's phrase must be headed by, or one of several (OneOf). */
+  head?: string | string[];
+  /** A kind of role the argument's head word must mark (Marks facts on it): a spatial slot. */
+  marks?: string;
   optional: boolean;
 }
 
@@ -261,13 +264,31 @@ export class Chart {
     return e.category !== "join" && e.pending.every((p) => p.takes.optional);
   }
 
+  /**
+   * Whether an argument fits what a slot says of its head word: the word itself, one of several,
+   * or a word that marks the kind of role the slot is ("into" marks a destination, and a
+   * destination is a path, so it fills a path; "without" marks none and fills no spatial slot).
+   */
+  private headFits(t: TakesSpec, arg: Edge): boolean {
+    if (!t.head && !t.marks) return true;
+    if (!isCall(arg.expr)) return false;
+    const heads = [arg.word, arg.expr.head].filter((x): x is string => !!x);
+    if (t.head && !heads.some((h) => (Array.isArray(t.head) ? t.head.includes(h) : t.head === h))) return false;
+    if (t.marks) {
+      const marks = t.marks;
+      const marked = heads.flatMap((h) => this.store.facts(h, "Marks").map((f) => positional(f.claim as Call)[0])).filter(isCall);
+      if (!marked.some((m) => m.head === marks || this.store.kinds(m.head).has(marks))) return false;
+    }
+    return true;
+  }
+
   /** Take: a head with a pending argument on a side combines with an adjacent complete edge. */
   private take(head: Edge, arg: Edge, side: "Left" | "Right"): Edge | undefined {
     const p = head.pending[0];
     if (!p || p.takes.side !== side || !this.complete(arg)) return undefined;
     if (p.takes.category !== "Any" && p.takes.category !== arg.category) return undefined;
     if (arg.category === "Mark" && p.takes.category !== "Mark") return undefined;
-    if (p.takes.head && !(isCall(arg.expr) && (arg.word === p.takes.head || arg.expr.head === p.takes.head))) return undefined;
+    if (!this.headFits(p.takes, arg)) return undefined;
     // A gap may only be taken by an entry whose FillsGap says it can, and that entry's last argument
     // (the clause the displaced phrase came from) must have it.
     if (arg.gap && head.acceptsGap !== arg.gap) return undefined;
@@ -349,7 +370,7 @@ export class Chart {
     if (!p || !q || p.takes.side !== "Right" || q.takes.side !== "Right") return undefined;
     if (this.complete(arg) || (p.takes.category !== arg.category && p.takes.category !== "Any")) return undefined;
     // A slot for one word's phrase ("to the list") is filled by that word, composed or not.
-    if (p.takes.head && !(isCall(arg.expr) && (arg.word === p.takes.head || arg.expr.head === p.takes.head))) return undefined;
+    if (!this.headFits(p.takes, arg)) return undefined;
     if (head.pending.length + arg.pending.length > 3) return undefined;
     const at = argCount(head.expr, p.path);
     const expr = addArg(head.expr, p.path, p.takes.role, arg.expr);
@@ -610,7 +631,7 @@ export function entriesOf(store: Store, concept: string) {
       const side = (headOf(role(sub, "side")) ?? "Right") as "Left" | "Right";
       const category = headOf(role(sub, "category")) ?? "Any";
       if (sub.head === "Takes")
-        takes.push({ side, category, role: headOf(role(sub, "role")), head: headOf(role(sub, "head")), optional: boolOf(role(sub, "optional")) });
+        takes.push({ side, category, role: headOf(role(sub, "role")), head: headsOf(role(sub, "head")), marks: headOf(role(sub, "marks")), optional: boolOf(role(sub, "optional")) });
       else if (sub.head === "Modifies") modifies.push({ side, category, role: headOf(role(sub, "role")) });
       else if (sub.head === "FillsGap") fillsGap = category;
     }
@@ -621,6 +642,9 @@ export function entriesOf(store: Store, concept: string) {
 }
 
 const headOf = (e: Expr | undefined) => (isCall(e) ? e.head : undefined);
+/** A head, or OneOf(several). */
+const headsOf = (e: Expr | undefined): string | string[] | undefined =>
+  isCall(e) && e.head === "OneOf" ? positional(e).filter(isCall).map((x) => x.head) : headOf(e);
 const boolOf = (e: Expr | undefined) => e?.kind === "boolean" && e.value;
 const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1);
 
@@ -628,7 +652,7 @@ const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1);
  * A word taken where an entry asks for that very word ("cause" takes "to" and an act) fits the
  * entry better than the same words put together another way (runtime.md 8.1, ShapeFit).
  */
-const named = (t: TakesSpec): Features => (t.head ? new Map([["ShapeFit:Head", 1]]) : new Map());
+const named = (t: TakesSpec): Features => (t.head || t.marks ? new Map([["ShapeFit:Head", 1]]) : new Map());
 
 function argCount(e: Expr, path: number[]): number {
   let x = e;
@@ -645,8 +669,12 @@ function addArg(e: Expr, path: number[], roleName: string | undefined, value: Ex
   return { ...e, args };
 }
 
+// Edges compete for a cell's places with edges that combine the same way: the same category,
+// arguments still to come, gap and wrapping, and what they modify ("without asking" modifying an
+// act and modifying a clause are two ways it can attach, not rivals for one).
 function group(x: Edge): string {
-  return `${x.category}|${x.pending.length}|${x.gap ?? ""}|${x.joinRight ? "j" : ""}|${x.wraps ?? ""}${x.heads ?? ""}`;
+  const mods = x.modifies.map((m) => `${m.side}${m.category}`).sort().join(",");
+  return `${x.category}|${x.pending.length}|${x.gap ?? ""}|${x.joinRight ? "j" : ""}|${x.wraps ?? ""}${x.heads ?? ""}|${mods}`;
 }
 
 const signatures = new WeakMap<Edge, string>();
@@ -659,10 +687,10 @@ function signature(e: Edge): string {
   return sig;
 }
 
-// Two entries that differ only in the gap they fill ("how" fills a manner or a property) are two
-// edges, not one.
+// Two entries that differ only in the gap they fill ("how" fills a manner or a property), or in
+// what they modify ("without asking" of an act or of a clause), are two edges, not one.
 function computeSignature(e: Edge): string {
-  return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.acceptsGap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.length, e.byRule].join("|");
+  return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.acceptsGap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.map((m) => `${m.side}${m.category}${m.role ?? ""}`).join(","), e.byRule].join("|");
 }
 
 export { roles };

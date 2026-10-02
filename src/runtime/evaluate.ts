@@ -161,7 +161,13 @@ export class Evaluator {
     if (isHead(a, "Then") || isHead(a, "And") || isHead(a, "Sequence")) return this.sequence(positional(a));
     if (isHead(a, "If")) return this.conditional(a);
     const blocked = this.blockedBy(a);
-    if (blocked) return { ...this.out(), said: [c("Echo", c("BlockedBy", a, blocked.rule.until ? c("Constraint", blocked.rule.rule, ["until", blocked.rule.until]) : c("Constraint", blocked.rule.rule)))], blocked: 1, reachedAct: true };
+    if (blocked) {
+      // A rule that waits to be told ("not yet", "not without asking") asks: what it blocked is
+      // proposed, so a yes lifts the rule and does it (logical-form.md section 7).
+      if (this.mode === "Doing" && blocked.rule.until && isHead(blocked.rule.until, "Told"))
+        this.conversation.proposal = { act: a, ancestry: this.ancestry(a), untrusted: this.untrustedReadings(this.ancestry(a)), turn: this.conversation.turnIndex };
+      return { ...this.out(), said: [c("Echo", c("BlockedBy", a, blocked.rule.until ? c("Constraint", blocked.rule.rule, ["until", blocked.rule.until]) : c("Constraint", blocked.rule.rule)))], blocked: 1, reachedAct: true };
+    }
     const prim = this.primitiveCall(a);
     if (!prim) {
       const reply = c("Reply", a);
@@ -271,8 +277,10 @@ export class Evaluator {
       // that only shows something is named by what it shows ("the git log" is what git log shows).
       const kind = role(x, "kind");
       if (isCall(kind) && this.pureCall(kind)) return kind;
+      // A referent said by its name ("the README.md") is the name; a string deeper in what was
+      // said ("the boiling point of water in celsius") is a word it was said with, not its name.
       const said = role(x, "said");
-      const named = said && [...walk(said)].find((y) => y.kind === "string");
+      const named = said?.kind === "string" ? said : isCall(said) ? positional(said).find((y) => y.kind === "string") : undefined;
       if (named) return named;
       return this.referent(x) ?? x;
     });
