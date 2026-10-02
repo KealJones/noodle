@@ -11,7 +11,10 @@ import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
 import type { Mode, Step } from "./rewrite.js";
 import type { Store } from "./store.js";
-import { STRUCTURAL_NAMES } from "../structural.js";
+import { STRUCTURAL } from "../structural.js";
+
+/** What a primitive can be given inside its arguments: the structures primitives make, and blocks. */
+const DATA: ReadonlySet<string> = new Set([...STRUCTURAL.primitiveResults.names, "Block", "Args"]);
 
 export interface Outcome {
   /** What would be or was said, in order. */
@@ -100,6 +103,15 @@ export class Evaluator {
 
   private constraint(lf: Call): Outcome {
     const [rule] = positional(lf);
+    // A rule against the proposal ("no" after an offer) declines it; with nothing proposed it is
+    // not a rule about anything, and the turn is left to the correction operation.
+    const target = isCall(rule) ? positional(rule)[0] : undefined;
+    if (isHead(target, "Ref") && isHead(role(target, "kind"), "Proposal")) {
+      const prop = this.conversation.proposal;
+      if (!prop) return { ...this.out(), unworked: 1 };
+      if (this.mode === "Doing") this.conversation.proposal = undefined;
+      return { ...this.out(), said: [c("Echo", c("Constraint", c("Not", prop.act)))], reachedAct: true };
+    }
     const until = role(lf, "until");
     const over = role(lf, "over");
     const sr: StandingRule = { rule, until, over, from: c("Turn", { kind: "number", value: this.conversation.turnIndex, pos: { line: 0, column: 0 } }) };
@@ -212,7 +224,7 @@ export class Evaluator {
     if (args.length !== p.params.length) return undefined;
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
     // word (an unresolved "file" is not something a primitive can be given).
-    const unready = (y: Expr) => y.kind === "variable" || (isCall(y) && (y.head === "Ref" || y.head === "Gap" || !STRUCTURAL_NAMES.has(y.head)));
+    const unready = (y: Expr) => y.kind === "variable" || (isCall(y) && !DATA.has(y.head));
     if (args.some((x) => [...walk(x)].some(unready))) return undefined;
     return { p, args };
   }

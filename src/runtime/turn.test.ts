@@ -49,3 +49,20 @@ test("asking what is in a file reads it and shows its content", async () => {
     assert.equal(r.text, "`README.md`:\n\n```\n# Hello\n```", ask);
   }
 });
+
+test("a correction flips the last choice to the next reading that acts, and the weights remember", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-zap", version="0", from=Seed("test"))
+Concept(Zap(), Lemma("zap"), Category(Act()))
+Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("first")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+`);
+  const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
+  const first = await s.turn("zap");
+  const ranFirst = first.text.includes("first");
+  const flipped = await s.turn("no");
+  assert.match(flipped.text, ranFirst ? /second/ : /first/);
+  // The update moved toward the corrected reading: the next "zap" picks it.
+  const again = await s.turn("zap");
+  assert.match(again.text, ranFirst ? /second/ : /first/);
+});
