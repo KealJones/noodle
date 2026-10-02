@@ -115,7 +115,7 @@ export class Evaluator {
     if (isHead(a, "Then") || isHead(a, "And") || isHead(a, "Sequence")) return this.sequence(positional(a));
     if (isHead(a, "If")) return this.conditional(a);
     const blocked = this.blockedBy(a);
-    if (blocked) return { ...this.out(), said: [c("Echo", c("BlockedBy", a, blocked.rule.until ? c("Constraint", blocked.rule.rule, ["until", blocked.rule.until]) : c("Constraint", blocked.rule.rule)))], blocked: 1 };
+    if (blocked) return { ...this.out(), said: [c("Echo", c("BlockedBy", a, blocked.rule.until ? c("Constraint", blocked.rule.rule, ["until", blocked.rule.until]) : c("Constraint", blocked.rule.rule)))], blocked: 1, reachedAct: true };
     const prim = this.primitiveCall(a);
     if (!prim) {
       const reply = c("Reply", a);

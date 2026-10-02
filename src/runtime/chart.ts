@@ -474,7 +474,8 @@ export class Chart {
         for (const top of topsOf(from + j, from + i))
           for (const cv of best[j]) {
             const features = mergeFeatures(cv.features, top.features);
-            if (cv.edges.length) addFeature(features, "WordsUsed:Fragments", -1);
+            // A partial parse is allowed; each extra fragment costs half a word used together.
+            if (cv.edges.length) addFeature(features, "WordsUsed:Fragments", -0.5);
             options.push({ edges: [...cv.edges, top], skipped: cv.skipped, features, score: scoreOf(features, this.weights) });
           }
       const seen = new Set<string>();

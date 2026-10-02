@@ -1,9 +1,10 @@
 // Seed part 5: initial weights (design section 6, part 5; runtime.md section 8).
 //
 // The starting weight of every feature template before any learning, frozen for arm A. Sense
-// frequency, words used, wanted kind, shape fit and, in stage two, reached an act at 1; every
-// other template at 0. ReachedAct is the strong prior toward the executable reading, named so it
-// can be ablated.
+// frequency, words used, wanted kind, shape fit and, in stage two, reached an act and unworked at
+// 1; every other template at 0. ReachedAct is the strong prior toward the executable reading,
+// named so it can be ablated. Unworked counts expressions left that no reading applied to (its
+// value is minus that count), so a reading that reads every word beats one that leaves one.
 
 Pack(name="seed-weights", version="0.1.0", from=Seed("weights"))
 
@@ -26,4 +27,4 @@ Concept(NeedsMet(), Weight(0))
 Concept(ChecksWouldPass(), Weight(0))
 Concept(Blocked(), Weight(0))
 Concept(UnknownEffects(), Weight(0))
-Concept(Unworked(), Weight(0))
+Concept(Unworked(), Weight(1))

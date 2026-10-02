@@ -275,7 +275,7 @@ Templates (design section 9):
 
 | Template | Value |
 |---|---|
-| `WordsUsed` | tokens covered, and `Skipped` per skipped token by candidate type |
+| `WordsUsed` | tokens covered (+1 each), `Skipped` per skipped token by candidate type (-1 each; a tone word 0), and `Fragments` (-0.5 per edge of a cover after the first, so a partial parse is allowed but one reading of the same words is preferred) |
 | `CandidateSource` | the token candidate's source and distance (section 3.3) |
 | `WantedKind` | per filled role with a want: minus the kind distance to the wanted kind |
 | `ShapeFit` | per shape want: whether it fits |
@@ -303,7 +303,7 @@ The top few (default 3) complete readings of the message are each evaluated with
 | `ChecksWouldPass` | the effect checks that could be checked in Suppose passed |
 | `Blocked` | a standing rule blocked an act |
 | `UnknownEffects` | an act's effects are unknown (a Run of an undocumented command) |
-| `Unworked` | number of unworked expressions left |
+| `Unworked` | minus the number of unworked expressions left: steps that stayed stuck, and expressions in the logical form with readings of their own of which none applied (seed weight 1) |
 
 The final score is stage one plus stage two. Both are trained by the same update (section 15).
 
