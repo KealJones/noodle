@@ -168,3 +168,39 @@ Reading(on=Zap(), pattern=Zap(), wants=IsA(Zap(), Moment()), becomes=Run("echo",
   assert.equal(asked, 1);
   assert.equal(s.weights.learned.size, 0);
 });
+
+// Imports beyond forms (PLAN.md phase 3.2; Wiktionary): a phrase is a concept whose words are its
+// parts, heard in any form; wordfreq's frequencies rank spelling corrections.
+test("a phrase said as its words is heard as one concept, in any form of its parts", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-phrases", version="0", from=Seed("test"))
+Concept(Spill(), Lemma("spill"), Form("spilled", Past()), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Bean(), Lemma("bean"), Form("beans", Plural()), Category(Noun()))
+Concept(SpillTheBeans(), Words(Spill(), The(), Bean(Plural())), Category(Act()))
+`);
+  const { hear } = await import("./hear.js");
+  const spans = (text: string) => hear(store, text).candidates.flat().filter((x) => x.concept === "SpillTheBeans");
+  assert.deepEqual(spans("spill the beans").map((x) => [x.start, x.end, x.features]), [[0, 3, []]]);
+  assert.deepEqual(spans("he spilled the beans").map((x) => [x.start, x.end, x.features]), [[1, 4, ["Past"]]]);
+  // A part in another form than the phrase says ("bean" for "beans"), or out of order, is not it.
+  assert.equal(spans("spill the bean").length, 0);
+  assert.equal(spans("the beans spill").length, 0);
+});
+
+test("of a token's spelling corrections, the more common word scores higher", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-freq", version="0", from=Seed("test"))
+Concept(Cart(), Lemma("cart"), Category(Noun()))
+Concept(Card(), Lemma("card"), Category(Noun()))
+Fact(Cart(), Frequency(3.9))
+Fact(Card(), Frequency(4.9))
+`);
+  const { hear } = await import("./hear.js");
+  const { Chart } = await import("./chart.js");
+  const { Weights } = await import("./score.js");
+  const h = hear(store, "carx");
+  const chart = new Chart(store, h, 0, 1, new Weights(store).get).build();
+  const freq = (c: string) => chart.covers().flatMap((cv) => cv.edges).find((e) => key(e.expr) === key({ kind: "call", head: c, args: [], pos: { line: 0, column: 0 } } as never))?.features.get("WordFrequency");
+  assert.equal(freq("Card"), 0);
+  assert.ok(Math.abs(freq("Cart")! + 1) < 1e-9);
+});

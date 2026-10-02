@@ -63,6 +63,23 @@ test("the tool's reading of the verb loses to the one whose arguments it reads",
   assert.ok(!r.acts.some((a) => isCall(a) && a.head === "Run"));
 });
 
+test("undo takes back the last change, checked, then the one before, and says when there is none", async () => {
+  const st = store();
+  const s = createSession(st, root());
+  assert.equal((await s.turn("undo")).text, "I haven't changed anything I could undo.");
+  await s.turn("stash milk in my basket");
+  await s.turn("stash bread in my basket");
+  assert.equal((await s.turn("undo")).text, "Undone, and checked: add bread to your basket.");
+  assert.equal((await s.turn("what is in my basket?")).text, "Your basket has milk.");
+  assert.equal((await s.turn("undo")).text, "Undone, and checked: add milk to your basket.");
+  assert.equal((await s.turn("undo")).text, "I haven't changed anything I could undo.");
+  // What was said about the user, undone, leaves what it replaced.
+  await s.turn("my name is Zed");
+  await s.turn("my name is Ada");
+  assert.match((await s.turn("undo")).text, /^Undone, and checked/);
+  assert.equal((await s.turn("what is my name?")).text, "Your name is Zed.");
+});
+
 test("what I say about myself is remembered and recalled", async () => {
   const st = store();
   const s = createSession(st, root());

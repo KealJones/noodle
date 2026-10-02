@@ -218,6 +218,20 @@ Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Division(), $a, 100
 Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Multiplication(), Arithmetic(Division(), $a, 100), $b), becomes=Paragraph($a, "% of ", $b))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a)),
   becomes=Paragraph("I can undo ", $a, ". Want me to?"))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a), result=$r, checked=true),
+  becomes=Paragraph("Undone, and checked: ", $a, "."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a), result=$r),
+  becomes=Paragraph("Undone: ", $a, "."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a), result=$r, checked=false),
+  becomes=Paragraph("I tried to undo ", $a, ", but it didn't do what it should have."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a), error=$e),
+  becomes=Paragraph("I couldn't undo ", $a, ": ", $e))
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NeedUnmet(Budget(World()))),
+  becomes=Paragraph("I've looked up as much as I can for one message. Ask me that on its own?"))
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NoInverse()),
+  becomes=Paragraph("I haven't changed anything I could undo."))
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NoInverse($a)),
+  becomes=Paragraph("I can't undo ", $a, ": nothing I know undoes it."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Sequence($steps), stopped=$at),
   becomes=Document(Paragraph("I stopped at ", $at, ". What ran:"), List($steps)))
 

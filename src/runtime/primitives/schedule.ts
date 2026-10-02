@@ -96,6 +96,11 @@ export const Schedule: Primitive = {
     const id = role(result, "item");
     return id?.kind === "number" && world.store.facts("Schedule", "Scheduled").some((f) => f.meta.id === id.value);
   },
+  // Cancelled by taking back the item it kept (built-ins.md section 2: cancel).
+  async inverse(_args, result) {
+    const id = role(result, "item");
+    return id?.kind === "number" ? c("Remember", c("Retract", c("Fact", id))) : undefined;
+  },
 };
 
 /**

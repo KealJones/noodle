@@ -33,11 +33,47 @@ pnpm run import verbnet ~/.noodle/sources/verbnet/verbnet3.4
 ## Not yet
 
 - **Wiktionary forms** are imported (`pnpm run import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz`,
-  from the 523 MB gzipped Kaikki extract); its idioms and definitions are not yet.
-- **wordfreq** is downloaded (`~/.noodle/sources/wordfreq-large_en.msgpack.gz`) but not imported:
-  sense frequency needs counts per sense, which neither it nor WordNet's release has. Its word
-  order picks the most common words for stage 0's coverage measure (`pnpm import definitions`,
-  docs/stage0.md); `SenseFrequency` uses WordNet's own sense order as a rank.
+  from the 523 MB gzipped Kaikki extract).
+- **Sense frequency** needs counts per sense, which neither wordfreq nor WordNet's release has;
+  `SenseFrequency` uses WordNet's own sense order as a rank. wordfreq's word order also picks the
+  most common words for stage 0's coverage measure (`pnpm import definitions`, docs/stage0.md).
+
+## Wiktionary beyond forms, and wordfreq
+
+`pnpm run import wiktionary-phrases ~/.noodle/sources/kaikki-English.jsonl.gz` (after wordnet and
+wiktionary; about 30 seconds) writes two packs, so either can be taken out on its own:
+
+- **`wiktionary-alternatives.ncon`**: alternative forms ("pls" of please, "fav" of fave) as Forms
+  of the word they are forms of (design section 5: identity for understanding), from senses whose
+  tags say so (`alt_of`). Misspellings and forms tagged obsolete, archaic, nonstandard, dialectal,
+  rare, dated or pronunciation spellings are left out, and so is a form some word in the store
+  already has: an alternative form fills a gap, and never makes a known word ambiguous ("me" as
+  my, "git" as get, "u" as you). On 2026-10-02: 12,605 forms for 5,485 words.
+- **`wiktionary-idioms.ncon`**: idioms and phrasal verbs (a sense tagged idiomatic, an entry in a
+  phrasal verbs category, or a phrase) whose every part is a word the store has: 15,045 phrases,
+  2,705 of them already WordNet lemmas (given only their parts), with 16,858 senses whose
+  definitions are content blocks for the definition understander; 4,909 skipped for a part with no
+  word ("one's", hyphens).
+
+  *The design addition* (2026-10-02). The data model had no way to say "said as these words in
+  order" except a multi-word Lemma string, which the runtime matches as exact text (so "spilled
+  the beans" was not "spill the beans"), and tasks/lessons.md forbids phrases as strings. The
+  smallest addition is one fact, no new mechanism: `Words(part, ...)` on the phrase's concept,
+  each part a word concept, a part fixed in a form written with its feature
+  (`Words(Spill(), The(), Bean(Plural()))`). Hearing's existing multi-word span step (runtime.md
+  3.3) proposes the span where the parts are heard in order, in any form, so the phrase competes
+  in the chart beside its words, and the score picks. New phrases get no Lemma string. Not yet:
+  separated phrasal verbs ("give it up"), and readings for the idioms' senses (the definition
+  understander makes those, `pnpm import definitions`).
+
+`pnpm run import wordfreq ~/.noodle/sources/wordfreq-large_en.msgpack.gz` (seconds) writes
+**`wordfreq.ncon`**: a `Frequency(zipf)` fact on each word concept whose lemma the list has
+(48,798 words). The `WordFrequency` feature (runtime.md 8.1, seed weight 0.25) uses it where the
+score wants how common a word is: of the words a token may be heard as but was not written as
+(spelling corrections, another case, a stretch), the more common scores higher, by its Zipf
+frequency below the most common of them, so it ranks corrections without making a correction
+likelier than the word as written ("Sam" stays a name rather than "fam", family). Its license is
+CC BY-SA 4.0 (it includes Wikipedia and other ShareAlike text counts), so it is a separable pack.
 - **gitglossary(7) and the git man pages** need no download: they are read from the local `man`
   pages by `Read(ManPage(...))` (phase 4). `pnpm run import tool <program>` also reads the tool's
   overview pages' terms (one-word glossary terms no other pack has a noun for become its nouns),

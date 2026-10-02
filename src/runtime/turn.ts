@@ -3,7 +3,7 @@
 // run with Suppose), the winner evaluated, and what it says realized and printed. Every choice is
 // recorded with its candidates and features.
 
-import { type Call, type Expr, c, isCall, key, positional, rewrite as mapExpr, role, s } from "./expr.js";
+import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite as mapExpr, role, s } from "./expr.js";
 import { alike } from "./canonical.js";
 import { Chart, type Cover, type Edge } from "./chart.js";
 import { Conversation, type TurnRecord } from "./conversation.js";
@@ -99,16 +99,26 @@ export class Session {
     return out;
   }
 
-  /** Focus, phase 1 (runtime.md 11b): names in the workspace, through a pure primitive. */
-  private async surroundings(): Promise<string[]> {
+  /**
+   * Focus, phase 1 (runtime.md 11b): names in the workspace, through a pure primitive, one lookup
+   * and at most the workspace's budget of candidates, recorded.
+   */
+  private async surroundings(conv: Conversation): Promise<string[]> {
     const read = this.primitives.get("Read");
     if (!read) return [];
+    const budget = this.store.facts("Focus", "Budget").find((f) => isCall(f.claim) && isHead(positional(f.claim)[0], "Workspace"));
+    const cap = budget && role(budget.claim, "candidates");
+    let names: string[] = [];
     try {
       const dir = await read.run([s(".")], this.world);
-      return isCall(dir) ? positional(dir).flatMap((e) => (isCall(e) && positional(e)[0]?.kind === "string" ? [(positional(e)[0] as { value: string }).value] : [])) : [];
+      names = isCall(dir) ? positional(dir).flatMap((e) => (isCall(e) && positional(e)[0]?.kind === "string" ? [(positional(e)[0] as { value: string }).value] : [])) : [];
     } catch {
       return [];
     }
+    conv.focus.lookups.set("Workspace", (conv.focus.lookups.get("Workspace") ?? 0) + 1);
+    const kept = cap?.kind === "number" ? names.slice(0, cap.value) : names;
+    conv.focus.log.push({ what: `focus: names in the workspace (${kept.length} of ${names.length})`, candidates: [], winner: -1 });
+    return kept;
   }
 
   /**
@@ -121,11 +131,13 @@ export class Session {
     // A dry run works on a copy of the conversation, so nothing of it is kept.
     const conv = opts.dry ? this.conversation.clone() : this.conversation;
     conv.decay();
+    conv.focus = { lookups: new Map(), log: [] };
     const record: TurnRecord = { index: conv.turnIndex, who: "User", text, heard: [], lf: [], said: [], reasons: [], tone: [], asides: [] };
     conv.turns.push(record);
 
     const due = opts.dry ? [] : await this.due();
-    const hearing = hear(this.store, text, { names: await this.surroundings() });
+    const names = await this.surroundings(conv);
+    const hearing = hear(this.store, text, { names });
     record.tone = toneOf(this.store, hearing);
 
     // Segmentations: at most two, ranked by the score of their best covers (runtime.md 3.2).
@@ -198,7 +210,7 @@ export class Session {
       }
       // Honest when stuck (design section 23): a segment nothing worked for says why once, and
       // the most useful why is a word it has no sense for, a need, or there being no source.
-      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && isCall(role(x, "because")) && ["NeedUnmet", "NoSource"].includes((role(x, "because") as Call).head));
+      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && isCall(role(x, "because")) && ["NeedUnmet", "NoSource", "NoInverse"].includes((role(x, "because") as Call).head));
       if (!reached && specific.length) said.push(...specific);
       else if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
@@ -211,6 +223,8 @@ export class Session {
         said.push(...kept);
       } else said.push(...segSaid);
     }
+    // What Focus pulled in, and why, is part of the turn's reasons (runtime.md 8.3 and 11b).
+    record.reasons.push(...conv.focus.log);
     // A proposal not taken up this turn lapses (runtime.md 11: the last proposal).
     const permitted = record.lf.some((x) => key(x).includes("Permit("));
     if (!permitted && conv.proposal && conv.proposal.turn < record.index) conv.proposal = undefined;

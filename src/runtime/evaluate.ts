@@ -158,6 +158,7 @@ export class Evaluator {
 
   private async directive(a: Expr): Promise<Outcome> {
     if (isHead(a, "Permit")) return this.permit(positional(a)[0]);
+    if (isHead(a, "Undo")) return this.undo(a);
     if (isHead(a, "Then") || isHead(a, "And") || isHead(a, "Sequence")) return this.sequence(positional(a));
     if (isHead(a, "If")) return this.conditional(a);
     const blocked = this.blockedBy(a);
@@ -244,6 +245,36 @@ export class Evaluator {
     return o;
   }
 
+  /**
+   * Undo (built-ins.md section 2; design section 26b): the last act of this conversation that
+   * changed something, and was not undone, is reversed by the inverse recorded with it, run as any
+   * act is (under the rules and the guards, and checked). An inverse that is guarded is offered
+   * instead; an act with no inverse is said so.
+   */
+  private async undo(a: Call): Promise<Outcome> {
+    const events = this.conversation.events;
+    let at = -1;
+    for (let i = events.length - 1; i >= 0 && at < 0; i--) if (events[i].effectful && !events[i].undone && !events[i].error) at = i;
+    const ev = events[at];
+    if (!ev) return this.stuck(a, c("NoInverse"));
+    const inverse = ev.undo;
+    const prim = inverse && this.primitiveCall(inverse);
+    if (!inverse || !prim) return this.stuck(a, c("NoInverse", ev.act));
+    const before = events.length;
+    const o = await this.call(prim.p, prim.args, inverse);
+    if (this.mode === "Doing" && events.length > before) {
+      // Done: the act is undone, and the undoing is not itself what the next "undo" takes back.
+      ev.undone = !events[before].error;
+      events[before].undone = true;
+    }
+    const wrap = (x: Expr): Expr => {
+      if (isCall(x) && x.head === "Offer") return c("Outcome", c("Undo", ev.act));
+      if (isCall(x) && x.head === "Outcome" && key(positional(x)[0]) === key(inverse)) return { ...x, args: [{ value: c("Undo", ev.act) }, ...x.args.slice(1)] };
+      return x;
+    };
+    return { ...o, said: o.said.map(wrap) };
+  }
+
   private resolveProposal(x: Expr): Expr | undefined {
     const kind = role(x, "kind");
     if (isHead(x, "Ref") && isHead(kind, "Proposal")) return this.conversation.proposal?.act;
@@ -293,10 +324,18 @@ export class Evaluator {
     const kind = role(ref, "kind");
     const said = role(ref, "said");
     const cands: { expr: Expr; salience: number; source: string; kind?: string }[] = [];
-    for (const v of this.conversation.inPlay.values()) cands.push({ expr: v.expr, salience: v.salience, source: "CurrentConversation", kind: v.kind });
+    // Each source gives at most its budget of candidates: the most salient, then the most recent,
+    // kept in the order they came (runtime.md 11b).
+    const inPlay = [...this.conversation.inPlay.values()];
+    const salient = new Set(inPlay.map((v, i) => ({ v, i })).sort((x, y) => y.v.salience - x.v.salience || y.i - x.i).slice(0, this.budget("CurrentConversation", "candidates")).map((x) => x.v));
+    for (const v of inPlay) if (salient.has(v)) cands.push({ expr: v.expr, salience: v.salience, source: "CurrentConversation", kind: v.kind });
     // The user's things are the speaker's: "your name" (of the addressee) is none of them.
     const of = role(ref, "of");
-    if (!of || isHead(of, "Speaker")) for (const t of things(this.store)) if (!cands.some((x) => key(x.expr) === key(t))) cands.push({ expr: t, salience: 0, source: "UserFacts" });
+    if (!of || isHead(of, "Speaker")) {
+      const mine = things(this.store);
+      for (const t of mine.slice(Math.max(0, mine.length - this.budget("UserFacts", "candidates")))) if (!cands.some((x) => key(x.expr) === key(t))) cands.push({ expr: t, salience: 0, source: "UserFacts" });
+    }
+    const scored: { expr: Expr; source: string; score: number; f: Features }[] = [];
     this.weights ??= new Weights(this.store);
     let best: { expr: Expr; score: number; salience: number; f: Features } | undefined;
     for (const cand of cands) {
@@ -315,13 +354,32 @@ export class Evaluator {
       if (cand.source === "UserFacts" && !f.get("Match:Said") && (!isCall(kind) || kind.head === "Thing" || (f.get("WantedKind") ?? 0) < -2)) continue;
       addFeature(f, `FocusSource:${cand.source}`, cand.salience);
       const score = scoreOf(f, this.weights.get) + (f.get("Match:Said") ?? 0) * 1e-6;
+      scored.push({ expr: cand.expr, source: cand.source, score, f });
       if (!best || score > best.score || (score === best.score && cand.salience > best.salience)) best = { expr: cand.expr, score, salience: cand.salience, f };
     }
     // How well what was chosen fits its kind is part of the reading that chose it (runtime.md 8.1:
     // Focus's candidates are scored with the rest): "the git log" is not the folder last read.
     const fit = best?.f.get("WantedKind");
     if (fit) this.focus.set(key(ref), new Map([["FocusFit", fit]]));
+    // Recorded (runtime.md 11b): what was pulled in for this referent, from where, and what won.
+    const what = `focus: the referent ${key(ref)}`;
+    const log = this.conversation.focus.log;
+    if (this.mode === "Doing" && !log.some((x) => x.what === what))
+      log.push({ what, candidates: scored.map((x) => ({ label: `${x.source}: ${key(x.expr)}`, features: [...x.f], score: x.score })), winner: best ? scored.findIndex((x) => x.expr === best!.expr) : -1 });
     return best?.expr;
+  }
+
+  /**
+   * The turn's budget for a Focus source (runtime.md 11b): its lookups, or the candidates it gives
+   * one search, from the policies' Budget facts on Focus. A source with none is unbounded.
+   */
+  private budget(source: string, what: "lookups" | "candidates"): number {
+    for (const f of this.store.facts("Focus", "Budget")) {
+      if (!isCall(f.claim) || !isHead(positional(f.claim)[0], source)) continue;
+      const n = role(f.claim, what);
+      if (n?.kind === "number") return n.value;
+    }
+    return Infinity;
   }
 
   /** The features of the referents this evaluation chose, one set per referent. */
@@ -578,7 +636,10 @@ export class Evaluator {
       const result = await p.run(args, this.world, held);
       const checked = p.check ? await p.check(args, result, this.world) : undefined;
       if (this.mode === "Doing") {
-        this.conversation.events.push({ turn: this.conversation.turnIndex, act, result, checked });
+        // What undoes the act is recorded with it, from what it did (built-ins.md section 2).
+        const effectful = !pure && effects.some((e) => e !== "Reads" && e !== "Speaks");
+        const undo = effectful && p.inverse ? await p.inverse(args, result, this.world).catch(() => undefined) : undefined;
+        this.conversation.events.push({ turn: this.conversation.turnIndex, act, result, checked, effectful, undo });
         // What an act was done to is in play (runtime.md 11): a later "it" can point at it. A thing
         // in the graph it was done to, or made, is in play too ("add eggs to it").
         // What it was done with (Run's program) is not what it was done to. A path the act found
@@ -657,12 +718,23 @@ export class Evaluator {
     if (this.mode === "Supposing") return this.out();
     if (!cached && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
       return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
+    // The world has a budget of lookups per turn (runtime.md 11b); past it the need stays unmet,
+    // and says so. What was asked, and what came back, goes in the reasons log.
+    const focus = this.conversation.focus;
+    const used = focus.lookups.get("World") ?? 0;
+    if (!cached && used >= this.budget("World", "lookups")) {
+      focus.log.push({ what: `focus: "${this.said}" from the world, over the turn's budget of ${used}`, candidates: [], winner: -1 });
+      return this.stuck(lf, c("NeedUnmet", c("Budget", c("World"))));
+    }
+    if (!cached) focus.lookups.set("World", used + 1);
+    let k: Awaited<ReturnType<typeof know.answer>>;
     try {
-      const k = cached ?? (await know.answer(this.said, words, about));
-      if (k) return { ...this.out(), said: [this.found(lf, k)], reachedAct: true };
+      k = cached ?? (await know.answer(this.said, words, about));
     } catch {
       // A source that fails is no answer, not an error to show.
     }
+    focus.log.push({ what: `focus: "${this.said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
+    if (k) return { ...this.out(), said: [this.found(lf, k)], reachedAct: true };
     return this.stuck(lf);
   }
 

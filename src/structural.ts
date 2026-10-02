@@ -16,6 +16,8 @@ export const STRUCTURAL = {
     names: [
       "Concept", "Fact", "Reading", "Block", "Pack", "Retract",
       "Lemma", "Form", "Sense", "SenseOf", "PartOfSpeech", "Sounds", "IsA", "SameAs", "Said",
+      // A concept said as words in order (an idiom, a phrasal verb): Words(Give(), Up()).
+      "Words",
       "Active", "Proposed", "Pending", "Retracted",
       "Expand", "Collapse", "All",
       "Speaking", "Supposing", "Doing",
@@ -48,6 +50,8 @@ export const STRUCTURAL = {
     names: [
       "Question", "Assert", "Directive", "Advice", "Constraint",
       "Not", "Only", "Every", "Some", "If", "And", "Or", "Then", "Quote", "Mention", "Permit",
+      // Taking back the last act that changed something, by the inverse recorded with it.
+      "Undo",
       "Hole", "Label", "Outscopes", "Ref",
       "Now", "Past", "Future", "At", "Since", "Until", "During", "Before", "After", "Told", "LastChange",
       "Written", "Speaker", "Addressee",
@@ -65,7 +69,9 @@ export const STRUCTURAL = {
     why: "want heads the runtime computes, feature templates (runtime.md 8.1, 8.2), and their weights",
     names: [
       "Near", "Doable",
-      "WordsUsed", "CandidateSource", "WantedKind", "ShapeFit", "Neighbour", "SenseFrequency",
+      "WordsUsed", "CandidateSource", "WantedKind", "ShapeFit", "Neighbour", "SenseFrequency", "WordFrequency",
+      // How common a word is (wordfreq's Zipf frequency), a fact on its concept that WordFrequency reads.
+      "Frequency",
       "Evidence", "Match", "Unmatched", "Trust", "Coverage", "FocusFit", "FocusSource",
       "ReachedAct", "NeedsMet", "ChecksWouldPass", "Blocked", "UnknownEffects", "Unworked",
       "Feature", "Weight",
@@ -74,6 +80,8 @@ export const STRUCTURAL = {
       // The CandidateSource template's keys (runtime.md 3.3), and a set-aside span's.
       "Exact", "Inflected", "CaseMatch", "SpellDistance", "SoundDistance", "Stretched", "InPlay", "Shape", "Unknown", "SetAside",
       "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",
+      // Focus's budget per turn, per source (runtime.md 11b), a policy fact on Focus.
+      "Focus", "Budget", "Lookups", "Candidates",
     ],
   },
   effects: {
@@ -92,7 +100,7 @@ export const STRUCTURAL = {
   },
   stuck: {
     why: "seed draft: the reasons the runtime records for an unworked expression (design section 23)",
-    names: ["NoSense", "NoReading", "NeedUnmet", "NoSource", "NoPermission", "TooClose", "BlockedBy"],
+    names: ["NoSense", "NoReading", "NeedUnmet", "NoSource", "NoPermission", "TooClose", "BlockedBy", "NoInverse"],
   },
   speaking: {
     why: "seed draft: what Say is handed to realize, and the printing step of design section 25b",

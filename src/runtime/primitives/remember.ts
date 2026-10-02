@@ -92,10 +92,25 @@ export const Remember: Primitive = {
   // or a word that is not the referent's own words ("my name is Keal", not "the review is a
   // review", not "we are us"). Anything else is not this act.
   effects: ([item], world) => {
-    if (!isCall(item) || (item.head !== "Rewrite" && item.head !== "Fact" && !keepable(item, world))) throw new Error("that is not something to keep about you");
+    if (!isCall(item) || (item.head !== "Rewrite" && item.head !== "Fact" && item.head !== "Retract" && !keepable(item, world))) throw new Error("that is not something to keep about you");
     return ["ChangesGraph"];
   },
   async run([item], world) {
+    // Taking back what was kept (Remember's inverse, and Schedule's): Retract(Fact(id)) or
+    // Retract(Reading(id)) retracts that item, which stays in the store with its source. Only what
+    // the user said may be taken back this way, never the seed's or an import's.
+    if (isHead(item, "Retract")) {
+      const id = retracted(item);
+      const it = id === undefined ? undefined : world.store.item(id);
+      if (!it || key(it.meta.from) !== key(USER)) throw new Error("that is not something you told me");
+      world.store.retract(it.meta.id);
+      // What it had replaced is brought back ("my name is Sam", undone, leaves it Keal again).
+      const back = role(item, "restore");
+      const old = isCall(back) ? positional(back)[0] : undefined;
+      const was = old?.kind === "number" ? world.store.item(old.value) : undefined;
+      if (was && key(was.meta.from) === key(USER)) world.store.restore(was.meta.id);
+      return c("Remembered", item);
+    }
     if (isHead(item, "Rewrite")) {
       const [from0, to] = positional(item);
       const from = isHead(from0, "Quote") ? positional(from0)[0] : from0;
@@ -118,20 +133,43 @@ export const Remember: Primitive = {
     if (a) {
       // What a thing is, said again, replaces what it was said to be ("my name is Sam" after "my
       // name is Keal"); the earlier claim is retracted, not deleted.
+      const replaced: Expr[] = [];
       if (isHead(a.claim, "Be")) {
         const [x] = positional(a.claim as Call);
-        for (const old of world.store.facts(a.subject.head, "Be")) if (key(positional(old.claim as Call)[0]) === key(x)) world.store.retract(old);
+        for (const old of world.store.facts(a.subject.head, "Be"))
+          if (key(positional(old.claim as Call)[0]) === key(x)) {
+            world.store.retract(old);
+            replaced.push(c("Fact", { kind: "number", value: old.meta.id, pos: { line: 0, column: 0 } }));
+          }
       }
       const f = world.store.addFact(a.subject.head, a.claim, USER);
       world.keep?.(c("Fact", a.subject, a.claim, ["from", USER]));
       // What was kept, with the things it now names, so it can be said back.
-      return c("Remembered", c("Fact", { kind: "number", value: f.meta.id, pos: { line: 0, column: 0 } }), a.claim);
+      return c("Remembered", c("Fact", { kind: "number", value: f.meta.id, pos: { line: 0, column: 0 } }), a.claim, ...replaced.slice(0, 1).map((r): [string, Expr] => ["replaced", r]));
     }
     throw new Error("Remember keeps a Rewrite(from, to), a Fact(subject, claim), or a claim about you or your things");
   },
-  async check(_args, result) {
+  async check([item], result, world) {
+    if (isHead(item, "Retract")) {
+      const id = retracted(item);
+      return id !== undefined && world.store.item(id)?.meta.status === "Retracted";
+    }
     return isHead(result, "Remembered");
   },
+  // What was kept is taken back by its id.
+  async inverse(_args, result) {
+    const kept = isHead(result, "Remembered") ? positional(result)[0] : undefined;
+    const replaced = role(result, "replaced");
+    if (!isHead(kept, "Fact") && !isHead(kept, "Reading")) return undefined;
+    return c("Remember", replaced ? c("Retract", kept, ["restore", replaced]) : c("Retract", kept));
+  },
 };
+
+/** The id of the item a Retract(Fact(id)) or Retract(Reading(id)) names. */
+function retracted(item: Call): number | undefined {
+  const x = positional(item)[0];
+  const id = isCall(x) ? positional(x)[0] : undefined;
+  return id?.kind === "number" ? id.value : undefined;
+}
 
 export type { Call };

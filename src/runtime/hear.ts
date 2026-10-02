@@ -252,6 +252,29 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
         for (const h of store.lookup(l)) add({ start: i, end: i + parts.length, concept: h.concept, features: h.features, source: "Exact", distance: 0 });
   }
 
+  // A concept said as words in order (`Words(Give(), Up())`: an idiom, a phrasal verb) enters as
+  // a span where each token is heard as its part. A part given in a form (`Bean(Plural())`) is
+  // heard only in that form; any other part in any form ("gave up"), and the span has the form
+  // features those parts were heard with (Past). Spelling corrections are not parts.
+  const byFirst = wordSequences(store);
+  for (let i = 0; i < tokens.length; i++)
+    for (const first of new Set(candidates[i].filter((x) => x.concept && x.end === i + 1).map((x) => x.concept!)))
+      for (const seq of byFirst.get(first) ?? []) {
+        if (i + seq.parts.length > tokens.length) continue;
+        const feats: string[] = [];
+        let exact = true;
+        const heard = seq.parts.every((p, k) => {
+          const own = candidates[i + k].filter((x) => x.concept === p.concept && x.end === i + k + 1 && x.source !== "SpellDistance" && p.features.every((f) => x.features.includes(f)));
+          const hit = own.find((x) => x.source === "Exact") ?? own[0];
+          if (hit && !p.features.length) feats.push(...hit.features);
+          if (hit && hit.source !== "Exact") exact = false;
+          return !!hit;
+        });
+        const end = i + seq.parts.length;
+        if (!heard || candidates[i].some((x) => x.concept === seq.concept && x.end === end && x.features.join() === feats.join())) continue;
+        add({ start: i, end, concept: seq.concept, features: [...new Set(feats)], source: exact ? "Exact" : "Inflected", distance: 0 });
+      }
+
   // Shapes propose kinds for spans that end on a token boundary.
   const shapes = store.factsWithHead("HasShape").filter((f) => store.facts(f.subject, "SetsAside").length === 0);
   const ends = new Map(tokens.map((t, i) => [t.end, i]));
@@ -276,6 +299,27 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
     if (!own.length || own.every((x) => x.source === "SpellDistance" || x.source === "CaseMatch")) add({ start: i, end: i + 1, literal: str(tok.text), features: [], source: "Unknown", distance: 0 });
   });
   return { tokens, candidates, aside };
+}
+
+/** The concepts said as words in order, by their first word (read once per store, then kept). */
+type Part = { concept: string; features: string[] };
+const sequences = new WeakMap<object, Map<string, { concept: string; parts: Part[] }[]>>();
+function wordSequences(store: Store): Map<string, { concept: string; parts: Part[] }[]> {
+  const facts = store.factsWithHead("Words");
+  let m = sequences.get(facts);
+  if (m) return m;
+  m = new Map();
+  for (const f of facts) {
+    const parts = positional(f.claim as never).map((x: Expr): Part | undefined =>
+      isCall(x) ? { concept: x.head, features: positional(x).flatMap((y) => (isCall(y) ? [y.head] : [])) } : undefined,
+    );
+    if (parts.length < 2 || parts.some((x) => !x)) continue;
+    const list = m.get(parts[0]!.concept) ?? [];
+    list.push({ concept: f.subject, parts: parts as Part[] });
+    m.set(parts[0]!.concept, list);
+  }
+  sequences.set(facts, m);
+  return m;
 }
 
 const str = (value: string): Expr => ({ kind: "string", value, pos: { line: 0, column: 0 } });
