@@ -46,3 +46,27 @@ Concept(Request_1712(), Reduction(Cause(result=Become(Have(Remote(), Commit())))
   Those lists are the finding; do not add to the seed on the spot (seed/README.md, question 2).
 - The scored match's coefficients are fixed for now (pattern covered minus request unexplained);
   the threshold and the weights of its features are to be set on the development set, then frozen.
+
+## Result, 2026-10-02 (runtime 0.30.0, everything imported)
+
+`node scripts/killtest.mjs` after `pnpm build`, against the stop lines of PLAN.md phase 4 (design
+section 29, stage 0). Development data only.
+
+| Stop line | Measured | Verdict |
+|---|---|---|
+| 50% of the 30 automatic description reductions equal Keal's hand-written targets | not measurable: the targets do not exist yet (`~/.noodle/experiment/killtest.ncon` is missing) | open |
+| 70% sense precision on 50 bottomed-out senses | not graded by Keal. The builder's own grading (docs/stage0.md) was 38% strict, 70% right or partial | open; the provisional number is under the line |
+| 60% of in-domain development prompts with a full or near-full parse | **50.2%** (160/319 heard); 45.5% (160/352) counting the 33 prompts over 60 tokens as failing | **under the line** |
+
+The parse line, in detail. In-domain is every development prompt Keal labelled `acts` or
+`constraint` (352; heartbeats and the holdout excluded). A full parse is one edge per segment with
+nothing skipped: 87 of 319 (27.3%). A near-full parse has at least 70 percent of its content words
+(word tokens that are not in the seed's function-word lexicon) inside the widest edge of each
+segment's best cover. Counting words inside any edge of the cover instead gives 99.7%, which only
+says that almost every word is read as something; it is not a parse, so it is not the number used.
+
+What this says, honestly: by the design's own stage 0 line, the project is at a stop on parse
+coverage today, and the other two lines cannot be judged until Keal's targets and grades exist. The
+earlier representability and convergence test (phase 1) has also not been run, for the same reason.
+Per PLAN.md, a failed checkpoint is a finding to report and decide on, not a number to tune toward;
+nothing was changed to move it.
