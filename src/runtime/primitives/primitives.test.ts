@@ -42,7 +42,7 @@ const blockText = (world: World, e: Expr | undefined) => {
 };
 
 test("the registry holds exactly the experiment's primitives", () => {
-  assert.deepEqual([...PRIMITIVES.keys()].sort(), ["Ask", "Compare", "Contains", "Count", "Edit", "Filter", "Now", "Rank", "Read", "Remember", "Run", "Say", "Sort", "Write"]);
+  assert.deepEqual([...PRIMITIVES.keys()].sort(), ["Arithmetic", "Ask", "Compare", "Contains", "Count", "Edit", "Filter", "Now", "Rank", "Read", "Remember", "Run", "Say", "Sort", "Write"]);
 });
 
 test("Read a file keeps its content as a block with a media type", async () => {

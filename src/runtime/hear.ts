@@ -43,6 +43,9 @@ export interface SetAside {
 
 const WORD = /[\p{L}\p{N}]/u;
 const JOINER = /['’._\-/@+]/u;
+/** Between two digits only these join: "3.5", "2026-10-01". "2+2" and "12/4" are three tokens. */
+const NUMBER_JOINER = /[.\-]/u;
+const DIGIT = /\p{Nd}/u;
 const TAB_WIDTH = 4;
 
 /** Moves spans matched by shapes whose kind SetsAside() out of the text (runtime.md 3.1). */
@@ -107,11 +110,13 @@ export function tokenize(store: Store, text: string): Token[] {
       end = i + 1;
       while (end < text.length) {
         if (WORD.test(text[end])) end++;
-        else if (JOINER.test(text[end]) && end + 1 < text.length && WORD.test(text[end + 1])) end += 2;
+        else if (JOINER.test(text[end]) && end + 1 < text.length && WORD.test(text[end + 1]) && (NUMBER_JOINER.test(text[end]) || !DIGIT.test(text[end - 1]) || !DIGIT.test(text[end + 1]))) end += 2;
         else break;
       }
     } else {
-      const m = marks.find((l) => text.startsWith(l, i) && !/^\s*$/u.test(l));
+      // A mark written with a space in it ("- ", "- [ ]") is a line's mark: it starts a line or it
+      // is not that mark ("7 - 3" is a minus, not a bullet).
+      const m = marks.find((l) => text.startsWith(l, i) && !/^\s*$/u.test(l) && (lineStart || !/\s/u.test(l)));
       end = i + (m ? m.length : 1);
     }
     const tok: Token = { text: text.slice(i, end), start: i, end };
@@ -255,7 +260,7 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
       const { len, value } = matchShapeValue(positional(f.claim as never)[0] as Expr, text, tok.start);
       const j = ends.get(tok.start + len);
       if (len && j !== undefined) {
-        add({ start: i, end: j + 1, literal: str(value ?? text.slice(tok.start, tok.start + len)), features: [], source: "Shape", distance: 0, kind: f.subject });
+        add({ start: i, end: j + 1, literal: literal(value ?? text.slice(tok.start, tok.start + len)), features: [], source: "Shape", distance: 0, kind: f.subject });
         // A captured name is exact: the tokens inside it are not also words to correct.
         if (value !== undefined) for (let k = i + 1; k < j; k++) candidates[k] = candidates[k].filter((x) => x.source === "Exact" || x.source === "Shape");
       }
@@ -273,6 +278,15 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
 }
 
 const str = (value: string): Expr => ({ kind: "string", value, pos: { line: 0, column: 0 } });
+
+/** N-Con's own number syntax (ncon.md section 1): a span written as one is that number. */
+const NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
+
+/**
+ * What a shape's span is: a number when it is written as one (the data model has numbers, as it
+ * has strings), else the text. Which spans are numerals is the shapes' business, in the seed.
+ */
+const literal = (value: string): Expr => (NUMBER.test(value) ? { kind: "number", value: Number(value), pos: { line: 0, column: 0 } } : str(value));
 
 /** Token indices where a segment may end: after a token whose candidates include an EndsClause word. */
 export function boundaries(store: Store, h: Hearing): { ends: number[]; opens: number[] } {

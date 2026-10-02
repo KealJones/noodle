@@ -149,6 +149,23 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r),
   becomes=Paragraph($r))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Count($s), result=$n),
   becomes=Paragraph($n))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Outcome(Arithmetic($o, $a, $b), result=$r),
+  becomes=Paragraph(Arithmetic($o, $a, $b), " is ", $r, "."))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Outcome(Arithmetic($o, $a, $b), error=$e),
+  becomes=Paragraph("I couldn't work out ", Arithmetic($o, $a, $b), ": ", $e, "."))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Addition(), $a, $b), becomes=Paragraph($a, " plus ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Subtraction(), $a, $b), becomes=Paragraph($a, " minus ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Subtraction(), 0, $b), becomes=Paragraph("minus ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Multiplication(), $a, $b), becomes=Paragraph($a, " times ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Division(), $a, $b), becomes=Paragraph($a, " divided by ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Exponentiation(), $a, $b), becomes=Paragraph($a, " to the power of ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Modulo(), $a, $b), becomes=Paragraph($a, " mod ", $b))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Exponentiation(), $a, 2), becomes=Paragraph($a, " squared"))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Exponentiation(), $a, 3), becomes=Paragraph($a, " cubed"))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Exponentiation(), $a, 0.5), becomes=Paragraph("the square root of ", $a))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Exponentiation(), $a, Arithmetic(Division(), 1, 3)), becomes=Paragraph("the cube root of ", $a))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Division(), $a, 100), becomes=Paragraph($a, "%"))
+Reading(on=Arithmetic(), mode=Speaking(), pattern=Arithmetic(Multiplication(), Arithmetic(Division(), $a, 100), $b), becomes=Paragraph($a, "% of ", $b))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a)),
   becomes=Paragraph("I can undo ", $a, ". Want me to?"))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Sequence($steps), stopped=$at),

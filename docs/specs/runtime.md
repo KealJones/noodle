@@ -117,7 +117,11 @@ Lower() Upper() Letter() Digit() Space() Any()
 
 Facts on kinds say which shapes propose them (`ZipCode HasShape(Digits(5))`, `Path HasShape(...)`),
 with a source and a weight. A shape match proposes the kind as a soft candidate for the span; it
-never decides. The span is heard as a literal string with its shape kinds attached to the edge.
+never decides. The span is heard as a literal with its shape kinds attached to the edge: a string,
+or a number when the span is written in N-Con's own number syntax (`17`, `3.5`; the data model has
+numbers as it has strings). Between two digits only `.` and `-` join a token, so `2+2` and `12/4`
+are three tokens each; a mark lemma with a space in it (`- `, a bullet) is that mark only at the
+start of a line.
 
 ## 4. The chart
 
@@ -353,6 +357,9 @@ run         the code
   roff parser), giving sections, tagged items and the SYNOPSIS as Usage structures (design
   section 25). What the SYNOPSIS grammar cannot read stays `Unparsed`.
 - The list of primitives is in `built-ins.md`, section 2. Adding one is a design change.
+- A call to a pure primitive inside another call's arguments is data once its own arguments are:
+  it is worked out first, innermost first (`Compare(Arithmetic(...), 400, ...)`, and the nested
+  calls of "15% of 80"). If it fails, the outcome is that inner call's error.
 
 ## 10. Suppose and Sequence
 
