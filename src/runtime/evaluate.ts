@@ -11,6 +11,7 @@ import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
 import type { Mode, Step } from "./rewrite.js";
 import type { Store } from "./store.js";
+import { STRUCTURAL_NAMES } from "../structural.js";
 
 export interface Outcome {
   /** What would be or was said, in order. */
@@ -209,7 +210,10 @@ export class Evaluator {
     const a = this.resolve(a0) as Call;
     const args = positional(a);
     if (args.length !== p.params.length) return undefined;
-    if (args.some((x) => [...walk(x)].some((y) => y.kind === "variable" || isHead(y, "Ref") || isHead(y, "Gap")))) return undefined;
+    // A primitive is given data: no variable, gap or referent left, and no concept that is still a
+    // word (an unresolved "file" is not something a primitive can be given).
+    const unready = (y: Expr) => y.kind === "variable" || (isCall(y) && (y.head === "Ref" || y.head === "Gap" || !STRUCTURAL_NAMES.has(y.head)));
+    if (args.some((x) => [...walk(x)].some(unready))) return undefined;
     return { p, args };
   }
 
@@ -243,8 +247,16 @@ export class Evaluator {
   }
 
   private async call(p: Primitive, args: Expr[], act: Expr, granted = false): Promise<Outcome> {
+    const o = await this.callInner(p, args, act, granted);
+    // Roles still on a primitive call are input it was handed and does not take: what the user
+    // said that this reading does not use (runtime.md 6.1, unmatched roles), counted as unworked.
+    const unused = isCall(act) && this.primitives.has(act.head) ? act.args.filter((a) => a.name !== undefined && a.name !== "agent").length : 0;
+    return { ...o, unworked: o.unworked + unused };
+  }
+
+  private async callInner(p: Primitive, args: Expr[], act: Expr, granted = false): Promise<Outcome> {
     const effects: EffectClass[] = p.effects(args, this.world);
-    const guarded = effects.filter((e) => GUARDED.has(e));
+    const guarded = effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
     if (guarded.length && !granted) {
       if (this.mode === "Doing") this.conversation.proposal = { act, ancestry: this.ancestry(act), turn: this.conversation.turnIndex };
       const offer = effects.includes("UnknownEffects") ? c("Offer", act, ["effects", c("UnknownEffects")]) : c("Offer", act);

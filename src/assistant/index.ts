@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { seededStore } from "../runtime/seed.js";
 import { Session } from "../runtime/turn.js";
-import type { World } from "../runtime/primitive.js";
+import type { EffectClass, World } from "../runtime/primitive.js";
 import type { Store } from "../runtime/store.js";
 import type { Assistant, ChatMessage } from "../serve/assistant.js";
 
@@ -31,12 +31,41 @@ export function packedStore(dir = join(homedir(), ".noodle", "packs")): Store {
   return store;
 }
 
-export function createSession(store: Store, root: string, onSay?: (doc: unknown) => void): Session {
-  const world: World = { root, store, now: () => new Date(), say: (d) => onSay?.(d), ask: (d) => onSay?.(d) };
+/**
+ * The config (~/.noodle/config.json, design section 20): level 1, the user's own. It grants
+ * access: which programs Run may start, and effect classes that run without an offer
+ * ({"grants": ["UnknownEffects"]} lets documented commands run when asked). Nothing learned can
+ * write it.
+ */
+export interface Config {
+  grants?: EffectClass[];
+  programs?: string[];
+  root?: string;
+  timeoutMs?: number;
+}
+
+export function readConfig(path = join(homedir(), ".noodle", "config.json")): Config {
+  if (!existsSync(path)) return {};
+  return JSON.parse(readFileSync(path, "utf8")) as Config;
+}
+
+export function createSession(store: Store, root: string, config: Config = {}, onSay?: (doc: unknown) => void): Session {
+  const world: World = {
+    root,
+    store,
+    now: () => new Date(),
+    say: (d) => onSay?.(d),
+    ask: (d) => onSay?.(d),
+    grants: config.grants ? new Set(config.grants) : undefined,
+    programs: config.programs ? new Set(config.programs) : undefined,
+    timeoutMs: config.timeoutMs,
+  };
   return new Session(store, PRIMITIVES, world);
 }
 
-export function createAssistant(opts: AssistantOptions = { root: process.env.NOODLE_ROOT ?? process.cwd() }): Assistant {
+export function createAssistant(opts: Partial<AssistantOptions> = {}): Assistant {
+  const config = readConfig();
+  const root = opts.root ?? process.env.NOODLE_ROOT ?? config.root ?? process.cwd();
   const store = opts.store ?? packedStore();
   const sessions = new Map<string, Session>();
   return {
@@ -48,7 +77,7 @@ export function createAssistant(opts: AssistantOptions = { root: process.env.NOO
       const id = createHash("sha256").update(users[0].content).digest("hex");
       let session = sessions.get(id);
       if (!session) {
-        session = createSession(store, opts.root);
+        session = createSession(store, root, config);
         sessions.set(id, session);
       }
       const { text } = await session.turn(last.content);

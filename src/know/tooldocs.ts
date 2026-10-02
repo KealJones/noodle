@@ -9,7 +9,7 @@
 // reference convention, for any program.
 
 import { createHash } from "node:crypto";
-import { type Call, type Expr, c, isCall, positional, role, s } from "../runtime/expr.js";
+import { type Call, type Expr, c, isCall, positional, role, s, v } from "../runtime/expr.js";
 import type { Primitive, World } from "../runtime/primitive.js";
 import type { Store } from "../runtime/store.js";
 import { format } from "../ncon/index.js";
@@ -111,6 +111,19 @@ export async function learnTool(program: string, read: Primitive, world: World, 
         ["from", pageFrom],
       ),
     );
+    // A command line that takes a positional argument (a placeholder in its synopsis, not an
+    // option's value) takes what the act is done to: "add a.txt" runs git add a.txt.
+    if (usage && takesPlaceholder(usage))
+      forms.push(
+        c(
+          "Reading",
+          ["on", c(word)],
+          ["pattern", c(word, ["agent", c("Addressee")], ["theme", v("x")])],
+          ["becomes", c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w)), v("x")))],
+          ["effects", c("UnknownEffects")],
+          ["from", pageFrom],
+        ),
+      );
     commands.push(lemma);
   }
   return { text: format({ forms: forms as Call[] }), commands, skipped };
@@ -118,6 +131,15 @@ export async function learnTool(program: string, read: Primitive, world: World, 
 
 function isSeedPart(from: Expr, part: string): boolean {
   return isCall(from) && from.head === "Seed" && positional(from)[0]?.kind === "string" && (positional(from)[0] as { value: string }).value === part;
+}
+
+function takesPlaceholder(u: Call): boolean {
+  const visit = (e: Expr, inOption: boolean): boolean => {
+    if (!isCall(e)) return false;
+    if (e.head === "Placeholder") return !inOption;
+    return e.args.some((a) => visit(a.value, inOption || e.head === "Option"));
+  };
+  return positional(u).some((x) => visit(x, false));
 }
 
 function firstUsage(doc: Expr): Call | undefined {
