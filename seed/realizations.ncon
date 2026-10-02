@@ -89,6 +89,8 @@ Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not($a))),
   becomes=Paragraph("Got it: I won't ", $a, "."))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not($a), until=Told())),
   becomes=Paragraph("Got it: I won't ", $a, " until you say so."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Not(Run($p, $args)))),
+  becomes=Paragraph("Ok, I won't run ", Code(Run($p, $args)), "."))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint(Only($a))),
   becomes=Paragraph("Got it: I'll only ", $a, "."))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(Constraint($r, over=Always())),

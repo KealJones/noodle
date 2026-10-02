@@ -36,8 +36,17 @@ export interface TurnResult {
   record: TurnRecord;
 }
 
+/** The last user turn's choice, kept so a correction can flip it (design section 17). */
+interface LastChoice {
+  segText: string;
+  readings: Reading[];
+  winner: Reading;
+  words: Map<string, string>;
+}
+
 export class Session {
   readonly conversation = new Conversation();
+  private last?: LastChoice;
   readonly weights: Weights;
   readonly speaker: Speaker;
   private medium: string;
@@ -88,6 +97,7 @@ export class Session {
     const words = new Map<string, string>();
     const allSteps: Step[] = [];
     let anything = false;
+    const choices: LastChoice[] = [];
     for (const seg of chosen) {
       const segText = textOf(text, hearing, seg.a, seg.b2);
       const readings = this.readings(seg.covers, rewriter);
@@ -111,6 +121,7 @@ export class Session {
       record.lf.push(...win.lfs);
       for (const e of win.cover.edges) collectWords(e, text, hearing, words);
       allSteps.push(...win.steps);
+      choices.push({ segText, readings: top, winner: win, words });
       const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", win.steps, segText, (x) => this.canSay(x));
       const segSaid: Expr[] = [];
       let reached = false;
@@ -136,12 +147,43 @@ export class Session {
     const permitted = record.lf.some((x) => key(x).includes("Permit("));
     if (!permitted && conv.proposal && conv.proposal.turn < record.index) conv.proposal = undefined;
 
+    // A correction (design section 17): a turn that did nothing of its own and carries a correction
+    // signal is about the last reading. Flip its choice point to the best alternative that reaches
+    // an act, run that, and move the weights toward it and away from what was chosen.
+    if (!anything && this.last && hasSignal(this.store, hearing)) {
+      const flipped = await this.correct(this.last, record);
+      if (flipped) {
+        said.length = 0;
+        said.push(...flipped.said);
+        anything = true;
+        allSteps.push(...flipped.steps);
+        for (const [k, w] of this.last.words) words.set(k, w);
+      }
+    }
+    if (choices.length) this.last = choices[choices.length - 1];
+
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
     const spoken = said.map((x) => this.inWords(x, words, allSteps));
     record.said = spoken;
     const out = spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean).join("\n\n");
     conv.turns.push({ index: conv.turnIndex, who: "Self", text: out, heard: [], lf: [], said: spoken, reasons: [], tone: [], asides: [] });
     return { text: out, record };
+  }
+
+  private async correct(last: LastChoice, record: TurnRecord): Promise<{ said: Expr[]; steps: Step[] } | undefined> {
+    const was = last.winner.lfs.map(key).join(";");
+    const alts = last.readings.filter((r) => r !== last.winner && r.lfs.map(key).join(";") !== was && (r.features.get("ReachedAct") ?? 0) > 0);
+    const alt = alts.sort((a, b) => b.score - a.score)[0];
+    if (!alt) return undefined;
+    // The latent-variable perceptron's step (runtime.md 15), capped.
+    this.weights.update(alt.features, last.winner.features);
+    record.reasons.push(choice(`correction of "${last.segText}"`, [last.winner, alt].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 1));
+    record.lf.push(...alt.lfs);
+    const ev = new Evaluator(this.store, this.primitives, this.world, this.conversation, "Doing", alt.steps, last.segText, (x) => this.canSay(x));
+    const said: Expr[] = [];
+    for (const lf of alt.lfs) said.push(...(await ev.run(lf)).said);
+    last.winner = alt;
+    return { said, steps: alt.steps };
   }
 
   /** Stage one: covers, each edge rewritten, combined; scored by chart and rewriting features. */
@@ -231,6 +273,10 @@ function collectWords(e: Edge, text: string, h: Hearing, out: Map<string, string
   const w = textOf(text, h, e.start, e.end);
   if (!out.has(k) && w && !/^[\p{P}\p{S}\s]+$/u.test(w)) out.set(k, w);
   for (const b2 of e.back) collectWords(b2, text, h, out);
+}
+
+function hasSignal(store: Store, h: Hearing): boolean {
+  return h.candidates.some((cs) => cs.some((x) => x.concept && x.source === "Exact" && store.facts(x.concept, "Corrects").length > 0));
 }
 
 function unknownWords(h: Hearing, a: number, b2: number): string[] {
