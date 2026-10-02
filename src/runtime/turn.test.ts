@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -65,4 +65,25 @@ Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("seco
   // The update moved toward the corrected reading: the next "zap" picks it.
   const again = await s.turn("zap");
   assert.match(again.text, ranFirst ? /second/ : /first/);
+});
+
+test("what a correction teaches is kept across sessions", async () => {
+  const lex = `Pack(name="test-zap2", version="0", from=Seed("test"))
+Concept(Zap(), Lemma("zap"), Category(Act()))
+Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("first")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+`;
+  const learnedPath = join(mkdtempSync(join(tmpdir(), "noodle-learned-")), "learned.ncon");
+  const root = mkdtempSync(join(tmpdir(), "noodle-turn-"));
+  const store1 = seededStore();
+  store1.load(lex);
+  const s1 = createSession(store1, root, { grants: ["UnknownEffects"], learn: true, learnedPath });
+  const ranFirst = (await s1.turn("zap")).text.includes("first");
+  await s1.turn("no");
+  // A new store and session, with the learned weights loaded after the seed.
+  const store2 = seededStore();
+  store2.load(lex);
+  store2.load(readFileSync(learnedPath, "utf8"));
+  const s2 = createSession(store2, root, { grants: ["UnknownEffects"] });
+  assert.match((await s2.turn("zap")).text, ranFirst ? /second/ : /first/);
 });

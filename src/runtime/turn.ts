@@ -34,6 +34,8 @@ interface Reading {
 export interface TurnResult {
   text: string;
   record: TurnRecord;
+  /** The acts the winner ran, or in a dry run would have run. */
+  acts: Expr[];
 }
 
 /** The last user turn's choice, kept so a correction can flip it (design section 17). */
@@ -47,6 +49,8 @@ interface LastChoice {
 export class Session {
   readonly conversation = new Conversation();
   private last?: LastChoice;
+  /** Called after learning changes the weights, so the channel can keep them (no file access here). */
+  onLearn?: (weights: Weights) => void;
   readonly weights: Weights;
   readonly speaker: Speaker;
   private medium: string;
@@ -75,7 +79,11 @@ export class Session {
     }
   }
 
-  async turn(text: string): Promise<TurnResult> {
+  /**
+   * One turn. With dry, the winner is evaluated in Suppose instead of Doing: nothing effectful
+   * runs and nothing is stored, and the acts it would run are returned (for scoring against labels).
+   */
+  async turn(text: string, opts: { dry?: boolean } = {}): Promise<TurnResult> {
     const conv = this.conversation;
     conv.decay();
     const record: TurnRecord = { index: conv.turnIndex, who: "User", text, heard: [], lf: [], said: [], reasons: [], tone: [], asides: [] };
@@ -98,6 +106,7 @@ export class Session {
     const allSteps: Step[] = [];
     let anything = false;
     const choices: LastChoice[] = [];
+    const acts: Expr[] = [];
     for (const seg of chosen) {
       const segText = textOf(text, hearing, seg.a, seg.b2);
       const readings = this.readings(seg.covers, rewriter);
@@ -122,12 +131,13 @@ export class Session {
       for (const e of win.cover.edges) collectWords(e, text, hearing, words);
       allSteps.push(...win.steps);
       choices.push({ segText, readings: top, winner: win, words });
-      const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", win.steps, segText, (x) => this.canSay(x));
+      const ev = new Evaluator(this.store, this.primitives, this.world, conv, opts.dry ? "Supposing" : "Doing", win.steps, segText, (x) => this.canSay(x));
       const segSaid: Expr[] = [];
       let reached = false;
       for (const lf of win.lfs) {
         const o = await ev.run(lf);
         segSaid.push(...o.said);
+        acts.push(...o.acts);
         if (o.reachedAct) reached = anything = true;
       }
       // Honest when stuck (design section 23): a segment nothing worked for says why once, and
@@ -150,7 +160,7 @@ export class Session {
     // A correction (design section 17): a turn that did nothing of its own and carries a correction
     // signal is about the last reading. Flip its choice point to the best alternative that reaches
     // an act, run that, and move the weights toward it and away from what was chosen.
-    if (!anything && this.last && hasSignal(this.store, hearing)) {
+    if (!opts.dry && !anything && this.last && hasSignal(this.store, hearing)) {
       const flipped = await this.correct(this.last, record);
       if (flipped) {
         said.length = 0;
@@ -167,7 +177,7 @@ export class Session {
     record.said = spoken;
     const out = spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean).join("\n\n");
     conv.turns.push({ index: conv.turnIndex, who: "Self", text: out, heard: [], lf: [], said: spoken, reasons: [], tone: [], asides: [] });
-    return { text: out, record };
+    return { text: out, record, acts };
   }
 
   private async correct(last: LastChoice, record: TurnRecord): Promise<{ said: Expr[]; steps: Step[] } | undefined> {
@@ -177,6 +187,7 @@ export class Session {
     if (!alt) return undefined;
     // The latent-variable perceptron's step (runtime.md 15), capped.
     this.weights.update(alt.features, last.winner.features);
+    this.onLearn?.(this.weights);
     record.reasons.push(choice(`correction of "${last.segText}"`, [last.winner, alt].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 1));
     record.lf.push(...alt.lfs);
     const ev = new Evaluator(this.store, this.primitives, this.world, this.conversation, "Doing", alt.steps, last.segText, (x) => this.canSay(x));

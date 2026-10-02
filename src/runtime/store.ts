@@ -326,6 +326,21 @@ export class Store {
   }
 }
 
+const readingKeys = new WeakMap<ReadingItem, string>();
+
+/**
+ * A reading's identity across stores and sessions: a hash of what it says (owner, pattern,
+ * becomes), not its store id, which depends on load order. Learned weights are kept by it.
+ */
+export function readingKey(r: ReadingItem): string {
+  let k = readingKeys.get(r);
+  if (!k) {
+    k = createHash("sha256").update(`${r.owner}|${key(r.pattern)}|${r.becomes ? key(r.becomes) : ""}|${r.mode ?? ""}`).digest("hex").slice(0, 12);
+    readingKeys.set(r, k);
+  }
+  return k;
+}
+
 /** One item as its own top-level form, with its meta written out. */
 export function toForm(item: FactItem | ReadingItem | BlockItem): Call {
   const meta: [string, Expr][] = [["from", item.meta.from]];

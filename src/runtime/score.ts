@@ -33,6 +33,7 @@ export class Weights {
       const x = positional(f.claim as never)[0];
       if (x && x.kind === "number" && isCall(f.claim)) this.template.set(f.subject, x.value);
     }
+    this.loadLearned(store);
   }
 
   get = (name: string): number => {
@@ -40,6 +41,21 @@ export class Weights {
     if (l !== undefined) return l;
     return this.template.get(name.split(":")[0]) ?? 0;
   };
+
+  /** Learned weights as N-Con facts on Feature concepts, for keeping across sessions. */
+  toNcon(): string {
+    const lines = ['Pack(name="learned-weights", version="1", from=Correction())'];
+    for (const [name, w] of [...this.learned].sort()) lines.push(`Fact(Feature(), Weight(${JSON.stringify(name)}, ${w}))`);
+    return lines.join("\n\n") + "\n";
+  }
+
+  /** Reads weights written by toNcon back. */
+  loadLearned(store: Store) {
+    for (const f of store.facts("Feature", "Weight")) {
+      const [name, w] = positional(f.claim as never);
+      if (name?.kind === "string" && w?.kind === "number") this.learned.set(name.value, w.value);
+    }
+  }
 
   /** The perceptron's capped update (runtime.md section 15): move toward good, away from bad. */
   update(good: Features, bad: Features, rate = 1, cap = 1) {

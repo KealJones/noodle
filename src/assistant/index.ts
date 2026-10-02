@@ -5,7 +5,7 @@
 // restart) are not replayed, so nothing runs twice.
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
@@ -21,9 +21,13 @@ export interface AssistantOptions {
   store?: Store;
 }
 
-/** The packs imported into ~/.noodle/packs/ (pnpm import), loaded after the seed, WordNet first. */
-export function packedStore(dir = join(homedir(), ".noodle", "packs")): Store {
+/** What corrections taught the score, kept across sessions (design section 17). */
+export const LEARNED = join(homedir(), ".noodle", "learned.ncon");
+
+/** The packs imported into ~/.noodle/packs/ (pnpm import), loaded after the seed, WordNet first, then what was learned. */
+export function packedStore(dir = join(homedir(), ".noodle", "packs"), learned: string | undefined = LEARNED): Store {
   const store = seededStore();
+  if (learned && existsSync(learned)) store.load(readFileSync(learned, "utf8"));
   if (!existsSync(dir)) return store;
   const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : 2);
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b)))
@@ -42,6 +46,9 @@ export interface Config {
   programs?: string[];
   root?: string;
   timeoutMs?: number;
+  /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
+  learn?: boolean;
+  learnedPath?: string;
 }
 
 export function readConfig(path = join(homedir(), ".noodle", "config.json")): Config {
@@ -60,7 +67,13 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     programs: config.programs ? new Set(config.programs) : undefined,
     timeoutMs: config.timeoutMs,
   };
-  return new Session(store, PRIMITIVES, world);
+  const session = new Session(store, PRIMITIVES, world);
+  if (config.learn)
+    session.onLearn = (w) => {
+      mkdirSync(join(homedir(), ".noodle"), { recursive: true });
+      writeFileSync(config.learnedPath ?? LEARNED, w.toNcon());
+    };
+  return session;
 }
 
 export function createAssistant(opts: Partial<AssistantOptions> = {}): Assistant {
@@ -77,7 +90,7 @@ export function createAssistant(opts: Partial<AssistantOptions> = {}): Assistant
       const id = createHash("sha256").update(users[0].content).digest("hex");
       let session = sessions.get(id);
       if (!session) {
-        session = createSession(store, root, config);
+        session = createSession(store, root, { ...config, learn: config.learn ?? true });
         sessions.set(id, session);
       }
       const { text } = await session.turn(last.content);

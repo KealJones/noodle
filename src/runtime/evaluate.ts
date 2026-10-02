@@ -272,7 +272,7 @@ export class Evaluator {
     if (guarded.length && !granted) {
       if (this.mode === "Doing") this.conversation.proposal = { act, ancestry: this.ancestry(act), turn: this.conversation.turnIndex };
       const offer = effects.includes("UnknownEffects") ? c("Offer", act, ["effects", c("UnknownEffects")]) : c("Offer", act);
-      return { ...this.out(), said: [offer], reachedAct: true };
+      return { ...this.out(), said: [offer], acts: [act], reachedAct: true };
     }
     if (this.mode === "Supposing") {
       if (!p.pure || this.calls >= SUPPOSE_CALLS) return { ...this.out(), acts: [act], reachedAct: true };
