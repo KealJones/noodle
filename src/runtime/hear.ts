@@ -225,8 +225,10 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
     }
     // Names in the surroundings: an exact name (case aside) is the candidate; only with none are
     // names a small spelling distance away proposed, as for words.
+    // A name is also matched by its stem, before its last dot ("readme" for README.md).
+    const stem = (name: string) => (name.lastIndexOf(".") > 0 ? name.slice(0, name.lastIndexOf(".")) : name);
     const near = surroundings.names
-      .map((name) => ({ name, d: editDistance(tok.text.toLowerCase(), name.toLowerCase(), 2) }))
+      .map((name) => ({ name, d: Math.min(editDistance(tok.text.toLowerCase(), name.toLowerCase(), 2), editDistance(tok.text.toLowerCase(), stem(name).toLowerCase(), 2)) }))
       .filter(({ name, d }) => d <= 2 && d <= Math.floor(name.length / 4));
     const same = near.filter((x) => x.d === 0);
     for (const { name, d } of same.length ? same : near) add({ start: i, end: i + 1, literal: str(name), features: [], source: "InPlay", distance: d, kind: "Name" });
