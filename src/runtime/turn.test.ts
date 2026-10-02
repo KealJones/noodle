@@ -97,7 +97,7 @@ Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("first")), effects=Unk
 Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("second")), effects=UnknownEffects())
 `);
   const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
-  assert.match((await s.turn("zap")).text, /^Do you mean `echo (first|second)`, or `echo (first|second)`\?$/);
+  assert.match((await s.turn("zap")).text, /^Do you mean run `echo (first|second)`, or run `echo (first|second)`\?$/);
 });
 
 test("a correction flips the last choice to the next reading that acts, and the weights remember", async () => {

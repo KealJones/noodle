@@ -30,3 +30,4 @@ Every change to the seed after its first review, with its reason, during week 1 
 | 2026-10-02 | 8. realizations | A blocked command says which rule it ran into and what it did not run | "You said not to `git ...`" left out the verb | +2 |
 | 2026-10-02 | 3. bridge | Saying something that is read is reading it out, chosen by the score | "repeat the readme" said the file's name | +1 |
 | 2026-10-02 | 8. realizations | A command line with no arguments is its program alone | "run `pwd`" offered `pwd args` | +1 |
+| 2026-10-02 | 8. realizations | Run says itself as running its command line (CommandLine), Ran says itself, and an Outcome says its result where the result has words of its own (Either) | Offer, Echo, BlockedBy and Outcome each had patterns reaching into Run (Keal: wrappers express the wrapping, children express themselves) | -9, +6 |

@@ -82,6 +82,11 @@ export class Speaker {
   /** Realize: rewrite by Speaking readings until none applies, then the arguments. */
   realize(e: Expr, depth = 0): Expr {
     if (depth > MAX_DEPTH || !isCall(e)) return e;
+    // Either(child, fallback): the child, where it has words of its own; else the fallback.
+    if (e.head === "Either") {
+      const [child, fallback] = positional(e);
+      return isCall(child) && this.apply(child) !== undefined ? this.realize(child, depth + 1) : this.realize(fallback, depth + 1);
+    }
     const r = this.apply(e);
     if (r !== undefined) return this.realize(r, depth + 1);
     const folded = this.fold(e);

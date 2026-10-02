@@ -14,3 +14,14 @@ Rule: never add a Form or Lemma with a space in it, or a misspelling, to make a 
 phrase is understood from its words (fix the words' entries, readings or the score), or it comes
 from an import that lists it as an idiom, or it stays unworked and the assistant says so. Before
 adding any seed entry, ask: was this prompted by a specific message failing? If yes, stop.
+
+## Realizations compose (2026-10-02)
+
+Keal: "I don't want the concepts to just become this insane nested coupled mess for every possible
+combination ... trust that wrappers will express the wrapping and the children can express
+themselves." Rule: a realization's pattern names its own head and binds its children as
+variables; it never reaches into a child's structure to say the child differently
+(`Offer(Run($p, $args))` is the smell). A child says itself wherever it is. Layout a child needs
+(a code block inside a paragraph) is the printer's job, not a nested pattern's. Before adding a
+realization whose pattern nests a concept inside another, ask: is the wrapper's wording really
+different here, or is the child just not saying itself? Same rule as phrase Forms, one layer down.
