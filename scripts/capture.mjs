@@ -155,9 +155,12 @@ export function capture(input, { root = ROOT, now = new Date() } = {}) {
   const turns = automated ? [] : priorTurns(input.transcript_path).filter(
     (t, k, all) => !(k === all.length - 1 && t.role === 'user' && t.text?.trim() === prompt.trim()));
   writeFileSync(join(dir, 'turns.jsonl'), turns.map((t) => JSON.stringify(t)).join('\n') + (turns.length ? '\n' : ''));
-  appendFileSync(join(root, 'captures.jsonl'), JSON.stringify({
-    id, at: meta.at, assistant, cwd, automated, head: meta.repo?.head ?? null,
-    branch: meta.repo?.branch ?? null, dirty: Boolean(meta.repo?.work), prompt: prompt.slice(0, 500),
+  // One line per prompt in the month's index, ~/.noodle/experiment/capture/YYYY-MM.jsonl (the
+  // labeller reads these; prompts captured before 2026-10-02 are in the older captures.jsonl).
+  mkdirSync(join(root, 'capture'), { recursive: true });
+  appendFileSync(join(root, 'capture', `${meta.at.slice(0, 7)}.jsonl`), JSON.stringify({
+    id, at: meta.at, assistant, sessionId: meta.sessionId, cwd, automated, head: meta.repo?.head ?? null,
+    branch: meta.repo?.branch ?? null, dirty: Boolean(meta.repo?.work), prompt,
   }) + '\n');
   return meta;
 }
