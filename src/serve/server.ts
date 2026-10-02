@@ -10,6 +10,11 @@ import type { Assistant, ChatMessage } from "./assistant.js";
 export interface ServerOptions {
   /** When set, requests must carry it as `Authorization: Bearer <key>` or `x-api-key: <key>`. */
   apiKey?: string;
+  /**
+   * Browser origins allowed to call it ("*" for any). None by default: the assistant can run
+   * commands, so a web page the user happens to visit must not be able to drive it.
+   */
+  cors?: readonly string[];
 }
 
 type Api = "openai" | "anthropic";
@@ -233,11 +238,17 @@ function authorized(req: IncomingMessage, apiKey: string): boolean {
 }
 
 export function createServer(assistant: Assistant, opts: ServerOptions = {}): Server {
+  const allowed = new Set(opts.cors ?? []);
   return createHttpServer(async (req, res) => {
-    res.setHeader("access-control-allow-origin", "*");
+    const origin = typeof req.headers.origin === "string" ? req.headers.origin : undefined;
+    const originAllowed = origin !== undefined && (allowed.has("*") || allowed.has(origin));
+    if (originAllowed) res.setHeader("access-control-allow-origin", allowed.has("*") ? "*" : origin);
     const { pathname } = new URL(req.url ?? "/", "http://localhost");
     const api: Api = pathname === "/v1/messages" ? "anthropic" : "openai";
     try {
+      // A request from a browser page whose origin is not allowed is refused before anything is
+      // read: a simple cross-site POST needs no preflight, so the header alone would not stop it.
+      if (origin !== undefined && !originAllowed) throw new HttpError(403, "Origin not allowed", "permission_error");
       if (req.method === "OPTIONS") {
         res.writeHead(204, {
           "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -261,6 +272,8 @@ export function createServer(assistant: Assistant, opts: ServerOptions = {}): Se
           object: "list",
           data: [{ id: assistant.name, object: "model", created: 0, owned_by: "noodle" }],
         });
+      } else if (req.method === "POST" && !/^application\/json\b/i.test(req.headers["content-type"] ?? "")) {
+        throw new HttpError(415, "Request body must be application/json", "invalid_request_error");
       } else if (req.method === "POST" && pathname === "/v1/chat/completions") {
         await chatCompletions(assistant, await readJson(req), res);
       } else if (req.method === "POST" && pathname === "/v1/messages") {

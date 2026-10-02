@@ -190,7 +190,13 @@ export class Evaluator {
     // The user's yes is a level 1 grant for what was offered (runtime.md 12); several acts offered
     // together run in order, stopping at the first that fails.
     let o = this.out();
+    // What the user confirmed is trusted from now on: readings from documentation that led to it
+    // need no confirmation again (design section 20).
+    if (this.mode === "Doing") for (const k of prop.untrusted ?? []) this.world.confirm?.(k);
     for (const act of isHead(prop.act, "Sequence") ? positional(prop.act) : [prop.act]) {
+      // A rule said since the offer still holds: a yes does not lift a prohibition it does not name.
+      const blocked = this.blockedBy(act, [...prop.ancestry, act]);
+      if (blocked) return this.merge(o, { ...this.out(), said: [c("Echo", c("BlockedBy", act, c("Constraint", blocked.rule.rule)))], blocked: 1, reachedAct: true });
       const prim = this.primitiveCall(act);
       if (!prim) return this.merge(o, this.stuck(act, c("NoReading", act)));
       const r = await this.call(prim.p, prim.args, act, true);
@@ -228,6 +234,11 @@ export class Evaluator {
     const p = this.primitives.get(a0.head);
     if (!p) return undefined;
     const a = this.resolve(a0) as Call;
+    // Input the primitive does not take must not be dropped: a "never" or a "not" left on the call
+    // would be silently ignored (AGENTS.md rule 8b). Only who does it, the tool it is done with,
+    // and tone (kept on the turn) may be left.
+    const left = a.args.filter((x) => x.name !== undefined && x.name !== "agent" && x.name !== "instrument");
+    if (left.some((x) => !(isCall(x.value) && this.store.facts(x.value.head, "Tone").length > 0))) return undefined;
     const args = positional(a);
     if (args.length !== p.params.length) return undefined;
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
@@ -254,18 +265,39 @@ export class Evaluator {
     return out;
   }
 
-  private ruleMatches(r: StandingRule, a: Expr): boolean {
+  private ruleMatches(r: StandingRule, a: Expr, ancestry = this.ancestry(a)): boolean {
     const [x] = positional(r.rule as Call);
-    return this.ancestry(a).some((y) => !!x && !!match(x, y, this.store));
+    return ancestry.some((y) => !!x && !!match(x, y, this.store));
   }
 
   /** The first active rule that forbids this act: Not(x) matching it, or Only(x) not matching it. */
-  private blockedBy(a: Expr): { rule: StandingRule } | undefined {
+  private blockedBy(a: Expr, ancestry = this.ancestry(a)): { rule: StandingRule } | undefined {
     for (const r of this.conversation.rules) {
-      if (isHead(r.rule, "Not") && this.ruleMatches(r, a)) return { rule: r };
-      if (isHead(r.rule, "Only") && !this.ruleMatches(r, a)) return { rule: r };
+      if (isHead(r.rule, "Not") && this.ruleMatches(r, a, ancestry)) return { rule: r };
+      if (isHead(r.rule, "Only") && !this.ruleMatches(r, a, ancestry)) return { rule: r };
     }
     return undefined;
+  }
+
+  /**
+   * Readings from sources below level 2 (a project's help text, documentation, the web; runtime.md
+   * 13) that led to these expressions and are not yet confirmed. Their acts are offered even
+   * under a grant.
+   */
+  private untrustedReadings(ancestry: Expr[]): string[] {
+    const keys = new Set(ancestry.map(key));
+    const out: string[] = [];
+    for (const st of this.steps) if (keys.has(key(st.after)) && this.trustLevel(st.from) >= 3 && !this.world.confirmed?.has(st.key)) out.push(st.key);
+    return out;
+  }
+
+  /** A source's trust level, from the TrustLevel facts on source concepts (the trust table). */
+  private trustLevel(from: Expr): number {
+    if (!isCall(from)) return 4;
+    if (from.head === "Derived") return Math.max(0, ...positional(from).map((x) => this.trustLevel(x)));
+    const f = this.store.facts(from.head, "TrustLevel")[0];
+    const n = f && positional(f.claim as Call)[0];
+    return n?.kind === "number" ? n.value : 4;
   }
 
   private async call(p: Primitive, args: Expr[], act: Expr, granted = false): Promise<Outcome> {
@@ -277,8 +309,16 @@ export class Evaluator {
   }
 
   private async callInner(p: Primitive, args: Expr[], act: Expr, granted = false): Promise<Outcome> {
-    const effects: EffectClass[] = p.effects(args, this.world);
-    const guarded = effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
+    let effects: EffectClass[];
+    try {
+      effects = p.effects(args, this.world);
+    } catch (err) {
+      return { ...this.out(), said: [c("Outcome", act, ["error", s(err instanceof Error ? err.message : String(err))])], unworked: 1 };
+    }
+    // An effectful act a reading from documentation or the web led to is a proposal until the
+    // user confirms it, whatever the config grants (runtime.md 13).
+    const untrusted = !p.pure && this.untrustedReadings(this.ancestry(act)).length > 0;
+    const guarded = untrusted ? effects.filter((e) => e !== "Reads" && e !== "Speaks") : effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
     // A rewrite the user teaches applies after it is echoed and confirmed (design sections 19 and
     // 20): a misheard rule must not quietly become behaviour.
     const taught = p.name === "Remember" && isHead(args[0], "Rewrite");
@@ -292,10 +332,16 @@ export class Evaluator {
       if (this.mode === "Doing") {
         // Acts offered in one turn are one proposal, in order ("show me the diff and the log").
         const prev = this.conversation.proposal;
+        const untrusted = this.untrustedReadings(this.ancestry(act));
         this.conversation.proposal =
           prev && prev.turn === this.conversation.turnIndex
-            ? { act: c("Sequence", ...(isHead(prev.act, "Sequence") ? positional(prev.act) : [prev.act]), act), ancestry: [...prev.ancestry, ...this.ancestry(act)], turn: prev.turn }
-            : { act, ancestry: this.ancestry(act), turn: this.conversation.turnIndex };
+            ? {
+                act: c("Sequence", ...(isHead(prev.act, "Sequence") ? positional(prev.act) : [prev.act]), act),
+                ancestry: [...prev.ancestry, ...this.ancestry(act)],
+                untrusted: [...(prev.untrusted ?? []), ...untrusted],
+                turn: prev.turn,
+              }
+            : { act, ancestry: this.ancestry(act), untrusted, turn: this.conversation.turnIndex };
       }
       const offer = effects.includes("UnknownEffects") ? c("Offer", act, ["effects", c("UnknownEffects")]) : c("Offer", act);
       return { ...this.out(), said: [offer], acts: [act], reachedAct: true };

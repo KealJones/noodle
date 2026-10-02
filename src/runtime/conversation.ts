@@ -26,6 +26,8 @@ export interface Proposal {
   act: Expr;
   /** Expressions the act was rewritten from, for rule checks when it finally runs. */
   ancestry: Expr[];
+  /** Readings from untrusted sources that led to it: a yes confirms them (runtime.md 13). */
+  untrusted?: string[];
   turn: number;
 }
 
@@ -50,6 +52,19 @@ export class Conversation {
   /** The turn a proposal was last permitted in. */
   permittedTurn?: number;
   lastQuestion?: Expr;
+
+  /** A copy to work on without changing this one (a dry run). Expressions are immutable values. */
+  clone(): Conversation {
+    const c = new Conversation();
+    c.turns.push(...this.turns);
+    c.rules.push(...this.rules.map((r) => ({ ...r })));
+    c.events.push(...this.events);
+    for (const [k, v] of this.inPlay) c.inPlay.set(k, { ...v });
+    c.proposal = this.proposal && { ...this.proposal };
+    c.permittedTurn = this.permittedTurn;
+    c.lastQuestion = this.lastQuestion;
+    return c;
+  }
 
   get turnIndex(): number {
     return this.turns.length;

@@ -196,6 +196,8 @@ Reading(on=Heading(), mode=Speaking(), pattern=Print(Heading($x, level=$n), medi
   becomes=Printed(Repeated("#", $n), " ", Print($x, medium=Markdown())))
 Reading(on=List(), mode=Speaking(), pattern=Print(List($x), medium=Markdown()),
   becomes=Print(Item($x), medium=Markdown()))
+Reading(on=List(), mode=Speaking(), pattern=Print(List($a, List($b, $c)), medium=Markdown()),
+  becomes=Printed(Print(Item($a), medium=Markdown()), "\n", Print(List($b, $c), medium=Markdown())))
 Reading(on=List(), mode=Speaking(), pattern=Print(List($a, $b), medium=Markdown()),
   becomes=Printed(Print(Item($a), medium=Markdown()), "\n", Print(List($b), medium=Markdown())))
 Reading(on=Item(), mode=Speaking(), pattern=Print(Item(Item($x)), medium=Markdown()),

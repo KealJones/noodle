@@ -49,9 +49,11 @@ What it can do today, with git's pages learned: "git status", "show me the diff"
 
 ### Permissions
 
-Every command a tool's documentation taught it has unknown effects, so it is offered before it runs
-("I can run `git status`, but I don't know yet what it changes. Go ahead?"), and runs on "yes",
-"ok" or "go ahead". `~/.noodle/config.json` is the user's own grant (design section 20):
+Every command a tool's documentation taught it has unknown effects, and documentation is a level 3
+source, so the command is offered before it runs ("I can run `git status`, but I don't know yet
+what it changes. Go ahead?") and runs on "yes", "ok" or "go ahead". Once you have said yes to a
+command, that reading is confirmed (kept in `~/.noodle/taught.ncon`), and from then on only the
+grants below decide. `~/.noodle/config.json` is the user's own grant (design section 20):
 
 ```json
 { "grants": ["UnknownEffects"], "programs": ["git"] }
@@ -72,5 +74,12 @@ and non-streaming requests work.
 - The API key is optional. Set one with `--api-key KEY` or the `NOODLE_API_KEY` environment variable
   and clients must send it as a bearer token or an `x-api-key` header. Without one, any key a client
   insists on sending is accepted.
+- Browser pages are refused unless their origin is allowed: a chat UI that calls the API from the
+  browser needs `--cors http://localhost:3000` (comma-separated, or `*`). Server-side UIs need
+  nothing. This is because Noodle can run commands, and any page you visit could otherwise post to
+  it.
+- Each chat is its own conversation: a request continues the session whose history is exactly the
+  messages before its last one, so two chats never share rules, offers or referents, and an edited
+  or regenerated message starts fresh rather than running anything twice.
 
 Token counts in the usage fields are whitespace-separated words, since there is no tokenizer.

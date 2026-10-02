@@ -61,3 +61,19 @@ Concept(FollowStandingRules(), IsA(StandingRule()),
 // Asides are not answers: an aside never fills the open question.
 Concept(AsideIsNotAnAnswer(), IsA(StandingRule()),
   Constraint(Not(Answer(theme=Aside(_)))))
+
+// The trust table (design section 20; runtime.md 13): a source's level. 1 is the user, the home
+// instruction file and the config; 2 the project's instruction file; 3 a project's AGENTS.md,
+// READMEs and help text (a tool's own documentation); 4 the web. Readings from levels 3 and 4
+// are proposals while they would change anything: offered, never run, until the user confirms.
+// Curated lexical resources say what words mean, not what to do, and sit at 2. A source not here
+// is 4. Protected base: nothing learned writes these.
+Concept(Seed(), TrustLevel(0))
+Concept(User(), TrustLevel(1))
+Concept(Keal(), TrustLevel(1))
+Concept(Config(), TrustLevel(1))
+Concept(Correction(), TrustLevel(1))
+Concept(Self(), TrustLevel(1))
+Concept(WordNet(), TrustLevel(2))
+Concept(VerbNet(), TrustLevel(2))
+Concept(ToolDoc(), TrustLevel(3))

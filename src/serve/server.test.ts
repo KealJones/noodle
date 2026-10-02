@@ -45,7 +45,7 @@ function parseSse(text: string): { event?: string; data: any }[] {
 
 describe("serve", () => {
   const server = createServer(fake);
-  const secured = createServer(fake, { apiKey: "secret" });
+  const secured = createServer(fake, { apiKey: "secret", cors: ["http://chat.example"] });
   let base = "";
   let securedBase = "";
   before(async () => {
@@ -216,16 +216,25 @@ describe("serve", () => {
     assert.deepEqual(seen[0], { role: "system", content: "plain" });
   });
 
-  it("answers CORS preflight and sets the origin header", async () => {
+  it("answers CORS preflight for an allowed origin only, and refuses other origins", async () => {
     const res = await fetch(`${securedBase}/v1/chat/completions`, {
       method: "OPTIONS",
       headers: { origin: "http://chat.example", "access-control-request-method": "POST" },
     });
     assert.equal(res.status, 204);
-    assert.equal(res.headers.get("access-control-allow-origin"), "*");
+    assert.equal(res.headers.get("access-control-allow-origin"), "http://chat.example");
     assert.match(res.headers.get("access-control-allow-methods")!, /POST/);
-    const models = await fetch(`${base}/v1/models`);
-    assert.equal(models.headers.get("access-control-allow-origin"), "*");
+    // No origin allowed by default; a page from elsewhere is refused, even a simple POST.
+    const drive = await fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: { origin: "http://evil.example", "content-type": "text/plain" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "yes" }] }),
+    });
+    assert.equal(drive.status, 403);
+    assert.equal(drive.headers.get("access-control-allow-origin"), null);
+    // Without an origin (a server-side client), JSON is required.
+    const plain = await fetch(`${base}/v1/chat/completions`, { method: "POST", headers: { "content-type": "text/plain" }, body: "{}" });
+    assert.equal(plain.status, 415);
   });
 
   it("returns 400 for bad JSON or missing messages", async () => {

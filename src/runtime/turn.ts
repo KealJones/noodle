@@ -84,7 +84,8 @@ export class Session {
    * runs and nothing is stored, and the acts it would run are returned (for scoring against labels).
    */
   async turn(text: string, opts: { dry?: boolean } = {}): Promise<TurnResult> {
-    const conv = this.conversation;
+    // A dry run works on a copy of the conversation, so nothing of it is kept.
+    const conv = opts.dry ? this.conversation.clone() : this.conversation;
     conv.decay();
     const record: TurnRecord = { index: conv.turnIndex, who: "User", text, heard: [], lf: [], said: [], reasons: [], tone: [], asides: [] };
     conv.turns.push(record);
@@ -114,7 +115,7 @@ export class Session {
     const acts: Expr[] = [];
     for (const seg of chosen) {
       const segText = textOf(text, hearing, seg.a, seg.b2);
-      const top = await this.readings(seg.covers, seg.chart, rewriter, segText);
+      const top = await this.readings(seg.covers, seg.chart, rewriter, segText, conv);
       if (!top.length) continue;
       const win = top[0];
       record.reasons.push(choice(`reading of "${segText}"`, top.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 0));
@@ -164,7 +165,7 @@ export class Session {
         for (const [k, w] of this.last.words) words.set(k, w);
       }
     }
-    if (choices.length) this.last = choices[choices.length - 1];
+    if (choices.length && !opts.dry) this.last = choices[choices.length - 1];
 
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
     // The same thing is said once.
@@ -190,7 +191,9 @@ export class Session {
     if (offers.length > 1) {
       const first = said.indexOf(offers[0]);
       const rest = said.filter((x) => !offers.includes(x));
-      rest.splice(first, 0, c("Offer", c("Sequence", ...offers.map((x) => positional(x as Call)[0]))));
+      const acts = offers.map((x) => positional(x as Call)[0]);
+      const nested = (xs: Expr[]): Expr => (xs.length === 1 ? xs[0] : c("Sequence", xs[0], nested(xs.slice(1))));
+      rest.splice(first, 0, c("Offer", nested(acts)));
       said.length = 0;
       said.push(...rest);
     }
@@ -224,7 +227,7 @@ export class Session {
    * (stage one plus stage two, runtime.md 8): linear in the fragments, where taking the product
    * of their alternatives crowded the right reading out of the dry runs.
    */
-  private async readings(covers: Cover[], chart: Chart, rewriter: Rewriter, segText: string): Promise<Reading[]> {
+  private async readings(covers: Cover[], chart: Chart, rewriter: Rewriter, segText: string, conv: Conversation): Promise<Reading[]> {
     type Alt = { expr: Expr; steps: Step[]; features: Features; reached: boolean };
     const perEdge = new Map<string, Alt[]>();
     const out: Reading[] = [];
@@ -236,7 +239,7 @@ export class Session {
         if (!alts) {
           alts = [] as Alt[];
           for (const d of chart.variants(e).flatMap((v) => rewriter.normalize(v.expr).slice(0, this.opts.derivations))) {
-            const o = await this.suppose({ lfs: [d.expr], steps: d.steps, features: d.features, score: 0, cover: cv }, segText);
+            const o = await this.suppose({ lfs: [d.expr], steps: d.steps, features: d.features, score: 0, cover: cv }, segText, conv);
             const f2: Features = new Map();
             addFeature(f2, "Unworked", -o.unworked);
             addFeature(f2, "Blocked", o.blocked);
@@ -273,8 +276,8 @@ export class Session {
       });
   }
 
-  private async suppose(r: Reading, segText: string): Promise<Outcome> {
-    const ev = new Evaluator(this.store, this.primitives, this.world, this.conversation, "Supposing", r.steps, segText, (x) => this.canSay(x));
+  private async suppose(r: Reading, segText: string, conv: Conversation = this.conversation): Promise<Outcome> {
+    const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Supposing", r.steps, segText, (x) => this.canSay(x));
     let o: Outcome = { said: [], acts: [], reachedAct: false, unworked: 0, blocked: 0, checksPassed: 0 };
     for (const lf of r.lfs) {
       const x = await ev.run(lf);
