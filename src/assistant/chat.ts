@@ -1,11 +1,10 @@
 // `pnpm chat`: talk to Noodle in the terminal. `--why` prints the reasons log after each reply.
 
 import { createInterface } from "node:readline";
-import { seededStore } from "../runtime/seed.js";
-import { createSession } from "./index.js";
+import { createSession, packedStore } from "./index.js";
 
 const why = process.argv.includes("--why");
-const session = createSession(seededStore(), process.env.NOODLE_ROOT ?? process.cwd());
+const session = createSession(packedStore(), process.env.NOODLE_ROOT ?? process.cwd());
 const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "> " });
 rl.prompt();
 for await (const line of rl) {
