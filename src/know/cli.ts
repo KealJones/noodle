@@ -3,6 +3,7 @@
 // assistant loads every pack there after the seed.
 //   pnpm import wordnet ~/.noodle/sources/english-wordnet-2024.xml.gz
 //   pnpm import verbnet ~/.noodle/sources/verbnet/verbnet3.4
+//   pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz
 //   pnpm import tool git       (from the local man pages)
 
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -13,6 +14,8 @@ import { seededStore } from "../runtime/seed.js";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { learnTool } from "./tooldocs.js";
 import { importVerbNet } from "./verbnet.js";
+import { importWiktionary } from "./wiktionary.js";
+import { packedStore } from "../assistant/index.js";
 import { importWordNet } from "./wordnet.js";
 
 export const PACKS = join(homedir(), ".noodle", "packs");
@@ -37,6 +40,12 @@ if (source === "wordnet" && path) {
   const r = importVerbNet(files, store, { version: version ?? "3.4" });
   writeFileSync(join(PACKS, "verbnet.ncon"), r.text);
   console.log(`verbnet: ${r.classes} classes, ${r.verbs} verbs, ${r.frames} frames read, ${r.skippedFrames} skipped -> ${join(PACKS, "verbnet.ncon")}`);
+} else if (source === "wiktionary" && path) {
+  // Forms and sounds for the words the seed and the other packs already have.
+  const words = packedStore(PACKS, undefined);
+  const r = await importWiktionary(path, words, { version: version ?? "latest" });
+  writeFileSync(join(PACKS, "wiktionary.ncon"), r.text);
+  console.log(`wiktionary: ${r.forms} forms for ${r.words} words -> ${join(PACKS, "wiktionary.ncon")}`);
 } else if (source === "tool" && path) {
   // A tool's own documentation, read from the local man pages: no download.
   const world = { root: process.cwd(), store, now: () => new Date(), say() {}, ask() {} };

@@ -129,7 +129,7 @@ export class Session {
       // Two readings too close (design sections 9 and 23): when the best two tie exactly and lead
       // to different acts, nothing says which was meant, so it asks instead of picking one.
       const runner = top[1];
-      const actsOf = (r: Reading) => r.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map(key);
+      const actsOf = (r: Reading) => ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure)).map(key);
       if (opts.ask !== false && runner && runner.score === win.score && actsOf(win).length && actsOf(runner).length && actsOf(win).join() !== actsOf(runner).join()) {
         const a = win.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
         const b2 = runner.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
