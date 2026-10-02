@@ -108,8 +108,10 @@ export const STRUCTURAL = {
   primitiveResults: {
     why: "the structures primitives return; observation reads tools' machine formats as structure (runtime.md section 9)",
     names: [
-      "File", "Directory", "Entry", "GitStatus", "GitLog", "GitBranches", "Changed", "Untracked", "Commit", "Branch",
+      "File", "Directory", "Entry", "GitStatus", "GitLog", "GitBranches", "Changed", "Untracked", "GitCommit", "GitBranch",
       "Ran", "Args", "Wrote", "Edited", "Replace", "Inserted", "Withdrawn",
+      // Roles of those structures that realizations read.
+      "Path", "Media", "Exit", "Error", "Previous",
       // How Sort and Rank order, and how Compare tests equality.
       "Name", "Same",
     ],
