@@ -173,7 +173,9 @@ export class Chart {
           const pos = positional(r.pattern as Call)[0];
           if (isCall(pos)) for (const k of this.categoriesOf(pos.head)) all.add(k);
         }
-        out = new Map([...all].map((k) => [k, Math.log(count.has(k) ? count.get(k)! / total : 1 / (total + 1))]));
+        // At most a word's worth: how a word is usually used leans the score, and never outweighs
+        // a word read (a command named as a noun, "what does git commit do").
+        out = new Map([...all].map((k) => [k, Math.max(-1, Math.log(count.has(k) ? count.get(k)! / total : 1 / (total + 1)))]));
       }
     }
     this.priors.set(concept, out);

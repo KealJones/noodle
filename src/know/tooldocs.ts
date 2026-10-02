@@ -222,7 +222,8 @@ export async function learnTool(
   const senseOf = async (word: string, doc: Expr, pageFrom: Expr, usage: Call | undefined): Promise<{ sense: string; effects: Expr }> => {
     const sense = `${word}#${encodeLemma(program) ?? "Tool"}Command`;
     const summary = blockText(world.store, role(doc, "summary"));
-    const senseClaims: Expr[] = [c("SenseOf", c(word)), c("IsA", c("Program"))];
+    // A command is something done: its sense is a verb sense (what the chart weighs its act entry by).
+    const senseClaims: Expr[] = [c("SenseOf", c(word)), c("IsA", c("Program")), c("PartOfSpeech", c("PartOfSpeechVerb"))];
     let effects: Expr = c("UnknownEffects");
     if (summary) {
       const id = "b_" + createHash("sha256").update(summary).digest("hex").slice(0, 16);
