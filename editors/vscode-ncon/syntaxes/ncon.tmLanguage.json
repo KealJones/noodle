@@ -1,0 +1,88 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "N-Con",
+  "scopeName": "source.ncon",
+  "patterns": [{ "include": "#expression" }],
+  "repository": {
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#raw-string" },
+        { "include": "#string" },
+        { "include": "#form" },
+        { "include": "#head" },
+        { "include": "#metadata" },
+        { "include": "#named-argument" },
+        { "include": "#variable" },
+        { "include": "#constant" },
+        { "include": "#number" },
+        { "include": "#punctuation" }
+      ]
+    },
+    "comment": {
+      "name": "comment.line.double-slash.ncon",
+      "begin": "//",
+      "beginCaptures": { "0": { "name": "punctuation.definition.comment.ncon" } },
+      "end": "$"
+    },
+    "raw-string": {
+      "name": "string.quoted.triple.ncon",
+      "begin": "\"\"\"",
+      "end": "\"\"\""
+    },
+    "string": {
+      "name": "string.quoted.double.ncon",
+      "begin": "\"",
+      "end": "\"|$",
+      "patterns": [
+        { "name": "constant.character.escape.ncon", "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9A-Fa-f]{4})" }
+      ]
+    },
+    "form": {
+      "comment": "The forms a file is made of: the only heads allowed at top level.",
+      "match": "^(Pack|Concept|Fact|Reading|Block|Retract)(?=\\s*\\()",
+      "name": "keyword.control.form.ncon"
+    },
+    "head": {
+      "comment": "A concept called. Word#Sense is one head.",
+      "match": "\\b[A-Z][A-Za-z0-9_]*(?:#[A-Z][A-Za-z0-9_]*)?(?=\\s*\\()",
+      "name": "entity.name.function.concept.ncon"
+    },
+    "metadata": {
+      "comment": "Reserved names on a top-level form; never roles.",
+      "match": "\\b(from|at|status|weight|id)\\s*(=)(?!=)",
+      "captures": {
+        "1": { "name": "variable.parameter.metadata.ncon" },
+        "2": { "name": "keyword.operator.assignment.ncon" }
+      }
+    },
+    "named-argument": {
+      "comment": "A role (lower camel case names the concept with a capital first letter).",
+      "match": "\\b([a-z][A-Za-z0-9_]*)\\s*(=)(?!=)",
+      "captures": {
+        "1": { "name": "variable.parameter.named.ncon" },
+        "2": { "name": "keyword.operator.assignment.ncon" }
+      }
+    },
+    "variable": {
+      "patterns": [
+        { "name": "variable.language.anonymous.ncon", "match": "\\$_\\b|(?<![A-Za-z0-9_$])_(?![A-Za-z0-9_])" },
+        { "name": "variable.other.ncon", "match": "\\$[A-Za-z_][A-Za-z0-9_]*" }
+      ]
+    },
+    "constant": {
+      "name": "constant.language.ncon",
+      "match": "\\b(true|false|null)\\b"
+    },
+    "number": {
+      "name": "constant.numeric.ncon",
+      "match": "-?\\b(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.separator.comma.ncon", "match": "," },
+        { "name": "punctuation.section.parens.ncon", "match": "[()]" }
+      ]
+    }
+  }
+}

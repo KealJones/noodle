@@ -1,6 +1,6 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 17:31 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 17:50 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
@@ -45,7 +45,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 9 | what is the capital of japan? | From Wikipedia, [Capital of Japan](https://en.wikipedia.org/wiki/Capital_of_Japan):<br><br>The capital of Japan is Tokyo. Throughout history, the national capital of Japan has been in locations other than Tokyo. The oldest capital is Nara. | RIGHT | Tokyo. | RIGHT |
+| 9 | what is the capital of japan? | From Wikidata:<br><br>Tokyo | RIGHT | Tokyo. | RIGHT |
 | 10 | who wrote pride and prejudice | From Wikipedia, [Pride & Prejudice (2005 film)](https://en.wikipedia.org/wiki/Pride_%26_Prejudice_(2005_film)):<br><br>Pride & Prejudice is a 2005 period romance film directed by Joe Wright, in his feature directorial debut, based on Jane Austen's 1813 novel of the same name. The film features five sisters from an English family of landed gentry as they deal with issues of marriage, morality, and  ... | RIGHT | I don't know that yet. | HONEST |
 | 11 | how many legs does a spider have | I couldn't work out "how many legs does a spider have". | HONEST | I heard that as "how many legs does have spider", but couldn't work it out. Could you put it another way? | HONEST |
 | 12 | what's the boiling point of water in celsius | I couldn't work out "what's the boiling point of water in celsius". | HONEST | I don't know boiling point of water in celsius yet. | HONEST |
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 10:31 AM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 10:51 AM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Friday, October 2. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | From Wikipedia, [Date palm](https://en.wikipedia.org/wiki/Date_palm):<br><br>Phoenix dactylifera, commonly known as the date palm, is a flowering-plant species in the palm family Arecaceae, native to the region from the Gulf States and Iraq to Pakistan and India. It is cultivated for its edible sweet fruit called dates. The species is widely cultivated across northern Africa, the Middle East, Aust ... | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -128,9 +128,9 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-R7Xqxi`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-pqY00t`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 052f2d9621b20d9e096987f0b8b08d35741481f9<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 10:31:47 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 3830cd9b20e65a27a872c1d6f1daf9ea869a97a7<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 10:51:18 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I can run `git commit`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
 | 61 | yes go ahead | `git commit` failed (exit 1):<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
 | 62 | is the working tree clean now? | Do you mean run ` git clean  `, or run `git clean`? | RIGHT | I don't know yet. | HONEST |
