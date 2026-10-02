@@ -33,6 +33,11 @@ export interface RewriteOptions {
   beam: number;
   /** Rewrite steps on one path (runtime.md 7: a stated, tunable budget). */
   maxSteps: number;
+  /**
+   * Which readings may apply, where not all may: understanding a definition reduces it to core
+   * meanings and stops there, so readings that act are left for when a request is evaluated.
+   */
+  allow?: (r: ReadingItem) => boolean;
 }
 
 /** Heads whose arguments are content, never rewritten (logical-form.md section 5). */
@@ -46,20 +51,65 @@ export class Rewriter {
   ) {}
 
   /** Readings that may apply to e in this mode, with their matches. */
-  candidates(e: Expr): { r: ReadingItem; b: Bindings; result: Expr }[] {
+  candidates(e: Expr): { r: ReadingItem; b: Bindings; result: Expr; features?: Features }[] {
     if (!isCall(e)) return [];
-    const out: { r: ReadingItem; b: Bindings; result: Expr }[] = [];
-    for (const r of this.store.readingsFor(e.head)) {
-      if (!r.becomes || (r.mode && r.mode !== this.opts.mode)) continue;
-      // Lexical rules (patterns over chart categories) run in the chart, not here.
-      if (r.owner === "Segment") continue;
-      const m = match(r.pattern, e, this.store);
-      if (!m) continue;
-      const result = carry(instantiate(r.becomes, m.bindings), m.extra);
-      if (key(result) === key(e)) continue;
-      out.push({ r, b: m.bindings, result });
+    const out: { r: ReadingItem; b: Bindings; result: Expr; features?: Features }[] = [];
+    const consider = (r: ReadingItem, target: Call, features?: Features) => {
+      if (!this.usable(r)) return;
+      const m = match(r.pattern, target, this.store);
+      if (!m) return;
+      const result = carry(instantiate(r.becomes!, m.bindings), m.extra);
+      if (key(result) === key(e)) return;
+      out.push({ r, b: m.bindings, result, features });
+    };
+    for (const r of this.store.readingsFor(e.head)) consider(r, e);
+    // Senses (runtime.md 7): a word's senses with readings of their own are candidates for the
+    // word, the sense replacing it, scored by how often the word has that sense (its rank among
+    // the word's senses of the same part of speech, in the order the source gives them).
+    for (const { sense, rank } of this.expandable(e.head))
+      for (const r of this.store.readingsOn(sense))
+        if (isCall(r.pattern) && r.pattern.head === sense) consider(r, { ...e, head: sense }, new Map([["SenseFrequency", -rank]]));
+    return out;
+  }
+
+  private usable(r: ReadingItem): boolean {
+    if (!r.becomes || (r.mode && r.mode !== this.opts.mode)) return false;
+    // A definition that has not bottomed out is kept, not used (design section 6).
+    if (r.meta.status === "Pending") return false;
+    // Lexical rules (patterns over chart categories) run in the chart, not here.
+    if (r.owner === "Segment") return false;
+    return !this.opts.allow || this.opts.allow(r);
+  }
+
+  private senseCache = new Map<string, { sense: string; rank: number }[]>();
+
+  /** A word's senses, each with its rank among the word's senses of its part of speech. */
+  senses(word: string): { sense: string; rank: number }[] {
+    let out = this.senseCache.get(word);
+    if (!out) {
+      out = [];
+      const seen = new Map<string, number>();
+      for (const f of this.store.facts(word, "Sense")) {
+        const x = positional(f.claim as Call)[0];
+        if (!isCall(x)) continue;
+        const pos = this.store.facts(x.head, "PartOfSpeech").map((p) => key(p.claim)).join();
+        const rank = seen.get(pos) ?? 0;
+        seen.set(pos, rank + 1);
+        out.push({ sense: x.head, rank });
+      }
+      this.senseCache.set(word, out);
     }
     return out;
+  }
+
+  /**
+   * The senses a word may be replaced by in rewriting. A word the seed gives meaning to (a core
+   * meaning, a function word) is where definitions bottom out, so it is not expanded again through
+   * its imported senses (design section 6); otherwise "happen" would be defined by "come to pass",
+   * and that by "happen", without end.
+   */
+  private expandable(word: string): { sense: string; rank: number }[] {
+    return this.store.facts(word).some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed") ? [] : this.senses(word);
   }
 
   /** The value of a reading's wants as features (runtime.md 8.1: WantedKind, ShapeFit). */
@@ -97,7 +147,7 @@ export class Rewriter {
    */
   unread(e: Expr): number {
     if (!isCall(e) || OPAQUE.has(e.head)) return 0;
-    const own = !STRUCTURAL_NAMES.has(e.head) && this.store.readingsOn(e.head).some((r) => !r.mode && r.owner !== "Segment") ? 1 : 0;
+    const own = !STRUCTURAL_NAMES.has(e.head) && this.store.readingsOn(e.head).some((r) => !r.mode && r.owner !== "Segment" && r.meta.status !== "Pending") ? 1 : 0;
     return own + e.args.reduce((n, a) => n + this.unread(a.value), 0);
   }
 
@@ -118,9 +168,9 @@ export class Rewriter {
     const seen2 = new Set(seen).add(k);
     const cands = this.candidates(e);
     const alts: Omit<Derivation, "score">[] = [];
-    for (const { r, b, result } of cands) {
+    for (const { r, b, result, features } of cands) {
       const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result, from: r.meta.from, key: readingKey(r) };
-      const own = this.wantFeatures(r, b);
+      const own = features ? mergeFeatures(this.wantFeatures(r, b), features) : this.wantFeatures(r, b);
       addFeature(own, `Evidence:${readingKey(r)}`, 1);
       for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });
     }

@@ -156,6 +156,9 @@ literal (open question 1).
    of the gap's category may instead mark that Takes as filled by a gap variable, and the gap is
    threaded up through each edge that contains it (at most one open gap per edge). The displaced
    phrase fills it when the edge containing the gap meets it ("which branch did you push?").
+   A chart built with open arguments (`ChartOptions.open`, used to hear definitions, design
+   section 6) may leave a gap with no word that fills it: a definition is said of something it
+   does not name ("make visible"), and its open argument is where that something goes.
 
 No other step exists. Lexical rules (the passive, questions, fronting) are readings on words that
 apply to edges (section 5), not steps.
@@ -252,7 +255,12 @@ Evaluating an expression rewrites it until it reaches primitives, which run (des
 - **Senses**: when a reading's want on a role names a kind, and the argument in that role is a word
   concept, the word's senses that satisfy the want (by kind distance) are candidates for it, scored
   by sense frequency and evidence. The chosen sense replaces the word. A word no sense fits stays a
-  word and is a **gap** (design section 5): unworked, not an error.
+  word and is a **gap** (design section 5): unworked, not an error. A sense with readings of its
+  own (an act's definition, understood at import; docs/stage0.md) is also a candidate for its word
+  when the word is the head being rewritten, scored by `SenseFrequency` (minus the sense's rank
+  among the word's senses of its part of speech). A word the seed gives meaning to is not expanded
+  through its imported senses: it is where definitions bottom out. Readings with status `Pending`
+  (definitions that did not bottom out) are kept and never applied.
 - **Order**: rewriting is outermost first, then arguments; an argument whose value a reading needs
   is evaluated before it is used.
 - **Bounds**: at most 32 rewrite steps per expression (a stated, tunable budget); a rewrite that
