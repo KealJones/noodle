@@ -173,6 +173,15 @@ export class Session {
     if (choices.length) this.last = choices[choices.length - 1];
 
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
+    // Several offers in one turn are said as one offer of all of them, as they are one proposal.
+    const offers = said.filter((x) => isCall(x) && x.head === "Offer");
+    if (offers.length > 1) {
+      const first = said.indexOf(offers[0]);
+      const rest = said.filter((x) => !offers.includes(x));
+      rest.splice(first, 0, c("Offer", c("Sequence", ...offers.map((x) => positional(x as Call)[0]))));
+      said.length = 0;
+      said.push(...rest);
+    }
     const spoken = said.map((x) => this.inWords(x, words, allSteps));
     record.said = spoken;
     const out = spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean).join("\n\n");

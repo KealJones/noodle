@@ -186,10 +186,17 @@ export class Evaluator {
     if (!prop || !target) return this.stuck(x, c("NeedUnmet", c("Proposal")));
     if (this.mode === "Doing") this.conversation.permittedTurn = this.conversation.turnIndex;
     if (this.mode === "Doing") this.conversation.proposal = undefined;
-    const prim = this.primitiveCall(prop.act);
-    if (!prim) return this.stuck(prop.act, c("NoReading", prop.act));
-    // The user's yes is a level 1 grant for this act (runtime.md 12).
-    return this.call(prim.p, prim.args, prop.act, true);
+    // The user's yes is a level 1 grant for what was offered (runtime.md 12); several acts offered
+    // together run in order, stopping at the first that fails.
+    let o = this.out();
+    for (const act of isHead(prop.act, "Sequence") ? positional(prop.act) : [prop.act]) {
+      const prim = this.primitiveCall(act);
+      if (!prim) return this.merge(o, this.stuck(act, c("NoReading", act)));
+      const r = await this.call(prim.p, prim.args, act, true);
+      o = this.merge(o, r);
+      if (r.unworked || r.checksPassed === 0) break;
+    }
+    return o;
   }
 
   private resolveProposal(x: Expr): Expr | undefined {
@@ -270,7 +277,14 @@ export class Evaluator {
     const effects: EffectClass[] = p.effects(args, this.world);
     const guarded = effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
     if (guarded.length && !granted) {
-      if (this.mode === "Doing") this.conversation.proposal = { act, ancestry: this.ancestry(act), turn: this.conversation.turnIndex };
+      if (this.mode === "Doing") {
+        // Acts offered in one turn are one proposal, in order ("show me the diff and the log").
+        const prev = this.conversation.proposal;
+        this.conversation.proposal =
+          prev && prev.turn === this.conversation.turnIndex
+            ? { act: c("Sequence", ...(isHead(prev.act, "Sequence") ? positional(prev.act) : [prev.act]), act), ancestry: [...prev.ancestry, ...this.ancestry(act)], turn: prev.turn }
+            : { act, ancestry: this.ancestry(act), turn: this.conversation.turnIndex };
+      }
       const offer = effects.includes("UnknownEffects") ? c("Offer", act, ["effects", c("UnknownEffects")]) : c("Offer", act);
       return { ...this.out(), said: [offer], acts: [act], reachedAct: true };
     }
