@@ -58,13 +58,36 @@ export class Weights {
   }
 
   /** The perceptron's capped update (runtime.md section 15): move toward good, away from bad. */
-  update(good: Features, bad: Features, rate = 1, cap = 1) {
+  update(good: Features, bad: Features, rate = 1, cap = 1): Map<string, number | undefined> {
+    const before = new Map<string, number | undefined>();
     const names = new Set([...good.keys(), ...bad.keys()]);
     for (const n of names) {
       const d = ((good.get(n) ?? 0) - (bad.get(n) ?? 0)) * rate;
       if (!d) continue;
       const step = Math.max(-cap, Math.min(cap, d));
+      before.set(n, this.learned.get(n));
       this.learned.set(n, this.get(n) + step);
+    }
+    return before;
+  }
+
+  /** A copy, so a change can be compared with the weights before it. */
+  clone(): Weights {
+    const w = Object.create(Weights.prototype) as Weights;
+    Object.assign(w, { template: this.template, learned: new Map(this.learned) });
+    w.get = (name: string) => {
+      const l = w.learned.get(name);
+      if (l !== undefined) return l;
+      return this.template.get(name.split(":")[0]) ?? 0;
+    };
+    return w;
+  }
+
+  /** Puts back the weights an update changed (the replay gate's veto, testing.md section 4). */
+  revert(before: Map<string, number | undefined>) {
+    for (const [n, w] of before) {
+      if (w === undefined) this.learned.delete(n);
+      else this.learned.set(n, w);
     }
   }
 }

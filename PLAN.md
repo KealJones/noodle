@@ -79,12 +79,12 @@ first review, so they are in the git history, not `seed/CHANGES.md`. The kill te
 and the seed is still unreviewed: if either moves, the core moves with it. Since then: teaching
 ("X means Y", echoed and confirmed), corrections that flip and teach the weights, the scored match
 and a kill test checker (`pnpm killtest`, `docs/killtest.md`), canonicalization, the holdout split,
-act scoring against Keal's labels and the command-name baseline (`docs/results.md`).
+act scoring against Keal's labels and the command-name baseline (`docs/results.md`), the
+replay gate (on with `"replay": true` in the config), and the fixes from a review of the runtime.
 
 Not built yet, in rough order of need: the real imports (waiting on downloads, `docs/imports.md`);
 understanding a documentation description into core meanings, so a command's effects are known and
-a request can reach it without its name (phase 4 proper); the replay gate (testing.md section 4;
-learned weights are kept now but not gated); Know and live sources; Focus beyond the workspace's
+a request can reach it without its name (phase 4 proper); Know and live sources; Focus beyond the workspace's
 names; the default policies as runtime behaviour (seed/README.md, question 4); writing (a commit
 message from the change, genre shapes); past conversations.
 

@@ -60,7 +60,10 @@ grants below decide. `~/.noodle/config.json` is the user's own grant (design sec
 ```
 
 `grants` lists effect classes that run without an offer; `programs` limits what Run may start;
-`root` and `timeoutMs` are optional. Nothing Noodle learns can write this file.
+`root` and `timeoutMs` are optional; `"replay": true` checks every weight change a correction makes
+against your labelled prompts (the replay gate, testing.md section 4) and puts back any change that
+would turn a right answer wrong (the first check takes about half a minute while it indexes them).
+Nothing Noodle learns can write this file.
 
 ## Talking to it from a chat UI
 

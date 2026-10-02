@@ -99,3 +99,22 @@ test("a word taught with \"X means Y\" is echoed, kept when confirmed, and used"
   await s.turn("dont push yet");
   assert.equal((await s.turn("yeet")).text, "You said not to push yet. Do it now?");
 });
+
+test("a weight change the replay gate vetoes is put back, and the flip still happens", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-zap3", version="0", from=Seed("test"))
+Concept(Zap(), Lemma("zap"), Category(Act()))
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("first")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+`);
+  const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
+  let asked = 0;
+  s.gate = async () => {
+    asked++;
+    return false;
+  };
+  const ranFirst = (await s.turn("zap")).text.includes("first");
+  assert.match((await s.turn("no")).text, ranFirst ? /second/ : /first/);
+  assert.equal(asked, 1);
+  assert.equal(s.weights.learned.size, 0);
+});
