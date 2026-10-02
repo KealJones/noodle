@@ -5,7 +5,7 @@ import { createSession, packedStore, readConfig } from "./index.js";
 
 const why = process.argv.includes("--why");
 const config = readConfig();
-const session = createSession(packedStore(), process.env.NOODLE_ROOT ?? config.root ?? process.cwd(), config);
+const session = createSession(packedStore(), process.env.NOODLE_ROOT ?? config.root ?? process.cwd(), { ...config, learn: config.learn ?? true });
 const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "> " });
 rl.prompt();
 for await (const line of rl) {

@@ -7,7 +7,7 @@ import type { Candidate, Hearing } from "./hear.js";
 import { instantiate, match } from "./match.js";
 import type { Features } from "./score.js";
 import { addFeature, mergeFeatures, scoreOf } from "./score.js";
-import type { ReadingItem, Store } from "./store.js";
+import { type ReadingItem, type Store, readingKey } from "./store.js";
 
 export interface TakesSpec {
   side: "Left" | "Right";
@@ -367,7 +367,7 @@ export class Chart {
       const result = instantiate(r.becomes, m.bindings) as Call;
       if (!CATEGORY_HEADS.has(result.head)) continue;
       const features = new Map(e.features);
-      addFeature(features, `Rule:${r.meta.id}`, 1);
+      addFeature(features, `Rule:${readingKey(r)}`, 1);
       out.push(this.make({ ...e, category: result.head, expr: positional(result)[0], pending: [], modifies: [], byRule: true, features, step: `rule ${r.meta.id}`, back: [e] }));
     }
     return out;

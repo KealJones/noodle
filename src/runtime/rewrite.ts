@@ -6,7 +6,7 @@
 import { type Call, type Expr, isCall, isVar, key, positional, role } from "./expr.js";
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
-import type { ReadingItem, Store } from "./store.js";
+import { type ReadingItem, type Store, readingKey } from "./store.js";
 import { STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
@@ -104,7 +104,7 @@ export class Rewriter {
     for (const { r, b, result } of cands) {
       const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result };
       const own = this.wantFeatures(r, b);
-      addFeature(own, `Evidence:${r.meta.id}`, 1);
+      addFeature(own, `Evidence:${readingKey(r)}`, 1);
       for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });
     }
     // Leaving this node as it is, and reading its arguments, is an alternative too: a reading
