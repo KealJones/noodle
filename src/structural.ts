@@ -36,12 +36,12 @@ export const STRUCTURAL = {
       "Noun", "Thing", "Act", "Clause", "Relation", "Property", "Manner", "Mark",
       // Seed draft: an entry's wrapper, the gap filler in heard expressions, the correction and
       // aside marks, role filling in lexical rules and readings, and Indent (runtime.md 3.2).
-      "Wraps", "Gap", "Corrects", "Aside", "WithRoles", "Indent",
+      "Wraps", "Heads", "Gap", "Segment", "Corrects", "Aside", "WithRoles", "Indent",
     ],
   },
   shapes: {
     why: "the shape interpreter reads them (runtime.md section 3.4)",
-    names: ["Digits", "Letter", "Digit", "Lower", "Upper", "Space", "Any", "Literal", "Seq", "OneOf", "Repeat"],
+    names: ["Digits", "Letter", "Digit", "Lower", "Upper", "Space", "Any", "Literal", "Seq", "OneOf", "Repeat", "Shortest"],
   },
   logicalForm: {
     why: "evaluation has one rule per speech act and rule checking reads Not and Only (logical-form.md); protected base",

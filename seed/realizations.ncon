@@ -7,7 +7,8 @@
 //
 // Wording: string literals are the words said; a nested expression is realized by its own
 // Speaking readings, and a concept with none is said by its lemma (the last entry of section 1).
-// Printing: Print(doc, medium=M) is the last step of Say; Printed(...) joins its parts into text;
+// Printing: Print(doc, medium=M) is the last step of Say; a literal prints escaped in the medium
+// (content never becomes markup by accident); Printed(...) joins its parts into text;
 // Escaped(s) escapes the medium's marks in s; Fenced(s, mark) wraps s in a fence of mark longer
 // than any run of it inside s (structural; seed/README.md).
 
@@ -147,8 +148,6 @@ Reading(on=Paragraph(), mode=Speaking(), pattern=Print(Paragraph($x), medium=Mar
   becomes=Print($x, medium=Markdown()))
 Reading(on=Paragraph(), mode=Speaking(), pattern=Print(Paragraph($a, $b), medium=Markdown()),
   becomes=Printed(Print($a, medium=Markdown()), Print($b, medium=Markdown())))
-Reading(on=Text(), mode=Speaking(), pattern=Print($s, medium=Markdown()), wants=IsA($s, Text()),
-  becomes=Escaped($s, medium=Markdown()))
 Reading(on=Heading(), mode=Speaking(), pattern=Print(Heading($x, level=$n), medium=Markdown()),
   becomes=Printed(Repeated("#", $n), " ", Print($x, medium=Markdown())))
 Reading(on=List(), mode=Speaking(), pattern=Print(List($x), medium=Markdown()),

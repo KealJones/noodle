@@ -68,3 +68,8 @@ export function format(file: NconFile): string {
   const source = packSource(file);
   return file.forms.map((f) => print(normalizeForm(f, source), 0, undefined, 0)).join("\n\n") + (file.forms.length ? "\n" : "");
 }
+
+/** The canonical text of one expression (the formatter's, so sorting by it is stable). */
+export function formatExpr(e: Expr): string {
+  return print(e, 0, undefined, 0);
+}
