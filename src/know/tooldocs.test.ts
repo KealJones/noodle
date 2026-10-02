@@ -36,5 +36,5 @@ test("a tool's documentation gives its commands' words a sense that runs them, o
   const ran = await s.turn("yes");
   assert.match(ran.text, /^```\ngit status\n```\n\n```\n[\s\S]*a\.txt[\s\S]*```$/);
   await s.turn("dont push yet");
-  assert.equal((await s.turn("push")).text, "You said not to push yet. Do it now?");
+  assert.equal((await s.turn("push")).text, "You said not to `git push` yet. Do it now?");
 });
