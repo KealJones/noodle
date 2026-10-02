@@ -3,21 +3,22 @@
 // assistant loads every pack there after the seed.
 //   pnpm import wordnet ~/.noodle/sources/english-wordnet-2024.xml.gz
 //   pnpm import verbnet ~/.noodle/sources/verbnet/verbnet3.4
+//   pnpm import frames ~/.noodle/sources/english-wordnet-2025.xml.gz   (after wordnet: its verb frames)
 //   pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz
 //   pnpm import tool git       (from the local man pages)
 //   pnpm import definitions [count] [verb|all]   (the imported senses' definitions, understood)
 
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { seededStore } from "../runtime/seed.js";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { learnTool } from "./tooldocs.js";
 import { importVerbNet } from "./verbnet.js";
 import { importWiktionary } from "./wiktionary.js";
-import { packedStore } from "../assistant/index.js";
-import { importWordNet } from "./wordnet.js";
+import { STORE, packedStore } from "../assistant/index.js";
+import { importFrames, importWordNet } from "./wordnet.js";
 import { Understander, coverage, definitionsPack, firstSenses } from "./definitions.js";
 import { wordfreqWords } from "./wordfreq.js";
 import { format } from "../ncon/index.js";
@@ -36,6 +37,11 @@ if (source === "wordnet" && path) {
   const r = importWordNet(read(path), store, { version: version ?? basename(path).match(/\d{4}/)?.[0] ?? "unknown" });
   writeFileSync(join(PACKS, "oewn.ncon"), r.text);
   console.log(`oewn: ${r.words} words, ${r.senses} senses -> ${join(PACKS, "oewn.ncon")}`);
+} else if (source === "frames" && path) {
+  // WordNet's subcategorization frames, on the senses of the oewn pack already in the store.
+  const r = importFrames(read(path), packedStore(PACKS), { version: version ?? basename(path).match(/\d{4}/)?.[0] ?? "unknown" });
+  writeFileSync(join(PACKS, "oewn-frames.ncon"), r.text);
+  console.log(`oewn-frames: ${r.frames} frames -> ${join(PACKS, "oewn-frames.ncon")}`);
 } else if (source === "verbnet" && path) {
   const files = readdirSync(path)
     .filter((f) => f.endsWith(".xml"))
@@ -82,7 +88,7 @@ if (source === "wordnet" && path) {
   const cov = coverage(targets, new Map(defs.map((d) => [d.sense, d])));
   const shown = (e: unknown) => (e ? format({ forms: [e as never] }).trim() : undefined);
   const report = { lemmas: lemmas.length, targets, coverage: cov, heard: u.stats.heard, ms: Math.round(u.stats.ms), definitions: defs.map((d) => ({ ...d, becomes: shown(d.becomes), patterns: d.patterns.map(shown) })) };
-  writeFileSync(join(homedir(), ".noodle", "stage0.json"), JSON.stringify(report, null, 1));
+  writeFileSync(join(dirname(STORE), "stage0.json"), JSON.stringify(report, null, 1));
   const reduced = defs.filter((d) => d.status === "Active" && d.via === "Definition").length;
   console.log(`definitions: ${defs.length} senses, ${reduced} bottomed out through their definitions, ${defs.filter((d) => d.via === "Kind").length} nouns through their kinds -> ${join(PACKS, "definitions.ncon")}`);
   for (const cv of cov)

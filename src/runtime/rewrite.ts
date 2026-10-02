@@ -60,7 +60,8 @@ export class Rewriter {
       if (!this.usable(r)) return;
       const m = match(r.pattern, target, this.store);
       if (!m) return;
-      const result = carry(instantiate(r.becomes!, m.bindings), m.extra);
+      const made = instantiate(r.becomes!, m.bindings);
+      const result = carry(made, m.extra);
       if (key(result) === key(e)) return;
       // Roles of the expression the pattern did not name are carried over, and counted (runtime.md
       // 6.1): of two readings of the same expression, the one that accounts for more of what was
@@ -70,15 +71,22 @@ export class Rewriter {
       const unmatched = target.args.filter((a) => a.name !== undefined && !pattern.args.some((p) => p.name === a.name)).length;
       const f: Features = new Map(features ?? []);
       if (unmatched) addFeature(f, "Unmatched", -unmatched);
+      // What was said in a role the result fills with something of its own is lost: unworked
+      // (runtime.md 6.1), so a reading that keeps every argument beats one that replaces one.
+      const dropped = isCall(made) ? m.extra.filter((x) => made.args.some((a) => a.name === x.name && key(a.value) !== key(x.value))).length : 0;
+      if (dropped) addFeature(f, "Unworked:Dropped", -dropped);
       out.push({ r, b: m.bindings, result, features: f.size ? f : undefined });
     };
     for (const r of this.store.readingsFor(e.head)) consider(r, e);
     // Senses (runtime.md 7): a word's senses with readings of their own are candidates for the
-    // word, the sense replacing it, scored by how often the word has that sense (its rank among
-    // the word's senses of the same part of speech, in the order the source gives them).
-    for (const { sense, rank } of this.expandable(e.head))
+    // word, the sense replacing it, scored by how likely the word is to have that sense: the log
+    // of its share among the word's senses of the same part of speech, a share falling with its
+    // rank in the order the source gives them (1/(rank+1), normalized). A word with one sense has
+    // it for certain; otherwise the sense is a guess, which a reading of the word itself does
+    // not have to make.
+    for (const { sense, prior } of this.expandable(e.head))
       for (const r of this.store.readingsOn(sense))
-        if (isCall(r.pattern) && r.pattern.head === sense) consider(r, { ...e, head: sense }, new Map([["SenseFrequency", -rank]]));
+        if (isCall(r.pattern) && r.pattern.head === sense) consider(r, { ...e, head: sense }, new Map([["SenseFrequency", prior]]));
     return out;
   }
 
@@ -91,13 +99,16 @@ export class Rewriter {
     return !this.opts.allow || this.opts.allow(r);
   }
 
-  private senseCache = new Map<string, { sense: string; rank: number }[]>();
+  private senseCache = new Map<string, { sense: string; rank: number; prior: number }[]>();
 
-  /** A word's senses, each with its rank among the word's senses of its part of speech. */
-  senses(word: string): { sense: string; rank: number }[] {
+  /**
+   * A word's senses, each with its rank among the word's senses of its part of speech and its
+   * prior: the log of its share of them, a share falling as 1/(rank+1).
+   */
+  senses(word: string): { sense: string; rank: number; prior: number }[] {
     let out = this.senseCache.get(word);
     if (!out) {
-      out = [];
+      const found: { sense: string; rank: number; pos: string }[] = [];
       const seen = new Map<string, number>();
       for (const f of this.store.facts(word, "Sense")) {
         const x = positional(f.claim as Call)[0];
@@ -105,8 +116,12 @@ export class Rewriter {
         const pos = this.store.facts(x.head, "PartOfSpeech").map((p) => key(p.claim)).join();
         const rank = seen.get(pos) ?? 0;
         seen.set(pos, rank + 1);
-        out.push({ sense: x.head, rank });
+        found.push({ sense: x.head, rank, pos });
       }
+      let h = 0;
+      const harmonic = [0];
+      for (let i = 1; i <= Math.max(0, ...seen.values()); i++) harmonic.push((h += 1 / i));
+      out = found.map(({ sense, rank, pos }) => ({ sense, rank, prior: -Math.log((rank + 1) * harmonic[seen.get(pos)!]) }));
       this.senseCache.set(word, out);
     }
     return out;
@@ -118,7 +133,7 @@ export class Rewriter {
    * its imported senses (design section 6); otherwise "happen" would be defined by "come to pass",
    * and that by "happen", without end.
    */
-  private expandable(word: string): { sense: string; rank: number }[] {
+  private expandable(word: string): { sense: string; rank: number; prior: number }[] {
     return this.store.facts(word).some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed") ? [] : this.senses(word);
   }
 

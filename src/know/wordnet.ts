@@ -6,7 +6,7 @@
 // lexical-rules.ncon), and never for a word the seed already gives entries to.
 
 import { createHash } from "node:crypto";
-import { type Expr, c, isCall, positional, s } from "../runtime/expr.js";
+import { type Expr, c, isCall, key, positional, s } from "../runtime/expr.js";
 import { instantiate, match } from "../runtime/match.js";
 import type { Store } from "../runtime/store.js";
 import { format } from "../ncon/index.js";
@@ -129,6 +129,55 @@ export function importWordNet(xml: string, store: Store, opts: { version: string
     forms.push(c("Concept", c(name), ...claims, ["from", c("WordNet", s(sy.id))]));
   }
   return { text: format({ forms: forms as never }), words: byWord.size, senses };
+}
+
+/**
+ * WordNet's subcategorization frames, as facts on the senses already in the store ("Somebody
+ * ----s something" for a sense of "fill"): SyntacticFrame(subject, what follows the verb, word=W), each
+ * word heard as the seed has it. Senses are found by their synset (the WordNet source of the
+ * sense's facts), so this pack goes with the oewn pack it was made against. Placeholders the seed
+ * has no word for (INFINITIVE, PP, Adjective) are left out; a frame whose subject the seed does
+ * not know is not kept.
+ */
+export function importFrames(xml: string, store: Store, opts: { version: string }): { text: string; frames: number } {
+  const doc = parseXml(xml);
+  const frameText = new Map<string, string>();
+  for (const el of elements(doc, "SyntacticBehaviour")) frameText.set(el.attrs.id, el.attrs.subcategorizationFrame ?? "");
+  const senseOf = new Map<string, string>();
+  for (const f of store.factsWithHead("PartOfSpeech")) {
+    const id = isCall(f.meta.from) && f.meta.from.head === "WordNet" ? positional(f.meta.from)[0] : undefined;
+    if (id?.kind === "string" && id.value.startsWith("oewn-")) senseOf.set(id.value, f.subject);
+  }
+  const seedWord = (t: string): Expr[] => {
+    const h = store.lookup(t).find((x) => store.facts(x.concept).some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed"));
+    return h ? [c(h.concept)] : [];
+  };
+  const read = (text: string): Expr[] | undefined => {
+    const tokens = text.toLowerCase().split(/\s+/).filter(Boolean);
+    const at = tokens.findIndex((t) => t.startsWith("----"));
+    const subject = at > 0 ? seedWord(tokens[at - 1]) : [];
+    return subject.length ? [...subject, ...tokens.slice(at + 1).flatMap(seedWord)] : undefined;
+  };
+  const forms: Expr[] = [c("Pack", ["name", s("oewn-frames")], ["version", s(opts.version)], ["from", c("WordNet", s(`oewn-${opts.version}`))], ["license", s("CC BY 4.0")])];
+  const seen = new Set<string>();
+  for (const el of elements(doc, "LexicalEntry")) {
+    const lemma = child(el, "Lemma")?.attrs.writtenForm;
+    const word = lemma && store.lookup(lemma).find((h) => h.text === lemma && store.facts(h.concept, "Sense").length)?.concept;
+    if (!word) continue;
+    for (const x of childrenNamed(el, "Sense")) {
+      const sense = senseOf.get(x.attrs.synset);
+      if (!sense || !x.attrs.subcat) continue;
+      for (const id of x.attrs.subcat.split(/\s+/)) {
+        const f = read(frameText.get(id) ?? "");
+        const claim = f && c("SyntacticFrame", ...f, ["word", c(word)]);
+        const k = claim && `${sense}|${key(claim)}`;
+        if (!claim || seen.has(k!)) continue;
+        seen.add(k!);
+        forms.push(c("Fact", c(sense), claim, ["from", c("WordNet", s(x.attrs.synset))]));
+      }
+    }
+  }
+  return { text: format({ forms: forms as never }), frames: seen.size };
 }
 
 /** The Category facts the seed's part-of-speech readings give a part of speech. */

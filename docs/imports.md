@@ -55,9 +55,9 @@ pnpm run import verbnet ~/.noodle/sources/verbnet/verbnet3.4
 - The imports were written against the documented formats and tested on invented fixtures in their
   shape. The first run on the real files is the real test; expect to adjust.
 
-## Set aside
+## Definitions
 
 - **Definitions** (`pnpm run import definitions`, `docs/stage0.md`) write `definitions.ncon`. Its
-  strict precision is 38 percent, below PLAN.md phase 4's 70 percent stop line, and in chat its
-  readings crowded out right ones, so the pack is kept in `~/.noodle/packs-pending/` and not
-  loaded. A pack whose file leaves `~/.noodle/packs/` is taken out of the store on the next start.
+  strict precision is 54 percent (84 counting partial), still below PLAN.md phase 4's 70 percent
+  line, but the harness scores the same with it as without, so it is loaded. A pack whose file
+  leaves `~/.noodle/packs/` is taken out of the store on the next start.

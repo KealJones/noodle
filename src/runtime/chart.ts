@@ -129,6 +129,57 @@ export class Chart {
     return e;
   }
 
+  private priors = new Map<string, Map<string, number> | undefined>();
+  private posCategories = new Map<string, string[]>();
+
+  /** The categories the seed's readings of a part of speech give its words (seed/lexical-rules). */
+  private categoriesOf(pos: string): string[] {
+    let out = this.posCategories.get(pos);
+    if (!out) {
+      out = [...new Set(this.store.readingsOn(pos).flatMap((r) => (isHead(r.pattern, "PartOfSpeech") && isHead(r.becomes, "Category") && isCall(positional(r.becomes as Call)[0]) ? [(positional(r.becomes as Call)[0] as Call).head] : [])))];
+      this.posCategories.set(pos, out);
+    }
+    return out;
+  }
+
+  /**
+   * How likely a word is to be heard as each category (the sense-frequency prior, runtime.md 8.1):
+   * the log of the share of its senses whose part of speech gives that category, so "full" is
+   * more likely a property than a noun. A category of a part of speech none of its senses has
+   * counts as one sense more than it has. The seed's own entries for a word are given, not
+   * counted, and a word with no senses has no prior.
+   */
+  private categoryPrior(concept: string): Map<string, number> | undefined {
+    if (this.priors.has(concept)) return this.priors.get(concept);
+    let out: Map<string, number> | undefined;
+    const seeded = this.store.facts(concept, "Category").some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed");
+    if (!seeded) {
+      const count = new Map<string, number>();
+      const all = new Set<string>();
+      let total = 0;
+      for (const f of this.store.facts(concept, "Sense")) {
+        const x = positional(f.claim as Call)[0];
+        if (!isCall(x)) continue;
+        const cats = new Set(this.store.facts(x.head, "PartOfSpeech").flatMap((p) => {
+          const pos = positional(p.claim as Call)[0];
+          return isCall(pos) ? this.categoriesOf(pos.head) : [];
+        }));
+        if (!cats.size) continue;
+        total++;
+        for (const k of cats) count.set(k, (count.get(k) ?? 0) + 1);
+      }
+      if (total) {
+        for (const r of this.store.readingsFor("PartOfSpeech")) {
+          const pos = positional(r.pattern as Call)[0];
+          if (isCall(pos)) for (const k of this.categoriesOf(pos.head)) all.add(k);
+        }
+        out = new Map([...all].map((k) => [k, Math.log(count.has(k) ? count.get(k)! / total : 1 / (total + 1))]));
+      }
+    }
+    this.priors.set(concept, out);
+    return out;
+  }
+
   private make(p: Omit<Edge, "id" | "score" | "byRule" | "formFeatures" | "anyCategory" | "modifies" | "pending"> & Partial<Edge>): Edge {
     const edge: Edge = { pending: [], modifies: [], anyCategory: false, formFeatures: [], byRule: false, ...p, id: this.nextId++, score: 0 };
     edge.score = scoreOf(edge.features, this.weights);
@@ -157,8 +208,12 @@ export class Chart {
     };
     if (cand.concept) {
       const { entries, joins } = this.entries(cand.concept);
+      const prior = this.categoryPrior(cand.concept);
       for (const en of entries) {
         if (en.fillsGap) this.hasGapWord = true;
+        const f = joined(features, en.category);
+        const p = prior?.get(en.category);
+        if (p !== undefined) addFeature(f, "SenseFrequency:Category", p);
         out.push(
           this.make({
             start: cand.start,
@@ -173,7 +228,7 @@ export class Chart {
             acceptsGap: en.fillsGap,
             word: cand.concept,
             formFeatures: cand.features,
-            features: joined(features, en.category),
+            features: f,
             step: "word",
             back: [],
           }),
@@ -228,7 +283,7 @@ export class Chart {
       expr,
       pending: head.pending.slice(1),
       gap: head.gap ?? (arg.gap && head.acceptsGap === arg.gap ? undefined : arg.gap),
-      features: mergeFeatures(head.features, arg.features),
+      features: mergeFeatures(head.features, arg.features, named(p.takes)),
       byRule: false,
       step: "take",
       back: [head, arg],
@@ -303,7 +358,7 @@ export class Chart {
       expr,
       pending: [...inner, ...head.pending.slice(1)],
       acceptsGap: arg.acceptsGap ?? head.acceptsGap,
-      features: mergeFeatures(head.features, arg.features),
+      features: mergeFeatures(head.features, arg.features, named(p.takes)),
       byRule: false,
       step: "compose",
       back: [head, arg],
@@ -566,6 +621,12 @@ export function entriesOf(store: Store, concept: string) {
 const headOf = (e: Expr | undefined) => (isCall(e) ? e.head : undefined);
 const boolOf = (e: Expr | undefined) => e?.kind === "boolean" && e.value;
 const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1);
+
+/**
+ * A word taken where an entry asks for that very word ("cause" takes "to" and an act) fits the
+ * entry better than the same words put together another way (runtime.md 8.1, ShapeFit).
+ */
+const named = (t: TakesSpec): Features => (t.head ? new Map([["ShapeFit:Head", 1]]) : new Map());
 
 function argCount(e: Expr, path: number[]): number {
   let x = e;

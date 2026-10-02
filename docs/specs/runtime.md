@@ -261,10 +261,15 @@ Evaluating an expression rewrites it until it reaches primitives, which run (des
   by sense frequency and evidence. The chosen sense replaces the word. A word no sense fits stays a
   word and is a **gap** (design section 5): unworked, not an error. A sense with readings of its
   own (an act's definition, understood at import; docs/stage0.md) is also a candidate for its word
-  when the word is the head being rewritten, scored by `SenseFrequency` (minus the sense's rank
-  among the word's senses of its part of speech). A word the seed gives meaning to is not expanded
+  when the word is the head being rewritten, scored by `SenseFrequency`: the log of the sense's
+  share among the word's senses of its part of speech, a share falling as 1/(rank+1), so a word
+  with one sense has it for certain and otherwise the expansion costs the guess a reading of the
+  word itself does not make. A word the seed gives meaning to is not expanded
   through its imported senses: it is where definitions bottom out. Readings with status `Pending`
   (definitions that did not bottom out) are kept and never applied.
+- **Kept arguments**: a reading whose result fills a role with something of its own, where the
+  expression had something said in that role, drops what was said; each such argument counts
+  `Unworked:Dropped` (-1), so a reading that keeps the user's arguments beats one that replaces them.
 - **Order**: rewriting is outermost first, then arguments; an argument whose value a reading needs
   is evaluated before it is used.
 - **Bounds**: at most 32 rewrite steps per expression (a stated, tunable budget); a rewrite that
@@ -295,9 +300,9 @@ Templates (design section 9):
 | `WordsUsed` | tokens covered (+1 each), `Skipped` per skipped token by candidate type (-1 each; a tone word 0), `Fragments` (-0.5 per edge of a cover after the first, so a partial parse is allowed but one reading of the same words is preferred), and `Joined` (+1 per token past the first of a noun the lexicon lists as one word, "shopping list", so the compound is preferred to the same nouns put together) |
 | `CandidateSource` | the token candidate's source and distance (section 3.3) |
 | `WantedKind` | per filled role with a want: minus the kind distance to the wanted kind |
-| `ShapeFit` | per shape want: whether it fits |
+| `ShapeFit` | per shape want: whether it fits; `Head` (+1 per argument taken where an entry asks for that very word, "cause" taking "to" and an act); `Frame` (in understanding a definition only: +1 when the reading leaves open as many objects as the sense's WordNet frames say it takes, -1 when not) |
 | `Neighbour` | per want naming a neighbour: exact word, else its kind, else the conversation topic (backoff) |
-| `SenseFrequency` | log of the imported sense count, smoothed |
+| `SenseFrequency` | log of the imported sense count, smoothed: a sense's prior in rewriting (section 7); `Category` on a word edge, the log of the share of the word's senses whose part of speech gives the edge's category (a category none of them gives counts as one sense more), for words whose entries the seed does not give |
 | `Evidence` | log counts of (word, neighbour, chosen sense) and (word, neighbour, chosen reading), with backoff from neighbour to neighbour kind |
 | `Match` | the scored match's features (section 6.2) |
 | `Unmatched` | minus the roles of the expression a reading's pattern did not name, carried over (section 6.1): of two readings of the same expression, the one that accounts for more of it fits better (seed weight 0.25) |

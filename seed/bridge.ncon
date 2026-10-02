@@ -78,6 +78,9 @@ Reading(on=Say(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)),
 // which of the two is meant is the score's, by whether the thing can be read.
 Reading(on=Read(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)), becomes=Read($x))
 Reading(on=Read(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Read($x))
+// Saying something that is read (a file, a page) is reading it out: "repeat the readme" says its
+// content, not its name. Which is meant is the score's, by whether the thing can be read.
+Reading(on=Read(), pattern=Say($x), becomes=Read($x))
 // The assistant making something seen, with no one named to see it ("show the log", and a tool's
 // own "Show the working tree status"), shows it to whoever it is talking to.
 Reading(on=Say(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x))), becomes=Say($x), effects=Speaks())
