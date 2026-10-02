@@ -44,7 +44,7 @@ test("asking what is in a file reads it and shows its content", async () => {
   const root = mkdtempSync(join(tmpdir(), "noodle-turn-"));
   writeFileSync(join(root, "README.md"), "# Hello\n");
   const s = createSession(seededStore(), root);
-  for (const ask of ["what is in README.md?", "whats in readme.md"]) {
+  for (const ask of ["what is in README.md?", "whats in readme.md", "whats in it?"]) {
     const r = await s.turn(ask);
     assert.equal(r.text, "`README.md`:\n\n```\n# Hello\n```", ask);
   }

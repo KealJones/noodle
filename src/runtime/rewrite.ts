@@ -7,6 +7,7 @@ import { type Call, type Expr, isCall, isVar, key, positional, role } from "./ex
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import type { ReadingItem, Store } from "./store.js";
+import { STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
 
@@ -74,7 +75,23 @@ export class Rewriter {
 
   normalize(e: Expr): Derivation[] {
     const out = this.norm(e, 0, new Set());
-    return out.map((d) => ({ ...d, score: scoreOf(d.features, this.weights) })).sort((a, b) => b.score - a.score);
+    return out
+      .map((d) => {
+        const features = mergeFeatures(d.features, new Map([["Unworked", -this.unread(d.expr)]]));
+        return { ...d, features, score: scoreOf(features, this.weights) };
+      })
+      .sort((a, b) => b.score - a.score);
+  }
+
+  /**
+   * Expressions left that have readings of their own, none of which applied: a word that should
+   * have been read and was not ("yet" left inside a rule). Unworked, by the definition of section
+   * 7; structural heads and opaque nodes do not count.
+   */
+  unread(e: Expr): number {
+    if (!isCall(e) || OPAQUE.has(e.head)) return 0;
+    const own = !STRUCTURAL_NAMES.has(e.head) && this.store.readingsOn(e.head).some((r) => !r.mode && r.owner !== "Segment") ? 1 : 0;
+    return own + e.args.reduce((n, a) => n + this.unread(a.value), 0);
   }
 
   private norm(e: Expr, depth: number, seen: Set<string>): Omit<Derivation, "score">[] {
@@ -123,8 +140,10 @@ export class Rewriter {
 
   private top(alts: Omit<Derivation, "score">[]): Omit<Derivation, "score">[] {
     const seen = new Set<string>();
+    // The beam ranks by what the alternative would score as a finished derivation, unread
+    // expressions included, so a fully read alternative is not cut on a tie.
     return alts
-      .map((a) => ({ a, s: scoreOf(a.features, this.weights) }))
+      .map((a) => ({ a, s: scoreOf(a.features, this.weights) + this.weights("Unworked") * -this.unread(a.expr) }))
       .sort((x, y) => y.s - x.s)
       .filter(({ a }) => {
         const k = key(a.expr);
