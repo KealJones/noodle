@@ -16,6 +16,7 @@ import { Session } from "../runtime/turn.js";
 import type { EffectClass, World } from "../runtime/primitive.js";
 import type { Store } from "../runtime/store.js";
 import type { Assistant, ChatMessage } from "../serve/assistant.js";
+import { ReplayGate } from "./replay.js";
 
 export interface AssistantOptions {
   /** The workspace every primitive is confined to. */
@@ -54,6 +55,8 @@ export interface Config {
   programs?: string[];
   root?: string;
   timeoutMs?: number;
+  /** Check learned weight changes against the hand-checked items (testing.md section 4). */
+  replay?: boolean;
   /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
   learn?: boolean;
   learnedPath?: string;
@@ -99,6 +102,11 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     world.keep?.({ kind: "call", head: "Fact", args: [{ value: { kind: "call", head: "Confirmation", args: [], pos: { line: 0, column: 0 } } }, { value: claim }], pos: { line: 0, column: 0 } });
   };
   const session = new Session(store, PRIMITIVES, world);
+  // The replay gate, where the corpus is on this machine and the config asks for it.
+  if (config.replay) {
+    const gate = new ReplayGate(store);
+    session.gate = (changed, after, before) => gate.check(changed, after, before);
+  }
   if (config.learn)
     session.onLearn = (w) => {
       mkdirSync(join(homedir(), ".noodle"), { recursive: true });

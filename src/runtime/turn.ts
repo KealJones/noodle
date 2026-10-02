@@ -51,6 +51,11 @@ export class Session {
   private last?: LastChoice;
   /** Called after learning changes the weights, so the channel can keep them (no file access here). */
   onLearn?: (weights: Weights) => void;
+  /**
+   * The replay gate (testing.md section 4): given the features an update changed, whether the
+   * hand-checked items they touch still come out right. A change it vetoes is put back.
+   */
+  gate?: (changed: ReadonlySet<string>, after: Weights, before: Weights) => Promise<boolean>;
   readonly weights: Weights;
   readonly speaker: Speaker;
   private medium: string;
@@ -60,8 +65,9 @@ export class Session {
     readonly primitives: ReadonlyMap<string, Primitive>,
     readonly world: World,
     readonly opts: TurnOptions = DEFAULT_TURN,
+    weights?: Weights,
   ) {
-    this.weights = new Weights(store);
+    this.weights = weights ?? new Weights(store);
     this.speaker = new Speaker(store);
     const m = store.facts("Conversation", "Medium").map((f) => positional(f.claim as Call)[0])[0];
     this.medium = isCall(m) ? m.head : "";
@@ -209,9 +215,14 @@ export class Session {
     const alts = last.readings.filter((r) => r !== last.winner && r.lfs.map(key).join(";") !== was && (r.features.get("ReachedAct") ?? 0) > 0);
     const alt = alts.sort((a, b) => b.score - a.score)[0];
     if (!alt) return undefined;
-    // The latent-variable perceptron's step (runtime.md 15), capped.
-    this.weights.update(alt.features, last.winner.features);
-    this.onLearn?.(this.weights);
+    // The latent-variable perceptron's step (runtime.md 15), capped, kept only if the replay gate
+    // passes; the flip itself happens either way, since the user said so.
+    const snapshot = this.gate ? this.weights.clone() : undefined;
+    const before = this.weights.update(alt.features, last.winner.features);
+    const kept = !this.gate || !snapshot || (await this.gate(new Set(before.keys()), this.weights, snapshot));
+    if (kept) this.onLearn?.(this.weights);
+    else this.weights.revert(before);
+    record.reasons.push(choice(kept ? "weights updated" : "weights update vetoed by the replay gate", [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
     record.reasons.push(choice(`correction of "${last.segText}"`, [last.winner, alt].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 1));
     record.lf.push(...alt.lfs);
     const ev = new Evaluator(this.store, this.primitives, this.world, this.conversation, "Doing", alt.steps, last.segText, (x) => this.canSay(x));
