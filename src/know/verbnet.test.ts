@@ -61,3 +61,48 @@ test("VerbNet frames give verbs chart entries and readings that reach the bridge
   const lfs = rw.normalize(heard).map((d) => key(d.expr));
   assert.ok(lfs.some((x) => x.startsWith("Store($destination, $theme")), lfs.join("\n"));
 });
+
+// VerbNet 3.4's own shapes: a subclass inherits its parent's frames (and its members are not the
+// parent's), a process event culminates in a later state, and a predicate negated at the result is
+// what stops holding.
+const REMOVE = `<?xml version="1.0" encoding="UTF-8"?>
+<VNCLASS ID="clear-1">
+  <MEMBERS><MEMBER name="clear"/></MEMBERS>
+  <THEMROLES/>
+  <FRAMES>
+    <FRAME>
+      <DESCRIPTION primary="NP V NP PP.source" secondary=""/>
+      <SYNTAX><NP value="Agent"/><VERB/><NP value="Theme"/><PREP value="from"/><NP value="Initial_Location"/></SYNTAX>
+      <SEMANTICS>
+        <PRED value="has_location"><ARGS><ARG type="Event" value="e1"/><ARG type="ThemRole" value="Theme"/><ARG type="ThemRole" value="Initial_Location"/></ARGS></PRED>
+        <PRED value="do"><ARGS><ARG type="Event" value="e2"/><ARG type="ThemRole" value="Agent"/></ARGS></PRED>
+        <PRED bool="!" value="has_location"><ARGS><ARG type="Event" value="ë3"/><ARG type="ThemRole" value="Theme"/><ARG type="ThemRole" value="Initial_Location"/></ARGS></PRED>
+        <PRED value="cause"><ARGS><ARG type="Event" value="e2"/><ARG type="Event" value="ë3"/></ARGS></PRED>
+      </SEMANTICS>
+    </FRAME>
+    <FRAME>
+      <DESCRIPTION primary="NP V NP PP.destination" secondary=""/>
+      <SYNTAX><NP value="Agent"/><VERB/><NP value="Theme"/><PREP value="to"/><NP value="Destination"/></SYNTAX>
+      <SEMANTICS>
+        <PRED value="do"><ARGS><ARG type="Event" value="e2"/><ARG type="ThemRole" value="Agent"/></ARGS></PRED>
+        <PRED value="motion"><ARGS><ARG type="Event" value="ë3"/><ARG type="ThemRole" value="Theme"/><ARG type="PredSpecific" value="Trajectory"/></ARGS></PRED>
+        <PRED value="has_location"><ARGS><ARG type="Event" value="e4"/><ARG type="ThemRole" value="Theme"/><ARG type="ThemRole" value="Destination"/></ARGS></PRED>
+        <PRED value="cause"><ARGS><ARG type="Event" value="e2"/><ARG type="Event" value="ë3"/></ARGS></PRED>
+      </SEMANTICS>
+    </FRAME>
+  </FRAMES>
+  <SUBCLASSES>
+    <VNSUBCLASS ID="clear-1-1"><MEMBERS><MEMBER name="sweep"/></MEMBERS><FRAMES/><SUBCLASSES/></VNSUBCLASS>
+  </SUBCLASSES>
+</VNCLASS>`;
+
+test("subclasses inherit frames; results are the culmination, and what stops holding", () => {
+  const store = seededStore();
+  const r = importVerbNet([{ name: "clear-1.xml", xml: REMOVE }], store, { version: "3.4" });
+  store.load(r.text);
+  const readings = (w: string) => store.readingsOn(w).map((x) => key(x.becomes!));
+  for (const w of ["Clear", "Sweep"]) {
+    assert.ok(readings(w).includes("Cause(agent=$agent, result=Become(Not(HasLocation($theme, $source))))"), readings(w).join("\n"));
+    assert.ok(readings(w).includes("Cause(agent=$agent, result=Become(HasLocation($theme, $destination)))"), readings(w).join("\n"));
+  }
+});

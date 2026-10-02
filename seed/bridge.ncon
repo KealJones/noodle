@@ -14,27 +14,29 @@ Pack(name="seed-bridge", version="0.1.0", from=Seed("bridge"))
 // ---------------------------------------------------------------------------------------------
 // Holding
 
-// Cause something to be in a holder: Store.
+// Cause something to be in a holder: Store (ChangesGraph for a holder in the graph, the primitive's).
 Reading(on=Store(), pattern=Cause(result=Become(BeIn($x, $h))),
-  becomes=Store($h, $x), effects=ChangesLocal(), checks=Contains($h, $x))
+  becomes=Store($h, $x), checks=Contains($h, $x))
 
 // Cause a holder to have something: Store.
 Reading(on=Store(), pattern=Cause(result=Become(Have($h, $x))),
-  becomes=Store($h, $x), effects=ChangesLocal(), checks=Contains($h, $x))
+  becomes=Store($h, $x), checks=Contains($h, $x))
 
-// Cause something to stop being in a holder: Remove.
+// Cause something to stop being in a holder: Remove. Its effect class is the primitive's, from
+// the holder: taking out of a holder in the graph what the user put in retracts a fact, which loses
+// nothing and Store restores, so it is ChangesGraph (built-ins.md section 2), not Deletes.
 Reading(on=Remove(), pattern=Cause(result=Become(Not(BeIn($x, $h)))),
-  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+  becomes=Remove($h, $x), checks=Not(Contains($h, $x)))
 
 Reading(on=Remove(), pattern=Cause(result=Become(Not(Have($h, $x)))),
-  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+  becomes=Remove($h, $x), checks=Not(Contains($h, $x)))
 
 // Cause something to stop existing: Remove it from where it is.
 Reading(on=Remove(), pattern=Cause(result=Become(Not(Exist($x)))), needs=BeIn($x, $h),
-  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+  becomes=Remove($h, $x), checks=Not(Contains($h, $x)))
 
 Reading(on=Remove(), pattern=Cause(result=End($x)), wants=IsA($x, Thing()), needs=BeIn($x, $h),
-  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+  becomes=Remove($h, $x), checks=Not(Contains($h, $x)))
 
 // Move something from one holder to another: Remove from the source, then Store at the destination.
 Reading(on=Sequence(), pattern=Move(theme=$x, source=$s, destination=$d),
@@ -182,6 +184,9 @@ Reading(on=Contact(), pattern=Contact($x, $y), becomes=Touch($x, $y))
 Reading(on=Utilize(), pattern=Utilize($a, $x), becomes=Use(agent=$a, theme=$x))
 Reading(on=Desire(), pattern=Desire($e, $x), becomes=Want(experiencer=$e, theme=$x))
 Reading(on=Destroyed(), pattern=Destroyed($x), becomes=Not(Exist($x)))
+// VerbNet's together of a thing and a list (mix-22.1: "add the eggs to the list"): the thing is in
+// the list. Together with another kind of whole, it is only together with it (the want is scored).
+Reading(on=Together(), pattern=Together($x, $h), wants=IsA($h, List()), becomes=BeIn($x, $h))
 
 // ---------------------------------------------------------------------------------------------
 // Tools: the one general entry (design section 6). Whatever a tool's documentation page says the

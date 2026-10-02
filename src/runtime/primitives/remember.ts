@@ -4,8 +4,10 @@
 // concept. A word the store has never seen becomes a word concept first, named by its lemma, with
 // the chart entries of what it is taught to mean. What is remembered comes from the user (level 1).
 
-import { type Call, type Expr, c, isCall, isHead, positional, s } from "../expr.js";
+import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite, role, s, walk } from "../expr.js";
+import { STRUCTURAL, STRUCTURAL_NAMES } from "../../structural.js";
 import type { Primitive, World } from "../primitive.js";
+import { isThing, thingOf } from "./hold.js";
 
 const USER: Expr = c("User");
 
@@ -33,11 +35,66 @@ function owner(from: Expr, to: Expr, world: World): { head: string; pattern: Exp
   return { head: name, pattern: c(name) };
 }
 
+/** A claim fits its head's Frame: a core meaning, with the positions and roles it takes. */
+function fits(item: Call, world: World): boolean {
+  const frames = world.store.facts(item.head, "Frame").map((f) => f.claim).filter(isCall);
+  const roles = item.args.filter((a) => a.name !== undefined && a.name !== "time").map((a) => a.name!);
+  return frames.some((fr) => positional(fr).length === positional(item).length && roles.every((r) => fr.args.some((a) => a.name === r)));
+}
+
+const ACTS_HEADS: ReadonlySet<string> = new Set(STRUCTURAL.primitives.names);
+
+function keepable(item: Call, world: World): boolean {
+  if (STRUCTURAL_NAMES.has(item.head) || !fits(item, world) || item.args.some((a) => a.name === "time")) return false;
+  const parts = [...walk(item)];
+  // No act in it, and no clause of its own inside (a word taking roles): a fact, not a report.
+  if (parts.some((y) => isCall(y) && (ACTS_HEADS.has(y.head) || (y !== item && y.head !== "Ref" && y.args.some((a) => a.name !== undefined))))) return false;
+  const referent = (y: Expr) =>
+    isCall(y) && ((y.head === "Speaker" && !y.args.length) || isThing(world.store, y) || (y.head === "Ref" && isCall(role(y, "kind")) && (role(y, "kind") as Call).head !== "Thing"));
+  const refs = item.args.map((a) => a.value).filter(referent);
+  if (!refs.length) return false;
+  // The referents' own words, and what lies outside every referent and participant.
+  const inside = new Set(refs.flatMap((r) => [...walk(r)]).filter(isCall).map((y) => y.head));
+  const outside: Expr[] = [];
+  const visit = (e: Expr) => {
+    const head = isCall(e) ? e.head : undefined;
+    if (head === "Ref" || referent(e) || ((head === "Speaker" || head === "Addressee") && isCall(e) && !e.args.length)) return;
+    if (e !== item) outside.push(e);
+    if (isCall(e)) for (const a of e.args) visit(a.value);
+  };
+  visit(item);
+  // A word of the function-word lexicon ("it", "that") says nothing of them.
+  const functionWord = (h: string) => world.store.facts(h).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))));
+  return outside.some((y) => !isCall(y) || (!STRUCTURAL_NAMES.has(y.head) && !inside.has(y.head) && !functionWord(y.head)));
+}
+
+/**
+ * What a claim is about: the first thing in the graph it names, or the user (Speaker). Referents in
+ * it that nothing fits yet become things ("my name is Keal": the user's name, from now on).
+ */
+function about(item: Call, world: World): { subject: Call; claim: Expr } | undefined {
+  const claim = rewrite(item, (x) => (isHead(x, "Ref") ? thingOf(world.store, x, true) : undefined));
+  for (const y of walk(claim)) if (isCall(y) && (isThing(world.store, y) || (y.head === "Speaker" && !y.args.length))) return { subject: y, claim };
+  return undefined;
+}
+
 export const Remember: Primitive = {
   name: "Remember",
   params: ["item"],
+  // A claim to keep is made of words, and of referents it may make into things.
+  concepts: ["item"],
+  makes: ["item"],
   pure: false,
-  effects: () => ["ChangesGraph"],
+  // A claim is kept (logical-form.md section 2: Assert remembers what is about the user) when it
+  // is understood: its head a core meaning whose Frame it fits, told as it is now, with no act in
+  // it; it is about the user or their things: one of its own arguments is the user, a thing of
+  // theirs, or a referent said with a kind ("my name"); and it says something of them: a literal,
+  // or a word that is not the referent's own words ("my name is Keal", not "the review is a
+  // review", not "we are us"). Anything else is not this act.
+  effects: ([item], world) => {
+    if (!isCall(item) || (item.head !== "Rewrite" && item.head !== "Fact" && !keepable(item, world))) throw new Error("that is not something to keep about you");
+    return ["ChangesGraph"];
+  },
   async run([item], world) {
     if (isHead(item, "Rewrite")) {
       const [from0, to] = positional(item);
@@ -56,7 +113,15 @@ export const Remember: Primitive = {
       world.keep?.(c("Fact", subject, claim, ["from", USER]));
       return c("Remembered", c("Fact", { kind: "number", value: f.meta.id, pos: { line: 0, column: 0 } }));
     }
-    throw new Error("Remember keeps a Rewrite(from, to) or a Fact(subject, claim)");
+    // A claim the user made about themselves or their things: a fact on what it is about.
+    const a = isCall(item) ? about(item, world) : undefined;
+    if (a) {
+      const f = world.store.addFact(a.subject.head, a.claim, USER);
+      world.keep?.(c("Fact", a.subject, a.claim, ["from", USER]));
+      // What was kept, with the things it now names, so it can be said back.
+      return c("Remembered", c("Fact", { kind: "number", value: f.meta.id, pos: { line: 0, column: 0 } }), a.claim);
+    }
+    throw new Error("Remember keeps a Rewrite(from, to), a Fact(subject, claim), or a claim about you or your things");
   },
   async check(_args, result) {
     return isHead(result, "Remembered");

@@ -53,3 +53,22 @@ export function sameMeaning(store: Store, a: readonly Expr[], b: readonly Expr[]
   const cb = canonicalizeMessage(store, b, primitives).map(key);
   return ca.length === cb.length && ca.every((x, i) => x === cb[i]);
 }
+
+/**
+ * Two expressions that say the same thing: equal, or equal but for words that name the same thing
+ * (a word with no sense chosen, and another, that share a sense: "eggs" and "egg"), or for a bare
+ * plural read as every or some of its kind.
+ */
+export function alike(store: Store, a: Expr, b: Expr): boolean {
+  if (key(a) === key(b)) return true;
+  if (!isCall(a) || !isCall(b)) return false;
+  // A bare plural read as every member or some of a kind ("eggs") is that kind, said either way.
+  const kindOf = (x: Call) => ((x.head === "Every" || x.head === "Some") && x.args.length === 1 && x.args[0].name === undefined ? x.args[0].value : x);
+  if (kindOf(a) !== a || kindOf(b) !== b) return alike(store, kindOf(a), kindOf(b));
+  if (!a.args.length && !b.args.length) {
+    const senses = new Set(store.facts(a.head, "Sense").map((f) => key(f.claim)));
+    return store.facts(b.head, "Sense").some((f) => senses.has(key(f.claim)));
+  }
+  if (a.head !== b.head || a.args.length !== b.args.length) return false;
+  return a.args.every((x, i) => x.name === b.args[i].name && alike(store, x.value, b.args[i].value));
+}
