@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "pnpm build && node --test 'dist/**/*.test.js'",
     "test:capture": "node --test scripts/capture.test.mjs",
+    "serve": "pnpm build && node dist/serve/cli.js serve",
     "seed:count": "pnpm build && node dist/seed/count.js"
   },
   "devDependencies": {
