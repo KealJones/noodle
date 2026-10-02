@@ -17,16 +17,18 @@ Pack(name="seed-lexical-rules", version="0.1.0", from=Seed("lexical-rules"))
 Concept(Act(), Category(Clause(), Takes(side=Left(), category=Thing(), role=Agent())))
 
 // ---------------------------------------------------------------------------------------------
-// Moods. Every clause gets the moods it could have; the score picks (design section 9).
+// Moods. Every clause that spans a segment gets the moods it could have; the score picks (design
+// section 9). Rules on Segment() apply to the top edges of a cover, not to edges inside them, so an
+// inner clause ("if it's set up") is not given a mood of its own.
 
 // An Act standing alone is said to the addressee: "push it" (imperative).
-Reading(on=Act(), pattern=Act($e), becomes=Clause(Imperative(WithRoles($e, agent=Addressee()))))
+Reading(on=Segment(), pattern=Act($e), becomes=Clause(Imperative(WithRoles($e, agent=Addressee()))))
 
 // A clause can be a claim.
-Reading(on=Clause(), pattern=Clause($p), becomes=Clause(Declarative($p)))
+Reading(on=Segment(), pattern=Clause($p), becomes=Clause(Declarative($p)))
 
 // A clause can be a question without inversion or a mark: "it's still broken" said as a question.
-Reading(on=Clause(), pattern=Clause($p), becomes=Clause(Interrogative($p)))
+Reading(on=Segment(), pattern=Clause($p), becomes=Clause(Interrogative($p)))
 
 // ---------------------------------------------------------------------------------------------
 // The passive: a form of "be" and a past participle. The subject is the theme; "by" names the
@@ -35,7 +37,7 @@ Reading(on=Clause(), pattern=Clause($p), becomes=Clause(Interrogative($p)))
 Concept(Passive())
 
 Reading(on=PastParticiple(), pattern=Act($e), becomes=Property(Passive($e)))
-Reading(on=Be(), pattern=Be($x, Passive($e)), becomes=WithRoles($e, theme=$x))
+Reading(on=Be(), pattern=Be(attribute=Passive($e), agent=$x), becomes=WithRoles($e, theme=$x))
 Reading(on=By(), pattern=Passive($e, agent=By($y)), becomes=Passive(WithRoles($e, agent=$y)))
 
 // A past participle with no "be" describes what it modifies: "the changed files".
@@ -73,13 +75,13 @@ Concept(Noun(), Category(Noun(), Modifies(side=Right(), category=Noun())))
 Concept(Property(), Category(Property(), Modifies(side=Right(), category=Noun())))
 
 // A property after a thing, with no verb, says it of the thing in a fragment: "tests broken".
-Reading(on=Property(), pattern=Property($p), becomes=Clause(Be(Ref(said=Property($p)), $p)))
+Reading(on=Segment(), pattern=Property($p), becomes=Clause(Declarative(Be(Ref(said=Property($p)), $p))))
 
 // ---------------------------------------------------------------------------------------------
 // Fragments: a Thing alone answers or fills the open need (design section 16). It stays a Thing;
 // the conversation decides what it fills.
 
-Reading(on=Thing(), pattern=Thing($x), becomes=Clause(Declarative(Be(Ref(said=Thing($x), kind=Thing()), $x))))
+Reading(on=Segment(), pattern=Thing($x), becomes=Clause(Declarative(Be(Ref(said=Thing($x), kind=Thing()), $x))))
 
 // ---------------------------------------------------------------------------------------------
 // Fronting: a modifier at the front scopes over what follows ("without committing, fix X"). That is
