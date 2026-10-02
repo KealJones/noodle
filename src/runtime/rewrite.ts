@@ -16,6 +16,9 @@ export interface Step {
   owner: string;
   before: Expr;
   after: Expr;
+  /** The reading's source (its trust is looked up from it, runtime.md 13) and its stable key. */
+  from: Expr;
+  key: string;
 }
 
 export interface Derivation {
@@ -116,7 +119,7 @@ export class Rewriter {
     const cands = this.candidates(e);
     const alts: Omit<Derivation, "score">[] = [];
     for (const { r, b, result } of cands) {
-      const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result };
+      const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result, from: r.meta.from, key: readingKey(r) };
       const own = this.wantFeatures(r, b);
       addFeature(own, `Evidence:${readingKey(r)}`, 1);
       for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });

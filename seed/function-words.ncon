@@ -524,7 +524,8 @@ Concept(Isnt(), Lemma("isn't"), Form("isnt"), Form("aren't"), Form("arent"), For
   Category(Act(), Takes(side=Right(), category=Relation(), role=Location())))
 Concept(Havent(), Lemma("haven't"), Form("havent"), Form("hasn't"), Form("hasnt"), Form("hadn't"), Form("hadnt"),
   Category(Act(), Takes(side=Right(), category=Act())))
-Concept(Never(), Lemma("never"), Form("nvr"), Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(Never(), Lemma("never"), Form("nvr"), Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Act(), Takes(side=Right(), category=Act())))
 Concept(None(), Lemma("none"), Category(Thing()), Category(Thing(), Takes(side=Right(), category=Thing(), head=Of())))
 
 Reading(on=Not(), pattern=Not($p), becomes=Not($p))
@@ -562,7 +563,8 @@ Concept(Already(), Lemma("already"), Form("alredy"), Form("allready"), Form("alr
   Category(Manner(), Modifies(side=Right(), category=Property())), Category(Manner(), Modifies(side=Right(), category=Act())),
   Category(Manner(), Modifies(side=Left(), category=Act())))
 Concept(Again(), Form("agian"), Form("agin"), Form("once more"), Category(Manner(), Modifies(side=Left(), category=Act())), Corrects())
-Concept(Always(), Lemma("always"), Form("allways"), Form("alwasy"), Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(Always(), Lemma("always"), Form("allways"), Form("alwasy"), Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Act(), Takes(side=Right(), category=Act())))
 Concept(Sometimes(), Lemma("sometimes"), Category(Manner(), Modifies(side=Right(), category=Act())))
 Concept(Ever(), Lemma("ever"), Category(Manner(), Modifies(side=Right(), category=Act())))
 Concept(Once(), Lemma("once"),

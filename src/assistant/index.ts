@@ -83,6 +83,21 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     programs: config.programs ? new Set(config.programs) : undefined,
     timeoutMs: config.timeoutMs,
   };
+  // Readings from documentation the user has confirmed, kept as facts (runtime.md 13).
+  const confirmed = new Set(
+    store
+      .facts("Confirmation", "Confirmed")
+      .map((f) => (f.claim as Call).args[0]?.value)
+      .flatMap((x) => (x?.kind === "string" ? [x.value] : [])),
+  );
+  world.confirmed = confirmed;
+  world.confirm = (k) => {
+    if (confirmed.has(k)) return;
+    confirmed.add(k);
+    const claim: Call = { kind: "call", head: "Confirmed", args: [{ value: { kind: "string", value: k, pos: { line: 0, column: 0 } } }], pos: { line: 0, column: 0 } };
+    store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
+    world.keep?.({ kind: "call", head: "Fact", args: [{ value: { kind: "call", head: "Confirmation", args: [], pos: { line: 0, column: 0 } } }, { value: claim }], pos: { line: 0, column: 0 } });
+  };
   const session = new Session(store, PRIMITIVES, world);
   if (config.learn)
     session.onLearn = (w) => {
@@ -100,16 +115,22 @@ export function createAssistant(opts: Partial<AssistantOptions> = {}): Assistant
   return {
     name: "noodle",
     async *reply(messages: readonly ChatMessage[]) {
-      const users = messages.filter((m) => m.role === "user");
-      const last = users[users.length - 1];
-      if (!last) return;
-      const id = createHash("sha256").update(users[0].content).digest("hex");
-      let session = sessions.get(id);
-      if (!session) {
-        session = createSession(store, root, { ...config, learn: config.learn ?? true });
-        sessions.set(id, session);
-      }
+      const lastAt = messages.map((m) => m.role).lastIndexOf("user");
+      if (lastAt < 0) return;
+      const last = messages[lastAt];
+      // A conversation is known by everything said before its last message: the session whose
+      // history is exactly that continues; any other history (a new chat, an edited or
+      // regenerated turn) gets a new session, so state never crosses chats and nothing runs twice.
+      const history = (ms: readonly ChatMessage[]) =>
+        createHash("sha256")
+          .update(JSON.stringify(ms.filter((m) => m.role !== "system").map((m) => [m.role, m.content.trim()])))
+          .digest("hex");
+      const before = history(messages.slice(0, lastAt));
+      let session = lastAt > 0 ? sessions.get(before) : undefined;
+      if (session) sessions.delete(before);
+      else session = createSession(store, root, { ...config, learn: config.learn ?? true });
       const { text } = await session.turn(last.content);
+      sessions.set(history([...messages.slice(0, lastAt + 1), { role: "assistant", content: text }]), session);
       // Stream it by lines and words, as a chat UI expects text to arrive.
       for (const piece of text.match(/\S+\s*|\s+/g) ?? []) yield piece;
     },

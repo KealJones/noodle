@@ -34,6 +34,10 @@ export interface World {
   programs?: ReadonlySet<string>;
   /** Effect classes a level 1 grant (the config, design section 20) lets run without an offer. */
   grants?: ReadonlySet<EffectClass>;
+  /** Keys of readings from untrusted sources the user has confirmed (runtime.md 13). */
+  confirmed?: ReadonlySet<string>;
+  /** Records a confirmation of a reading, by its key. */
+  confirm?(readingKey: string): void;
   /** Keeps what the user taught beyond this session (a top-level N-Con form); the channel decides where. */
   keep?(form: Expr): void;
   /** Run's time limit in milliseconds. */
