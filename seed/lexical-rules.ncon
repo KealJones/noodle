@@ -1,0 +1,103 @@
+// Seed part 4: lexical rules (design section 6, part 4; ncon.md section 5.1; runtime.md section 5).
+//
+// How forms line up roles. Each rule is a reading on what triggers it: a category concept (the
+// rule applies to every edge of that category), a form feature (to edges of words in that form),
+// or a word. In a lexical rule, pattern and becomes are wrapped in the edge's category, Act($e),
+// so the rule can change the category of the edge it adds. A rule's result competes with the
+// original edge; it never replaces it. Rules apply at most once per edge.
+//
+// WithRoles($e, role=x) is $e with those roles filled (structural; seed/README.md).
+
+Pack(name="seed-lexical-rules", version="0.1.0", from=Seed("lexical-rules"))
+
+// ---------------------------------------------------------------------------------------------
+// Predication: a Thing on the left of an Act is its subject. The role is the edge's subject role,
+// Agent unless a rule (the passive) said otherwise.
+
+Concept(Act(), Category(Clause(), Takes(side=Left(), category=Thing(), role=Agent())))
+
+// ---------------------------------------------------------------------------------------------
+// Moods. Every clause gets the moods it could have; the score picks (design section 9).
+
+// An Act standing alone is said to the addressee: "push it" (imperative).
+Reading(on=Act(), pattern=Act($e), becomes=Clause(Imperative(WithRoles($e, agent=Addressee()))))
+
+// A clause can be a claim.
+Reading(on=Clause(), pattern=Clause($p), becomes=Clause(Declarative($p)))
+
+// A clause can be a question without inversion or a mark: "it's still broken" said as a question.
+Reading(on=Clause(), pattern=Clause($p), becomes=Clause(Interrogative($p)))
+
+// ---------------------------------------------------------------------------------------------
+// The passive: a form of "be" and a past participle. The subject is the theme; "by" names the
+// agent ("the branch was pushed by CI").
+
+Concept(Passive())
+
+Reading(on=PastParticiple(), pattern=Act($e), becomes=Property(Passive($e)))
+Reading(on=Be(), pattern=Be($x, Passive($e)), becomes=WithRoles($e, theme=$x))
+Reading(on=By(), pattern=Passive($e, agent=By($y)), becomes=Passive(WithRoles($e, agent=$y)))
+
+// A past participle with no "be" describes what it modifies: "the changed files".
+Reading(on=PastParticiple(), pattern=Act($e), becomes=Property($e))
+
+// ---------------------------------------------------------------------------------------------
+// Gerunds: "committing" is the act as a thing ("without committing", "stop pushing").
+
+Reading(on=Gerund(), pattern=Act($e), becomes=Thing($e))
+Reading(on=Gerund(), pattern=Act($e), becomes=Property($e))
+
+// ---------------------------------------------------------------------------------------------
+// Tense marks the time index (logical-form.md section 3.3).
+
+Reading(on=Past(), pattern=Act($e), becomes=Act(WithRoles($e, time=Past())))
+Reading(on=Present(), pattern=Act($e), becomes=Act($e))
+Reading(on=ThirdSingular(), pattern=Act($e), becomes=Act($e))
+
+// ---------------------------------------------------------------------------------------------
+// Plurals: a plural noun is a set of that kind.
+
+Reading(on=Plural(), pattern=Noun($n), becomes=Noun($n))
+Reading(on=Plural(), pattern=Noun($n), becomes=Thing(Every($n)))
+Reading(on=Plural(), pattern=Noun($n), becomes=Thing(Some($n)))
+
+// ---------------------------------------------------------------------------------------------
+// A bare noun can be a thing: "commit changes", "fix tests".
+
+Reading(on=Noun(), pattern=Noun($n), becomes=Thing($n))
+
+// A noun before a noun modifies it: "shopping list", "feature branch" (ncon.md, Decided).
+Concept(Noun(), Category(Noun(), Modifies(side=Right(), category=Noun())))
+
+// A property before a noun modifies it: "broken test".
+Concept(Property(), Category(Property(), Modifies(side=Right(), category=Noun())))
+
+// A property after a thing, with no verb, says it of the thing in a fragment: "tests broken".
+Reading(on=Property(), pattern=Property($p), becomes=Clause(Be(Ref(said=Property($p)), $p)))
+
+// ---------------------------------------------------------------------------------------------
+// Fragments: a Thing alone answers or fills the open need (design section 16). It stays a Thing;
+// the conversation decides what it fills.
+
+Reading(on=Thing(), pattern=Thing($x), becomes=Clause(Declarative(Be(Ref(said=Thing($x), kind=Thing()), $x))))
+
+// ---------------------------------------------------------------------------------------------
+// Fronting: a modifier at the front scopes over what follows ("without committing, fix X"). That is
+// the Modifies(side=Right(), category=Clause()) entries on the modifiers themselves, and a comma
+// between them is a mark the chart may skip; no rule is needed here.
+
+// ---------------------------------------------------------------------------------------------
+// Imported words: the part-of-speech to category mapping (runtime.md, open question 1).
+
+Concept(PartOfSpeechNoun(), Lemma("noun"))
+Concept(PartOfSpeechVerb(), Lemma("verb"))
+Concept(PartOfSpeechAdjective(), Lemma("adjective"))
+Concept(PartOfSpeechAdverb(), Lemma("adverb"))
+Concept(PartOfSpeechName(), Lemma("proper noun"))
+
+Reading(on=PartOfSpeechNoun(), pattern=PartOfSpeech(PartOfSpeechNoun()), becomes=Category(Noun()))
+Reading(on=PartOfSpeechVerb(), pattern=PartOfSpeech(PartOfSpeechVerb()), becomes=Category(Act()))
+Reading(on=PartOfSpeechVerb(), pattern=PartOfSpeech(PartOfSpeechVerb()), becomes=Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Reading(on=PartOfSpeechAdjective(), pattern=PartOfSpeech(PartOfSpeechAdjective()), becomes=Category(Property()))
+Reading(on=PartOfSpeechAdverb(), pattern=PartOfSpeech(PartOfSpeechAdverb()), becomes=Category(Manner(), Modifies(side=Left(), category=Act())))
+Reading(on=PartOfSpeechName(), pattern=PartOfSpeech(PartOfSpeechName()), becomes=Category(Thing()))

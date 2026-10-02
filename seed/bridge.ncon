@@ -1,0 +1,159 @@
+// Seed part 3: the bridge (design section 6; built-ins.md section 3).
+//
+// Patterns of core meanings to primitives. Without it, import alone reaches no primitive. Every
+// pattern here is made of core meanings (seed/core.ncon) and structural concepts only, and every
+// becomes is a primitive (built-ins.md section 2). No entry names a domain command: a command is
+// always learned from its documentation, through the one general entry at the end.
+//
+// Primitives take their arguments in the order of built-ins.md section 2. An acting reading
+// declares its effects and checks (ncon.md section 4); they narrow the primitive's own.
+// Results are reported with and without this part (design section 6).
+
+Pack(name="seed-bridge", version="0.1.0", from=Seed("bridge"))
+
+// ---------------------------------------------------------------------------------------------
+// Holding
+
+// Cause something to be in a holder: Store.
+Reading(on=Store(), pattern=Cause(result=Become(BeIn($x, $h))),
+  becomes=Store($h, $x), effects=ChangesLocal(), checks=Contains($h, $x))
+
+// Cause a holder to have something: Store.
+Reading(on=Store(), pattern=Cause(result=Become(Have($h, $x))),
+  becomes=Store($h, $x), effects=ChangesLocal(), checks=Contains($h, $x))
+
+// Cause something to stop being in a holder: Remove.
+Reading(on=Remove(), pattern=Cause(result=Become(Not(BeIn($x, $h)))),
+  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+
+Reading(on=Remove(), pattern=Cause(result=Become(Not(Have($h, $x)))),
+  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+
+// Cause something to stop existing: Remove it from where it is.
+Reading(on=Remove(), pattern=Cause(result=Become(Not(Exist($x)))), needs=BeIn($x, $h),
+  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+
+Reading(on=Remove(), pattern=Cause(result=End($x)), wants=IsA($x, Thing()), needs=BeIn($x, $h),
+  becomes=Remove($h, $x), effects=Deletes(), checks=Not(Contains($h, $x)))
+
+// Move something from one holder to another: Remove from the source, then Store at the destination.
+Reading(on=Sequence(), pattern=Move(theme=$x, source=$s, destination=$d),
+  becomes=Sequence(Remove($s, $x), Store($d, $x)), effects=All(Deletes(), ChangesLocal()),
+  checks=All(Not(Contains($s, $x)), Contains($d, $x)))
+
+// Is something in a holder: Contains, pure.
+Reading(on=Contains(), pattern=BeIn($x, $h), becomes=Contains($h, $x))
+Reading(on=Contains(), pattern=Have($h, $x), becomes=Contains($h, $x))
+
+// ---------------------------------------------------------------------------------------------
+// Properties
+
+// Cause something to come to have a value for a property: Set. "X is V in respect of P" is
+// Be(X, V, attribute=P).
+Reading(on=Set(), pattern=Cause(result=Become(Be($x, $v, attribute=$p))),
+  becomes=Set($x, $p, $v), effects=ChangesLocal(), checks=Be($x, $v, attribute=$p))
+
+Reading(on=Set(), pattern=Change(theme=$x, result=Be($x, $v, attribute=$p)),
+  becomes=Set($x, $p, $v), effects=ChangesLocal(), checks=Be($x, $v, attribute=$p))
+
+// ---------------------------------------------------------------------------------------------
+// Knowing and saying
+
+// Cause the speaker to know or see something: Say it.
+Reading(on=Say(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))),
+  becomes=Say($x), effects=Speaks())
+
+Reading(on=Say(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)),
+  becomes=Say($x), effects=Speaks())
+
+// The assistant saying something: Say.
+Reading(on=Say(), pattern=Say(agent=Addressee(), theme=$x), becomes=Say($x), effects=Speaks())
+Reading(on=Say(), pattern=Answer(agent=Addressee(), theme=$x), becomes=Say($x), effects=Speaks())
+
+// The assistant coming to know or see something: Read it.
+Reading(on=Read(), pattern=Cause(result=Become(Know(experiencer=Addressee(), theme=$x))), becomes=Read($x))
+Reading(on=Read(), pattern=See(experiencer=Addressee(), stimulus=$x), becomes=Read($x))
+Reading(on=Read(), pattern=Try(theme=See(experiencer=Addressee(), stimulus=$x)), becomes=Read($x))
+
+// The assistant asking: Ask.
+Reading(on=Ask(), pattern=Cause(result=Become(Know(experiencer=Addressee(), theme=$x))), wants=IsA($x, Prop()),
+  becomes=Ask($x), effects=Speaks())
+
+// Something the assistant should keep knowing about the user or the world: Remember.
+Reading(on=Remember(), pattern=Continue(theme=Know(experiencer=Addressee(), theme=$p)),
+  becomes=Remember($p), effects=ChangesGraph(), checks=Know(experiencer=Addressee(), theme=$p))
+
+// ---------------------------------------------------------------------------------------------
+// Making and changing documents
+
+// Cause a document to exist: Write it, with content the assistant writes (Written, the genres).
+Reading(on=Write(), pattern=Cause(result=Become(Exist($d))), wants=IsA($d, Document()),
+  becomes=Write($d, Written($d)), effects=ChangesLocal(), checks=Contains($d, Written($d)))
+
+Reading(on=Write(), pattern=Make(product=$d), wants=IsA($d, Document()),
+  becomes=Write($d, Written($d)), effects=ChangesLocal(), checks=Contains($d, Written($d)))
+
+// Cause a document to contain something: Edit it.
+Reading(on=Edit(), pattern=Cause(result=Become(BeIn($x, $d))), wants=IsA($d, Document()),
+  becomes=Edit($d, Inserted($x)), effects=ChangesLocal(), checks=Contains($d, $x))
+
+// Cause a document to stop containing something: Edit it.
+Reading(on=Edit(), pattern=Cause(result=Become(Not(BeIn($x, $d)))), wants=IsA($d, Document()),
+  becomes=Edit($d, Withdrawn($x)), effects=ChangesLocal(), checks=Not(Contains($d, $x)))
+
+// Change a document: Edit it.
+Reading(on=Edit(), pattern=Change(theme=$d, result=$p), wants=IsA($d, Document()),
+  becomes=Edit($d, $p), effects=ChangesLocal(), checks=$p)
+
+// Cause a part of a document to be other: Edit it.
+Reading(on=Edit(), pattern=Cause(result=Become(Other($x, $y))), needs=PartOf($x, $d), wants=IsA($d, Document()),
+  becomes=Edit($d, And(Withdrawn($x), Inserted($y))), effects=ChangesLocal(), checks=Contains($d, $y))
+
+// ---------------------------------------------------------------------------------------------
+// Counting, choosing, ordering (pure)
+
+Reading(on=Count(), pattern=Number($s), becomes=Count($s))
+Reading(on=Count(), pattern=Amount($s), becomes=Count($s))
+Reading(on=Rank(), pattern=Most($k, attribute=$a), becomes=Rank($k, $a))
+Reading(on=Sort(), pattern=Order($s, attribute=$a), becomes=Sort($s, $a))
+Reading(on=Filter(), pattern=Every($k, where=$p), becomes=Filter($k, $p))
+Reading(on=Compare(), pattern=Same($a, $b), becomes=Compare($a, $b, Same()))
+Reading(on=Compare(), pattern=More($a, standard=$b, attribute=$k), becomes=Compare($a, $b, $k))
+Reading(on=Compare(), pattern=Less($a, standard=$b, attribute=$k), becomes=Compare($b, $a, $k))
+Reading(on=Now(), pattern=Now(), becomes=Now())
+
+// ---------------------------------------------------------------------------------------------
+// Time
+
+// Do something at a later time: Schedule it.
+Reading(on=Schedule(), pattern=Do(theme=$a, time=After($t)), wants=IsA($t, Time()),
+  becomes=Schedule($t, $a), effects=ChangesLocal())
+
+Reading(on=Schedule(), pattern=Wait(agent=Addressee(), time=Until($t)), wants=IsA($t, Time()),
+  becomes=Schedule($t, Now()), effects=ChangesLocal())
+
+// ---------------------------------------------------------------------------------------------
+// Doing in order
+
+Reading(on=Sequence(), pattern=Then($a, $b), becomes=Sequence($a, $b))
+Reading(on=Sequence(), pattern=And($a, $b), wants=All(IsA($a, Act()), IsA($b, Act())), becomes=Sequence($a, $b))
+Reading(on=Sequence(), pattern=Again($a), becomes=Sequence($a))
+
+// Working out what would happen without doing it: Suppose.
+Reading(on=Suppose(), pattern=Question(Happen(theme=$e), about=Gap()), wants=IsA($e, Act()), becomes=Suppose($e))
+Reading(on=Suppose(), pattern=Maybe(Happen(theme=$e)), wants=IsA($e, Act()), becomes=Suppose($e))
+
+// ---------------------------------------------------------------------------------------------
+// Tools: the one general entry (design section 6). Whatever a tool's documentation page says the
+// tool does, running the tool does. Understanding a page gives Describes(program, what) with what
+// reduced to core meanings, Usage(program, arguments) from its SYNOPSIS, and EffectsOf(program)
+// from what the page says it changes. A request reaches this entry when its own reduction matches
+// a description by the scored match (runtime.md section 6.2); the command's name is never needed.
+
+Concept(Program())
+Concept(Describes(), Frame(Program(), Prop()))
+Concept(Usage(), Frame(Program(), Thing()))
+Concept(EffectsOf(), Frame(Program()))
+
+Reading(on=Run(), pattern=$what, needs=All(Describes($program, $what), Usage($program, $args)),
+  becomes=Run($program, $args), effects=EffectsOf($program), checks=$what)

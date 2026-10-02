@@ -1,0 +1,889 @@
+// Seed part 2: the function-word lexicon (design sections 6, 8, 11, 17, 18, 25b; built-ins.md
+// section 3). Protected base: no learned reading rewrites these.
+//
+// Closed-class words and marks: their forms, their chart entries, the facts that mark them (tone,
+// correction, aside, clause boundaries), and the readings that build the logical form from the
+// heard expression. Content words get their entries from imports, never from here.
+//
+// Notation (seed/README.md):
+// - Each Category(C(), ...) fact is one chart entry: the word yields C once the entry's Takes are
+//   filled; the entry's own Takes, Modifies and FillsGap facts are nested in it. A word with two
+//   entries has two Category facts. Joins(...) is an entry of its own.
+// - wraps=X() on an entry: the edge's expression is X(what the entry built).
+// - category=Any() in a Takes or Joins: any category; Category(Any()) yields the category of the
+//   entry's first argument.
+// - Marks with no letters get descriptive names (QuestionMark); lookup is by Lemma, never by name.
+// - In a becomes, a variable the pattern does not bind ($it) is the logical form's bound variable.
+
+Pack(name="seed-function-words", version="0.1.0", from=Seed("function-words"))
+
+// =============================================================================================
+// 1. Moods and speech acts. Lexical rules (seed/lexical-rules.ncon) wrap clauses in a mood; these
+// readings turn moods into the five speech acts (logical-form.md section 2).
+
+Concept(Declarative())
+Concept(Imperative())
+Concept(Interrogative())
+
+Reading(on=Declarative(), pattern=Declarative($p), becomes=Assert($p))
+Reading(on=Imperative(), pattern=Imperative($a), becomes=Directive($a))
+Reading(on=Interrogative(), pattern=Interrogative($p), becomes=Question($p))
+Reading(on=Interrogative(), pattern=Interrogative($p, about=$x), becomes=Question($p, about=$x))
+
+// "you should run the tests" is a Directive; "should I use tabs or spaces?" is Advice.
+Reading(on=Should(), pattern=Assert(Should(agent=Addressee(), theme=$a)), becomes=Directive($a))
+Reading(on=Should(), pattern=Question(Should(agent=Speaker(), theme=$a)), becomes=Advice($a))
+Reading(on=Should(), pattern=Question(Should(agent=And(Speaker(), Addressee()), theme=$a)), becomes=Advice($a))
+Reading(on=Should(), pattern=Assert(Should(agent=And(Speaker(), Addressee()), theme=$a)), becomes=Directive($a))
+Reading(on=Should(), pattern=Should(agent=$x, theme=$a), becomes=Good(Do(agent=$x, theme=$a)))
+
+// Asking the addressee whether they can or will is asking them to.
+Reading(on=Can(), pattern=Question(Can(agent=Addressee(), theme=$a)), becomes=Directive($a))
+Reading(on=Could(), pattern=Question(Could(agent=Addressee(), theme=$a)), becomes=Directive($a))
+Reading(on=Will(), pattern=Question(Will(agent=Addressee(), theme=$a)), becomes=Directive($a))
+Reading(on=Would(), pattern=Question(Would(agent=Addressee(), theme=$a)), becomes=Directive($a))
+
+// Saying what one wants or needs from the addressee is asking for it.
+Reading(on=Want(), pattern=Assert(Want(experiencer=Speaker(), theme=$p)), becomes=Directive($p))
+Reading(on=Need(), pattern=Assert(Need(experiencer=Speaker(), theme=$p)), becomes=Directive($p))
+
+// "let's commit": a directive both take part in; the addressee does it.
+Reading(on=Let(), pattern=Directive(Let(Speaker(), $a)), becomes=Directive($a))
+Reading(on=Lets(), pattern=Lets($a), becomes=Directive($a))
+
+// "please" marks a request and is politeness, nothing else.
+Reading(on=Please(), pattern=Please($a), becomes=Directive($a))
+
+// "why not just rebase?": a suggestion to do it.
+Reading(on=Why(), pattern=Question(Why(Not($a))), becomes=Advice($a))
+
+// "don't you think we should commit?": a directive.
+Reading(on=Think(), pattern=Question(Not(Think(experiencer=Addressee(), topic=$p))), becomes=Assert($p))
+
+// "don't forget to push": a directive to push.
+Concept(Forget(), Lemma("forget"))
+Reading(on=Forget(), pattern=Constraint(Not(Forget(theme=$a))), becomes=Directive($a))
+
+// "ok, push" and "go ahead": permission (logical-form.md section 7).
+Reading(on=Ok(), pattern=Directive(Ok($a)), becomes=Directive(Permit($a)))
+Reading(on=GoAhead(), pattern=GoAhead(), becomes=Directive(Permit(Ref(said=GoAhead(), kind=Act()))))
+Reading(on=GoAhead(), pattern=GoAhead($a), becomes=Directive(Permit($a)))
+
+// =============================================================================================
+// 2. Determiners and quantifiers. Determiners and possessives are heads (ncon.md, Decided).
+
+Concept(The(), Lemma("the"), Form("teh"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(A(), Lemma("a"), Form("an"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Every(), Lemma("every"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Each(), Lemma("each"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(All(), Lemma("all"), Form("al"), Category(Thing(), Takes(side=Right(), category=Noun())),
+  Category(Thing(), Takes(side=Right(), category=Thing(), head=Of())), Category(Thing()))
+Concept(Any(), Lemma("any"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(Some(), Lemma("some"), Form("sum"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(No(), Lemma("no"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Both(), Lemma("both"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(Either(), Lemma("either"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Neither(), Lemma("neither"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Another(), Lemma("another"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Several(), Lemma("several"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(These(), Lemma("these"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(Those(), Lemma("those"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(This(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(That(), Lemma("that"), Form("taht"), Form("tht"),
+  Category(Thing(), Takes(side=Right(), category=Noun())),
+  Category(Thing()),
+  Category(Clause(), Takes(side=Right(), category=Clause())),
+  Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
+Concept(Many(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(Few(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(More(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Manner(), Modifies(side=Left(), category=Act())),
+  Category(Property(), Takes(side=Right(), category=Property())))
+Concept(Most(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Property(), Takes(side=Right(), category=Property())))
+Concept(Less(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Property(), Takes(side=Right(), category=Property())))
+Concept(Enough(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Manner(), Modifies(side=Left(), category=Property())))
+Concept(Other(), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Same(), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(My(), Lemma("my"), Form("mine"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Your(), Lemma("your"), Form("ur"), Form("yours"), Form("youre"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Our(), Lemma("our"), Form("ours"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Their(), Lemma("their"), Form("theirs"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(His(), Lemma("his"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Her(), Lemma("her"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
+Concept(Its(), Lemma("its"), Category(Thing(), Takes(side=Right(), category=Noun())))
+Concept(Whose(), Lemma("whose"), Category(Thing(), Takes(side=Right(), category=Noun()), FillsGap(category=Thing())))
+
+// Definite and possessive phrases are referents (logical-form.md section 4).
+Reading(on=The(), pattern=The($n), becomes=Ref(said=The($n)))
+Reading(on=This(), pattern=This($n), becomes=Ref(said=This($n)))
+Reading(on=This(), pattern=This(), becomes=Ref(said=This()))
+Reading(on=That(), pattern=That($n), becomes=Ref(said=That($n)))
+Reading(on=That(), pattern=That(), becomes=Ref(said=That()))
+Reading(on=These(), pattern=These($n), becomes=Ref(said=These($n)))
+Reading(on=Those(), pattern=Those($n), becomes=Ref(said=Those($n)))
+Reading(on=My(), pattern=My($n), becomes=Ref(said=My($n)))
+Reading(on=Your(), pattern=Your($n), becomes=Ref(said=Your($n)))
+Reading(on=Our(), pattern=Our($n), becomes=Ref(said=Our($n)))
+Reading(on=Their(), pattern=Their($n), becomes=Ref(said=Their($n)))
+Reading(on=His(), pattern=His($n), becomes=Ref(said=His($n)))
+Reading(on=Her(), pattern=Her($n), becomes=Ref(said=Her($n)))
+Reading(on=Its(), pattern=Its($n), becomes=Ref(said=Its($n)))
+
+// Quantifiers build Every and Some.
+Reading(on=A(), pattern=A($n), becomes=Some($n))
+Reading(on=Every(), pattern=Every($n), becomes=Every($n))
+Reading(on=Each(), pattern=Each($n), becomes=Every($n))
+Reading(on=All(), pattern=All($n), becomes=Every($n))
+Reading(on=All(), pattern=All(Of($t)), becomes=Every(Something(), where=PartOf($it, $t)))
+Reading(on=All(), pattern=All(), becomes=Every(Ref(said=All(), kind=Kind())))
+Reading(on=Any(), pattern=Any($n), becomes=Some($n))
+Reading(on=Any(), pattern=Any($n), becomes=Every($n))
+Reading(on=Some(), pattern=Some($n), becomes=Some($n))
+Reading(on=No(), pattern=No($n), becomes=Not(Some($n)))
+Reading(on=Both(), pattern=Both($n), becomes=Every($n, where=PartOf($it, Ref(said=Both($n)))))
+Reading(on=Either(), pattern=Either($n), becomes=Some($n))
+Reading(on=Neither(), pattern=Neither($n), becomes=Not(Some($n)))
+Reading(on=Another(), pattern=Another($n), becomes=Some($n, where=Other($it, Ref(said=Another($n)))))
+Reading(on=Several(), pattern=Several($n), becomes=Some(Many($n)))
+Reading(on=Many(), pattern=Many($n), becomes=Many($n))
+Reading(on=Few(), pattern=Few($n), becomes=Few($n))
+
+// =============================================================================================
+// 3. Pronouns, and the words that ask
+
+Concept(I(), Lemma("i"), Form("me"), Form("im"), Form("i'm"), Form("ive"), Form("i've"), Form("id"), Form("i'd"), Form("ill"), Form("i'll"),
+  Category(Thing()))
+Concept(Myself(), Lemma("myself"), Category(Thing()))
+Concept(You(), Lemma("you"), Form("u"), Form("ya"), Form("yall"), Form("y'all"), Form("youve"), Form("you've"), Form("youll"), Form("you'll"),
+  Category(Thing()))
+Concept(Yourself(), Lemma("yourself"), Category(Thing()))
+Concept(We(), Lemma("we"), Form("us"), Form("weve"), Form("we've"), Form("well"), Form("we'll"), Category(Thing()))
+Concept(It(), Lemma("it"), Form("itt"), Form("its"), Form("it's"), Category(Thing()))
+Concept(Itself(), Lemma("itself"), Category(Thing()))
+Concept(They(), Lemma("they"), Form("them"), Form("theyre"), Form("they're"), Category(Thing()))
+Concept(He(), Lemma("he"), Form("him"), Category(Thing()))
+Concept(She(), Lemma("she"), Category(Thing()))
+Concept(Something(), Form("smth"), Form("sth"), Category(Thing()))
+Concept(Anything(), Lemma("anything"), Category(Thing()))
+Concept(Everything(), Lemma("everything"), Form("everythign"), Category(Thing()))
+Concept(Nothing(), Lemma("nothing"), Category(Thing()))
+Concept(Someone(), Form("somebody"), Category(Thing()))
+Concept(Anyone(), Lemma("anyone"), Form("anybody"), Category(Thing()))
+Concept(Everyone(), Lemma("everyone"), Form("everybody"), Category(Thing()))
+Concept(Nobody(), Lemma("nobody"), Form("no one"), Category(Thing()))
+
+Reading(on=I(), pattern=I(), becomes=Speaker())
+Reading(on=Myself(), pattern=Myself(), becomes=Speaker())
+Reading(on=You(), pattern=You(), becomes=Addressee())
+Reading(on=Yourself(), pattern=Yourself(), becomes=Addressee())
+Reading(on=We(), pattern=We(), becomes=And(Speaker(), Addressee()))
+Reading(on=It(), pattern=It(), becomes=Ref(said=It()))
+Reading(on=Itself(), pattern=Itself(), becomes=Oneself(Ref(said=Itself())))
+Reading(on=They(), pattern=They(), becomes=Ref(said=They()))
+Reading(on=He(), pattern=He(), becomes=Ref(said=He(), kind=Someone()))
+Reading(on=She(), pattern=She(), becomes=Ref(said=She(), kind=Someone()))
+Reading(on=Anything(), pattern=Anything(), becomes=Some(Something()))
+Reading(on=Everything(), pattern=Everything(), becomes=Every(Something()))
+Reading(on=Nothing(), pattern=Nothing(), becomes=Not(Some(Something())))
+Reading(on=Anyone(), pattern=Anyone(), becomes=Some(Someone()))
+Reading(on=Everyone(), pattern=Everyone(), becomes=Every(Someone()))
+Reading(on=Nobody(), pattern=Nobody(), becomes=Not(Some(Someone())))
+
+// "nothing is failing": the negation scopes over the whole claim (logical-form.md section 9).
+Reading(on=Nothing(), pattern=Be(Nothing(), $p), becomes=Not(Some(Something(), where=Be($it, $p))))
+Reading(on=Nobody(), pattern=Be(Nobody(), $p), becomes=Not(Some(Someone(), where=Be($it, $p))))
+
+// Words that ask take the clause with their gap (runtime.md section 4.2, step 6).
+Concept(What(), Lemma("what"), Form("wat"), Form("wut"), Form("whats"), Form("what's"),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
+  Category(Clause(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())))
+Concept(Which(), Lemma("which"),
+  Category(Clause(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
+  Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
+Concept(Who(), Lemma("who"), Form("whom"),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
+  Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
+Concept(Where(), Lemma("where"), Form("wheres"), Form("where's"),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Relation())))
+Concept(When(), Lemma("when"),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Relation())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Clause()), Modifies(side=Right(), category=Clause())))
+Concept(Why(), Lemma("why"), Form("y"),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic())),
+  Category(Clause(), Takes(side=Right(), category=Act(), role=Topic())))
+Concept(How(), Lemma("how"),
+  Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Manner())),
+  Category(Clause(), Takes(side=Right(), category=Property()), Takes(side=Right(), category=Clause(), role=Topic())))
+Concept(Whether(), Lemma("whether"), Category(Clause(), Takes(side=Right(), category=Clause())))
+
+Reading(on=What(), pattern=What(topic=$p), becomes=Question($p, about=Gap()))
+Reading(on=What(), pattern=What($k, topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Gap()))
+Reading(on=Which(), pattern=Which($k, topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Gap()))
+Reading(on=Who(), pattern=Who(topic=$p), becomes=Question(And($p, Be(Gap(), Someone())), about=Gap()))
+Reading(on=Where(), pattern=Where(topic=$p), becomes=Question(And($p, Be(Gap(), Place())), about=Gap()))
+Reading(on=When(), pattern=When(topic=$p), becomes=Question(And($p, Be(Gap(), Time())), about=Gap()))
+Reading(on=Why(), pattern=Why(topic=$p), becomes=Question(Because($p, reason=Gap()), about=Gap()))
+Reading(on=How(), pattern=How(topic=$p), becomes=Question(And($p, Be(Gap(), Way($p))), about=Gap()))
+Reading(on=How(), pattern=How(Many(), topic=$p), becomes=Question(And($p, Be(Gap(), Number($p))), about=Gap()))
+Reading(on=Whether(), pattern=Whether($p), becomes=Question($p))
+
+// "what does X mean", "what is X": the word is the topic, not an instruction (logical-form.md 5).
+Reading(on=Mean(), pattern=Question(Mean($w, Gap()), about=Gap()), becomes=Question(Mean(Mention($w), Gap()), about=Gap()))
+
+// =============================================================================================
+// 4. Prepositions. Each yields a Relation; verb frames take them by head; as modifiers they
+// carry the role they give. The role is on the edge, so the reading drops the word.
+
+Concept(To(), Lemma("to"), Form("too"), Form("2"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Destination())),
+  Category(Act(), Takes(side=Right(), category=Act())))
+Concept(From(), Lemma("from"), Form("frm"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Source())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Source())))
+Concept(In(), Lemma("in"), Form("inside"), Form("within"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Location())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Location())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+Concept(Into(), Lemma("into"), Form("in to"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Destination())))
+Concept(On(), Lemma("on"), Form("onto"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Location())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Location())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Topic())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+Concept(At(), Lemma("at"), Form("@"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Location())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+Concept(Of(), Lemma("of"), Form("o"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Theme())))
+Concept(For(), Lemma("for"), Form("fr"), Form("4"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Beneficiary())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Purpose())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Purpose())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+Concept(With(), Lemma("with"), Form("w/"), Form("wiht"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Instrument())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Partner())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Theme())))
+Concept(Without(), Lemma("without"), Form("w/o"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Act())),
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Right(), category=Clause())),
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Act())))
+Concept(By(), Lemma("by"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Property(), role=Agent())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Instrument())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+Concept(About(), Lemma("about"), Form("abt"), Form("bout"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Topic())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Topic())),
+  Category(Manner(), Modifies(side=Right(), category=Thing())))
+Concept(Out(), Lemma("out"), Form("outta"), Form("out of"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Source())),
+  Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Off(), Lemma("off"), Category(Relation(), Takes(side=Right(), category=Thing())), Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Up(), Lemma("up"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Relation(), Takes(side=Right(), category=Thing())))
+Concept(Down(), Lemma("down"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Relation(), Takes(side=Right(), category=Thing())))
+Concept(Over(), Lemma("over"), Category(Relation(), Takes(side=Right(), category=Thing())), Category(Manner(), Modifies(side=Left(), category=Act())),
+  Category(Property()))
+Concept(Under(), Lemma("under"), Category(Relation(), Takes(side=Right(), category=Thing())))
+Concept(Through(), Lemma("through"), Form("thru"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Path())))
+Concept(Between(), Lemma("between"), Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Location())))
+Concept(Across(), Lemma("across"), Category(Relation(), Takes(side=Right(), category=Thing())))
+Concept(Against(), Lemma("against"), Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Standard())))
+Concept(Onto(), Lemma("onto"), Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Destination())))
+Concept(Near(), Category(Relation(), Takes(side=Right(), category=Thing())), Category(Property()))
+Concept(Above(), Category(Relation(), Takes(side=Right(), category=Thing())), Category(Property()))
+Concept(Below(), Category(Relation(), Takes(side=Right(), category=Thing())), Category(Property()))
+Concept(Like(), Form("liek"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Way())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())))
+Concept(Than(), Lemma("than"), Form("then"), Category(Relation(), Takes(side=Right(), category=Thing())))
+Concept(Except(), Lemma("except"), Form("except for"), Form("besides"), Form("other than"), Form("but"),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Thing())))
+Concept(Instead(), Lemma("instead"), Form("instead of"), Form("rather than"),
+  Category(Relation(), Takes(side=Right(), category=Thing())),
+  Category(Relation(), Takes(side=Right(), category=Act())),
+  Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Via(), Lemma("via"), Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Instrument())))
+Concept(As(), Lemma("as"),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Attribute())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())))
+Concept(Per(), Lemma("per"), Category(Relation(), Takes(side=Right(), category=Thing())))
+
+// The role is on the edge; the preposition itself adds nothing more.
+Reading(on=To(), pattern=To($x), becomes=$x)
+Reading(on=From(), pattern=From($x), becomes=$x)
+Reading(on=In(), pattern=In($x), becomes=$x)
+Reading(on=Into(), pattern=Into($x), becomes=$x)
+Reading(on=On(), pattern=On($x), becomes=$x)
+Reading(on=At(), pattern=At($x), becomes=$x)
+Reading(on=Of(), pattern=Of($x), becomes=$x)
+Reading(on=For(), pattern=For($x), becomes=$x)
+Reading(on=With(), pattern=With($x), becomes=$x)
+Reading(on=By(), pattern=By($x), becomes=$x)
+Reading(on=About(), pattern=About($x), becomes=$x)
+Reading(on=Through(), pattern=Through($x), becomes=$x)
+Reading(on=Via(), pattern=Via($x), becomes=$x)
+Reading(on=As(), pattern=As($x), becomes=$x)
+Reading(on=Onto(), pattern=Onto($x), becomes=$x)
+Reading(on=Between(), pattern=Between($x), becomes=$x)
+
+// "in" and "on" also locate: X in Y is Y containing X.
+Reading(on=In(), pattern=Be($x, In($y)), becomes=BeIn($x, $y))
+Reading(on=On(), pattern=Be($x, On($y)), becomes=BeIn($x, $y))
+Reading(on=Near(), pattern=Be($x, Near($y)), becomes=Near($x, $y))
+Reading(on=Above(), pattern=Be($x, Above($y)), becomes=Above($x, $y))
+Reading(on=Below(), pattern=Be($x, Below($y)), becomes=Below($x, $y))
+Reading(on=Like(), pattern=Be($x, Like($y)), becomes=Like($x, $y))
+
+// "except" is a set difference on what it modifies (logical-form.md section 3.2).
+Reading(on=Except(), pattern=Every($k, modifier=Except($x)), becomes=Every($k, except=$x))
+Reading(on=Except(), pattern=Every($k, where=$p, modifier=Except($x)), becomes=Every($k, where=$p, except=$x))
+
+// "without committing, fix X": a prohibition over what it modifies (logical-form.md section 6).
+Reading(on=Without(), pattern=Without($a), becomes=Constraint(Not($a), over=Hole(Without())))
+Reading(on=Instead(), pattern=Instead($x), becomes=Not($x))
+
+// =============================================================================================
+// 5. Joining and ordering
+
+Concept(And(), Lemma("and"), Form("&"), Form("n"), Form("an"), Form("adn"), Form("nad"), Form("plus"), Form("+"), Joins(category=Any()), OpensClause())
+Concept(Or(), Lemma("or"), Form("ot"), Form("/"), Joins(category=Any()), OpensClause())
+Concept(But(), Lemma("but"), Form("bt"), Form("though"), Form("although"), Form("however"), Joins(category=Clause()), OpensClause())
+Concept(Nor(), Lemma("nor"), Joins(category=Any()))
+Concept(Then(), Lemma("then"), Form("than"), Form("thn"), Form("and then"), Form("after that"), Form("afterwards"), Form("next"),
+  Joins(category=Act()), Joins(category=Clause()), Category(Manner(), Modifies(side=Right(), category=Act())), OpensClause())
+Concept(First(), Form("1st"), Form("firstly"), Form("first of all"), Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Property(), Modifies(side=Right(), category=Noun())), OpensClause())
+Concept(Finally(), Lemma("finally"), Form("lastly"), Form("at the end"), Category(Manner(), Modifies(side=Right(), category=Act())), OpensClause())
+Concept(Last(), Form("final"), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Next(), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Previous(), Lemma("previous"), Form("prior"), Form("prev"), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Also(), Form("too"), Form("as well"), Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Manner(), Modifies(side=Left(), category=Act())), OpensClause())
+
+// "commit and push" is And of two acts, run in order (logical-form.md section 3.4).
+Reading(on=Then(), pattern=Then($a, $b), becomes=Then($a, $b))
+Reading(on=Then(), pattern=Then($a, modifier=First($b)), becomes=Then($b, $a))
+Reading(on=First(), pattern=And(First($a), $b), becomes=Then($a, $b))
+Reading(on=First(), pattern=Then(First($a), $b), becomes=Then($a, $b))
+Reading(on=Finally(), pattern=Finally($a), becomes=$a)
+Reading(on=Last(), pattern=Last($n), becomes=Last($n, Ref(said=Last($n), kind=Order())))
+Reading(on=Next(), pattern=Next($n), becomes=Next($n, Ref(said=Next($n), kind=Thing())))
+Reading(on=Previous(), pattern=Previous($n), becomes=Last($n, time=Past()))
+Reading(on=Also(), pattern=Also($a), becomes=Also($a))
+Reading(on=But(), pattern=But($a, $b), becomes=And($a, $b))
+Reading(on=Nor(), pattern=Nor($a, $b), becomes=And(Not($a), Not($b)))
+
+// =============================================================================================
+// 6. Auxiliaries, modals, the copula, negation
+
+Concept(Auxiliary())
+
+Concept(Be(), Form("am", Present()), Form("is", Present()), Form("are", Present()), Form("was", Past()), Form("were", Past()),
+  Form("been", PastParticiple()), Form("being", Gerund()), Form("'s"), Form("'re"), Form("'m"), Form("s"), Form("r"), Form("iss"),
+  IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Property())),
+  Category(Act(), Takes(side=Right(), category=Thing())),
+  Category(Act(), Takes(side=Right(), category=Relation())),
+  Category(Act(), Takes(side=Right(), category=Act())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Property()), wraps=Interrogative()),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Thing()), wraps=Interrogative()),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act()), wraps=Interrogative()))
+Concept(Have(), Form("has", Present()), Form("had", Past()), Form("having", Gerund()), Form("'ve"), Form("'d"), Form("hav"),
+  IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act()), wraps=Interrogative()))
+Concept(Do(), Form("does", Present()), Form("did", Past()), Form("done", PastParticiple()), Form("doing", Gerund()), Form("doe"),
+  IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act()), wraps=Interrogative()))
+Concept(Can(), Form("cna"), Form("cn"), IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(Could(), Lemma("could"), Form("cud"), Form("coud"), IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(Will(), Lemma("will"), Form("'ll"), Form("gonna"), Form("going to"), IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(Would(), Lemma("would"), Form("wd"), Form("'d"), IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(Should(), Lemma("should"), Form("shoud"), Form("shuold"), Form("shld"), Form("ought to"), IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(Shall(), Lemma("shall"), IsA(Auxiliary()),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(May(), Lemma("may"), IsA(Auxiliary()),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act(), role=Theme()), wraps=Interrogative()))
+Concept(Might(), Lemma("might"), IsA(Auxiliary()), Category(Act(), Takes(side=Right(), category=Act(), role=Theme())))
+Concept(Must(), Lemma("must"), Form("have to"), Form("has to"), Form("got to"), Form("gotta"), Form("need to"), Form("needs to"),
+  IsA(Auxiliary()), Category(Act(), Takes(side=Right(), category=Act(), role=Theme())))
+Concept(Let(), Lemma("let"), Category(Act(), Takes(side=Right(), category=Thing()), Takes(side=Right(), category=Act())))
+Concept(Lets(), Lemma("let's"), Form("lets"), Form("let us"), Category(Clause(), Takes(side=Right(), category=Act())), OpensClause())
+Concept(Wanna(), Lemma("wanna"), Form("want to"), Category(Act(), Takes(side=Right(), category=Act())))
+
+// Tense and aspect are a time index, not a concept (logical-form.md section 3.3).
+Reading(on=Do(), pattern=Do(agent=$x, theme=$a), wants=IsA($a, Act()), becomes=WithRoles($a, agent=$x))
+Reading(on=Will(), pattern=Will(agent=$x, theme=$a), becomes=WithRoles($a, agent=$x, time=Future()))
+Reading(on=Have(), pattern=Have(agent=$x, theme=$a), wants=IsA($a, Act()), becomes=WithRoles($a, agent=$x, time=Past()))
+Reading(on=Can(), pattern=Can(agent=$x, theme=$a), becomes=Can(agent=$x, theme=$a))
+Reading(on=Could(), pattern=Could(agent=$x, theme=$a), becomes=Maybe(Can(agent=$x, theme=$a)))
+Reading(on=Would(), pattern=Would(agent=$x, theme=$a), becomes=Maybe(WithRoles($a, agent=$x, time=Future())))
+Reading(on=May(), pattern=May(agent=$x, theme=$a), becomes=Maybe(WithRoles($a, agent=$x)))
+Reading(on=May(), pattern=Question(May(agent=Speaker(), theme=$a)), becomes=Question(Permit($a)))
+Reading(on=Might(), pattern=Might(agent=$x, theme=$a), becomes=Maybe(WithRoles($a, agent=$x)))
+Reading(on=Must(), pattern=Must(agent=$x, theme=$a), becomes=Need(experiencer=$x, theme=WithRoles($a, agent=$x)))
+Reading(on=Must(), pattern=Assert(Must(agent=Addressee(), theme=$a)), becomes=Directive($a))
+Reading(on=Shall(), pattern=Question(Shall(agent=Speaker(), theme=$a)), becomes=Advice($a))
+Reading(on=Wanna(), pattern=Wanna(agent=$x, theme=$a), becomes=Want(experiencer=$x, theme=WithRoles($a, agent=$x)))
+
+// The copula: "it is broken" is Broken said of it; "X is a Y" is Be(X, Y).
+Reading(on=Be(), pattern=Be($x, $p), wants=IsA($p, Property()), becomes=WithRoles($p, theme=$x))
+
+// Negation (Not is in the protected base).
+Concept(Not(), Lemma("not"), Form("n't"), Form("nt"), Form("nto"),
+  Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Manner(), Modifies(side=Left(), category=Act())),
+  Category(Manner(), Modifies(side=Right(), category=Property())),
+  Category(Manner(), Modifies(side=Right(), category=Thing())))
+Concept(Dont(), Lemma("don't"), Form("dont"), Form("do not"), Form("doesn't"), Form("doesnt"), Form("does not"), Form("didn't"),
+  Form("didnt"), Form("did not"), Form("dnt"), Form("don"),
+  Category(Act(), Takes(side=Right(), category=Act())), OpensClause())
+Concept(Cant(), Lemma("can't"), Form("cant"), Form("cannot"), Form("can not"), Form("couldn't"), Form("couldnt"),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())))
+Concept(Wont(), Lemma("won't"), Form("wont"), Form("will not"), Form("wouldn't"), Form("wouldnt"),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())))
+Concept(Shouldnt(), Lemma("shouldn't"), Form("shouldnt"), Form("should not"), Form("mustn't"), Form("mustnt"),
+  Category(Act(), Takes(side=Right(), category=Act(), role=Theme())))
+Concept(Isnt(), Lemma("isn't"), Form("isnt"), Form("aren't"), Form("arent"), Form("wasn't"), Form("wasnt"), Form("weren't"),
+  Form("werent"), Form("ain't"), Form("aint"), Form("is not"), Form("are not"),
+  Category(Act(), Takes(side=Right(), category=Property())), Category(Act(), Takes(side=Right(), category=Thing())))
+Concept(Havent(), Lemma("haven't"), Form("havent"), Form("hasn't"), Form("hasnt"), Form("hadn't"), Form("hadnt"),
+  Category(Act(), Takes(side=Right(), category=Act())))
+Concept(Never(), Lemma("never"), Form("nvr"), Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(None(), Lemma("none"), Category(Thing()), Category(Thing(), Takes(side=Right(), category=Thing(), head=Of())))
+
+Reading(on=Not(), pattern=Not($p), becomes=Not($p))
+Reading(on=Not(), pattern=Not(Bad()), direction=Collapse(), becomes=Good())
+Reading(on=Dont(), pattern=Dont($a), becomes=Not($a))
+Reading(on=Dont(), pattern=Directive(Dont($a)), becomes=Constraint(Not($a)))
+Reading(on=Dont(), pattern=Imperative(Dont($a)), becomes=Constraint(Not($a)))
+Reading(on=Cant(), pattern=Cant(agent=$x, theme=$a), becomes=Not(Can(agent=$x, theme=$a)))
+Reading(on=Wont(), pattern=Wont(agent=$x, theme=$a), becomes=Not(WithRoles($a, agent=$x, time=Future())))
+Reading(on=Shouldnt(), pattern=Shouldnt(agent=$x, theme=$a), becomes=Bad(Do(agent=$x, theme=$a)))
+Reading(on=Shouldnt(), pattern=Assert(Shouldnt(agent=Addressee(), theme=$a)), becomes=Constraint(Not($a)))
+Reading(on=Isnt(), pattern=Isnt($x, $p), becomes=Not(Be($x, $p)))
+Reading(on=Havent(), pattern=Havent(agent=$x, theme=$a), becomes=Not(WithRoles($a, agent=$x, time=Past())))
+Reading(on=Never(), pattern=Never($a), becomes=Not(Some(Time(), where=WithRoles($a, time=$it))))
+Reading(on=Never(), pattern=Imperative(Never($a)), becomes=Constraint(Not($a), over=Always()))
+Reading(on=None(), pattern=None(), becomes=Not(Some(Something())))
+Reading(on=None(), pattern=None(Of($t)), becomes=Not(Some(Something(), where=PartOf($it, $t))))
+
+// =============================================================================================
+// 7. Time and aspect words
+
+Concept(Now(), Lemma("now"), Form("rn"), Form("right now"), Form("nwo"), Category(Manner(), Modifies(side=Left(), category=Act())),
+  Category(Manner(), Modifies(side=Right(), category=Act())), Category(Thing()))
+Concept(Today(), Lemma("today"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Thing()))
+Concept(Yesterday(), Lemma("yesterday"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Thing()))
+Concept(Tomorrow(), Lemma("tomorrow"), Form("tmrw"), Form("tmr"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Thing()))
+Concept(Later(), Lemma("later"), Form("l8r"), Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Soon(), Lemma("soon"), Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Ago(), Lemma("ago"), Category(Manner(), Takes(side=Left(), category=Thing()), Modifies(side=Left(), category=Act())))
+Concept(Still(), Lemma("still"), Form("stil"), Form("stll"),
+  Category(Manner(), Modifies(side=Right(), category=Act())), Category(Manner(), Modifies(side=Right(), category=Property())), Corrects())
+Concept(Yet(), Lemma("yet"), Form("yt"), Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Already(), Lemma("already"), Form("alredy"), Form("allready"), Form("alr"),
+  Category(Manner(), Modifies(side=Right(), category=Property())), Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Manner(), Modifies(side=Left(), category=Act())))
+Concept(Again(), Form("agian"), Form("agin"), Form("once more"), Category(Manner(), Modifies(side=Left(), category=Act())), Corrects())
+Concept(Always(), Lemma("always"), Form("allways"), Form("alwasy"), Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(Sometimes(), Lemma("sometimes"), Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(Ever(), Lemma("ever"), Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(Once(), Lemma("once"),
+  Category(Manner(), Modifies(side=Left(), category=Act())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Right(), category=Clause())))
+Concept(Since(), Lemma("since"), Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Clause())))
+Concept(Until(), Lemma("until"), Form("till"), Form("til"), Form("untill"), Form("'til"),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())))
+Concept(During(), Lemma("during"), Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+Concept(Before(), Lemma("before"), Form("b4"), Form("befor"),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())),
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Act())), OpensClause())
+Concept(After(), Lemma("after"), Form("aftr"),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())),
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Act())), OpensClause())
+Concept(While(), Lemma("while"), Form("whilst"), Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())),
+  OpensClause())
+
+Reading(on=Now(), pattern=Now(), becomes=Now())
+Reading(on=Today(), pattern=Today(), becomes=During(Today()))
+Reading(on=Later(), pattern=Later($a), becomes=WithRoles($a, time=After(Now())))
+Reading(on=Soon(), pattern=Soon($a), becomes=WithRoles($a, time=After(Now())))
+Reading(on=Ago(), pattern=Ago($d), becomes=Before(Now(), extent=$d))
+// "is it still broken?": from the last change until now (logical-form.md section 3.3).
+Reading(on=Still(), pattern=Question($p, modifier=Still()), becomes=Question($p, during=Since(LastChange())))
+Reading(on=Still(), pattern=Assert($p, modifier=Still()), becomes=Assert($p, during=Since(LastChange())))
+// "don't push yet": until told (logical-form.md section 7).
+Reading(on=Yet(), pattern=Constraint(Not($a), modifier=Yet()), becomes=Constraint(Not($a), until=Told()))
+Reading(on=Yet(), pattern=Question(Not($p), modifier=Yet()), becomes=Question($p, time=Now()))
+Reading(on=Yet(), pattern=Question($p, modifier=Yet()), becomes=Question($p, time=Now()))
+Reading(on=Already(), pattern=Already($p), becomes=WithRoles($p, time=Past()))
+Reading(on=Again(), pattern=Again($a), becomes=Again($a))
+Reading(on=Always(), pattern=Imperative(Always($a)), becomes=Constraint(Only($a), over=Always()))
+Reading(on=Always(), pattern=Always($p), becomes=Every(Time(), where=WithRoles($p, time=$it)))
+Reading(on=Until(), pattern=Until($x), becomes=Until($x))
+Reading(on=Since(), pattern=Since($x), becomes=Since($x))
+Reading(on=During(), pattern=During($x), becomes=During($x))
+Reading(on=Before(), pattern=Before($x), becomes=Before($x))
+Reading(on=After(), pattern=After($x), becomes=After($x))
+Reading(on=Before(), pattern=Before($b, modifier=$a), becomes=Then($b, $a))
+Reading(on=After(), pattern=After($b, modifier=$a), becomes=Then($b, $a))
+
+// =============================================================================================
+// 8. Conditions and reasons
+
+Concept(If(), Lemma("if"), Form("iff"), Form("fi"),
+  Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Right(), category=Clause(), role=Then())),
+  Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Left(), category=Clause(), role=Then())),
+  Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Right(), category=Act(), role=Then())),
+  Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Left(), category=Act(), role=Then())),
+  OpensClause())
+Concept(Unless(), Lemma("unless"),
+  Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Left(), category=Act(), role=Then())),
+  Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Right(), category=Act(), role=Then())), OpensClause())
+Concept(Otherwise(), Lemma("otherwise"), Form("else"), Form("or else"), Category(Manner(), Modifies(side=Right(), category=Act())), OpensClause())
+Concept(Because(), Form("bc"), Form("b/c"), Form("cuz"), Form("cause"), Form("coz"), Form("becuase"), Form("bcause"), Form("since"),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Clause())),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Act())), OpensClause())
+Concept(So(), Lemma("so"), Form("soo"), Form("so that"), Form("therefore"), Form("thus"),
+  Category(Manner(), Takes(side=Right(), category=Clause()), Modifies(side=Left(), category=Clause())),
+  Category(Manner(), Modifies(side=Right(), category=Property())), Tone(Emphasis()), OpensClause())
+
+Reading(on=If(), pattern=If($c, then=$a), becomes=If($c, then=$a))
+Reading(on=Unless(), pattern=Unless($c, then=$a), becomes=If(Not($c), then=$a))
+Reading(on=Otherwise(), pattern=If($c, then=$a, modifier=Otherwise($b)), becomes=If($c, then=$a, else=$b))
+Reading(on=Because(), pattern=Because($r), becomes=Because(Ref(said=Because($r), kind=Prop()), reason=$r))
+
+// =============================================================================================
+// 9. Degree, focus and exactness
+
+Concept(Only(), Lemma("only"), Form("onyl"), Form("just"), Form("solely"),
+  Category(Manner(), Modifies(side=Right(), category=Act())),
+  Category(Manner(), Modifies(side=Right(), category=Thing())),
+  Category(Manner(), Modifies(side=Right(), category=Noun())))
+Concept(Just(), Lemma("just"), Form("jsut"), Form("jst"),
+  Category(Manner(), Modifies(side=Right(), category=Act())), Category(Manner(), Modifies(side=Right(), category=Thing())), Tone(Hedge()))
+Concept(Even(), Lemma("even"), Category(Manner(), Modifies(side=Right(), category=Act())), Category(Manner(), Modifies(side=Right(), category=Thing())))
+Concept(Very(), Form("v"), Form("so"), Form("super"), Form("really"), Form("rly"), Form("hella"), Form("extremely"),
+  Category(Manner(), Modifies(side=Right(), category=Property())), Tone(Emphasis()))
+Concept(Excess(), Category(Manner(), Modifies(side=Right(), category=Property())))
+Concept(Quite(), Lemma("quite"), Form("pretty"), Form("fairly"), Form("kinda"), Form("kind of"), Form("sorta"), Form("sort of"),
+  Category(Manner(), Modifies(side=Right(), category=Property())), Tone(Hedge()))
+Concept(Exactly(), Lemma("exactly"), Form("precisely"), Form("literally"), Category(Manner(), Modifies(side=Right(), category=Thing())),
+  Category(Manner(), Modifies(side=Right(), category=Act())))
+Concept(Almost(), Lemma("almost"), Form("nearly"), Category(Manner(), Modifies(side=Right(), category=Property())))
+Concept(Whole(), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Else(), Lemma("else"), Category(Manner(), Modifies(side=Left(), category=Thing())))
+
+// "only suggest" is a rule on the plan; "only the tests" is exactly that set (logical-form.md 3.2).
+Reading(on=Only(), pattern=Imperative(Only($a)), becomes=Constraint(Only($a)))
+Reading(on=Only(), pattern=Only($x), wants=IsA($x, Thing()), becomes=Only($x))
+Reading(on=Just(), pattern=Just($x), becomes=Only($x))
+Reading(on=Just(), pattern=Just($x), becomes=$x)
+Reading(on=Even(), pattern=Even($x), becomes=$x)
+Reading(on=Very(), pattern=Very($p), becomes=Very($p))
+Reading(on=Excess(), pattern=Excess($p), becomes=Excess($p))
+Reading(on=Quite(), pattern=Quite($p), becomes=$p)
+Reading(on=Exactly(), pattern=Exactly($x), becomes=Only($x))
+Reading(on=Almost(), pattern=Almost($p), becomes=Not($p))
+Reading(on=Whole(), pattern=Whole($n), becomes=Every(Part($n)))
+Reading(on=Else(), pattern=Else($x), becomes=Other(Ref(said=Else($x)), $x))
+
+// =============================================================================================
+// 10. Answers, assent and social turns. A message with only these has no speech act unless a
+// reading gives it one (logical-form.md section 2).
+
+Concept(Yes(), Lemma("yes"), Form("yeah"), Form("yea"), Form("ya"), Form("yep"), Form("yup"), Form("ye"), Form("yeh"), Form("yess"),
+  Form("y"), Form("sure"), Form("of course"), Form("correct"), Form("right"), Form("affirmative"), Form("absolutely"), Form("definitely"),
+  Category(Clause()))
+Concept(No(), Form("nope"), Form("nah"), Form("na"), Form("nop"), Form("negative"), Form("nein"), Category(Clause()), Corrects())
+Concept(Ok(), Lemma("ok"), Form("okay"), Form("k"), Form("kk"), Form("okey"), Form("oki"), Form("okie"), Form("alright"), Form("all right"),
+  Form("aight"), Form("fine"), Form("cool"), Form("great"), Form("perfect"), Form("nice"), Form("awesome"), Form("sweet"),
+  Category(Clause()), Category(Manner(), Modifies(side=Right(), category=Act())), OpensClause())
+Concept(GoAhead(), Lemma("go ahead"), Form("go for it"), Form("do it"), Form("sounds good"), Form("sgtm"), Form("lgtm"), Form("ship it"),
+  Form("proceed"), Form("you can now"), Form("feel free"), Form("go"), Category(Clause()), Category(Clause(), Takes(side=Right(), category=Act())))
+Concept(Please(), Lemma("please"), Form("pls"), Form("plz"), Form("plez"), Form("pleas"), Form("pleaes"), Form("kindly"),
+  Category(Act(), Takes(side=Right(), category=Act())), Category(Manner(), Modifies(side=Left(), category=Act())), Tone(Politeness()), OpensClause())
+Concept(Thanks(), Lemma("thanks"), Form("thank you"), Form("thx"), Form("thnx"), Form("ty"), Form("tysm"), Form("thank u"), Form("cheers"),
+  Form("appreciate it"), Category(Clause()), Tone(Warmth()))
+Concept(Sorry(), Lemma("sorry"), Form("my bad"), Form("oops"), Form("whoops"), Form("apologies"), Category(Clause()), Tone(Apology()))
+Concept(Hello(), Lemma("hello"), Form("hi"), Form("hey"), Form("heya"), Form("yo"), Form("sup"), Form("howdy"), Form("good morning"),
+  Category(Clause()), Tone(Warmth()))
+Concept(Bye(), Lemma("bye"), Form("goodbye"), Form("cya"), Form("later"), Form("gn"), Form("good night"), Category(Clause()), Tone(Warmth()))
+
+Reading(on=Yes(), pattern=Yes(), becomes=Directive(Permit(Ref(said=Yes(), kind=Proposal()))))
+Reading(on=Yes(), pattern=Yes(), becomes=Assert(True(Ref(said=Yes(), kind=Question()))))
+Reading(on=No(), pattern=No(), becomes=Assert(Not(True(Ref(said=No(), kind=Question())))))
+Reading(on=No(), pattern=No(), becomes=Constraint(Not(Ref(said=No(), kind=Proposal()))))
+Reading(on=Ok(), pattern=Ok(), becomes=Directive(Permit(Ref(said=Ok(), kind=Proposal()))))
+Reading(on=Ok(), pattern=Ok($a), becomes=$a)
+
+// =============================================================================================
+// 11. Corrections (design section 17). A word marked Corrects() binds to a choice point of the
+// last reading; the runtime flips it and runs again. What follows the signal is read as usual.
+
+Concept(Wait(), Form("wiat"), Form("w8"), Form("hold on"), Form("hang on"), Form("hold up"), Form("one sec"), Form("one second"),
+  Category(Clause()), Corrects(), OpensClause())
+Concept(Actually(), Lemma("actually"), Form("actualy"), Form("acutally"), Form("actaully"), Form("acually"),
+  Category(Manner(), Modifies(side=Right(), category=Clause())), Category(Manner(), Modifies(side=Right(), category=Act())),
+  Corrects(), OpensClause())
+Concept(Nevermind(), Lemma("nevermind"), Form("never mind"), Form("nvm"), Form("nm"), Form("forget it"), Form("forget that"),
+  Form("scratch that"), Form("ignore that"), Form("disregard"), Category(Clause()), Corrects())
+Concept(Meant(), Lemma("i meant"), Form("i mean"), Form("i meant to say"), Form("what i meant"), Form("when i said"),
+  Category(Clause(), Takes(side=Right(), category=Thing())), Category(Clause(), Takes(side=Right(), category=Act())),
+  Category(Clause(), Takes(side=Right(), category=Clause())), Corrects(), OpensClause())
+Concept(ISaid(), Lemma("i said"), Form("i told you"), Form("like i said"), Form("as i said"), Form("i asked"), Form("i asked you to"),
+  Category(Clause(), Takes(side=Right(), category=Thing())), Category(Clause(), Takes(side=Right(), category=Act())),
+  Category(Clause(), Takes(side=Right(), category=Clause())), Corrects(), OpensClause())
+Concept(NotThat(), Lemma("not that"), Form("not that one"), Form("not this"), Form("thats not it"), Form("that's not it"),
+  Form("thats not what i"), Form("that's not what i"), Category(Clause()), Corrects())
+Concept(Wrong(), Lemma("wrong"), Form("wrng"), Form("incorrect"), Category(Property()), Category(Clause()), Corrects())
+Concept(Stop(), Lemma("stop"), Form("stahp"), Form("halt"), Form("quit it"), Form("enough"),
+  Category(Clause()), Category(Act(), Takes(side=Right(), category=Act())), Corrects())
+Concept(Undo(), Lemma("undo"), Form("revert that"), Form("put it back"), Form("roll that back"), Category(Clause()), Corrects())
+
+// "stop" with nothing after it ends the current plan (seed/policies.ncon, StopMeansStop).
+Reading(on=Stop(), pattern=Stop(), becomes=Directive(End(Ref(said=Stop(), kind=Act()))))
+Reading(on=Stop(), pattern=Stop($a), becomes=Constraint(Not($a)))
+Reading(on=Wait(), pattern=Wait(), becomes=Directive(Wait(agent=Addressee(), time=Until(Told()))))
+Reading(on=Nevermind(), pattern=Nevermind(), becomes=Directive(End(Ref(said=Nevermind(), kind=Act()))))
+Reading(on=Wrong(), pattern=Wrong(), becomes=Assert(Not(True(Ref(said=Wrong(), kind=Thing())))))
+Reading(on=Undo(), pattern=Undo(), becomes=Directive(Undo(Ref(said=Undo(), kind=Act()))))
+Reading(on=Meant(), pattern=Meant($x), becomes=$x)
+Reading(on=ISaid(), pattern=ISaid($x), becomes=$x)
+
+// =============================================================================================
+// 12. Asides: kept on the turn, not answers (design section 14).
+
+Concept(Btw(), Lemma("btw"), Form("by the way"), Form("fyi"), Form("side note"), Form("sidenote"), Form("unrelated"), Form("random but"),
+  Form("off topic"), Form("oh and"), Category(Manner(), Modifies(side=Right(), category=Clause())), Aside(), OpensClause())
+Concept(Lol(), Lemma("lol"), Form("lmao"), Form("lmfao"), Form("rofl"), Form("haha"), Form("hah"), Form("hehe"), Form("lul"), Form("xd"),
+  Category(Clause()), Tone(Amusement()), Aside())
+
+// "i haven't read your response": an aside, not an answer to the last question.
+Reading(on=Read(), pattern=Assert(Not(Read(agent=Speaker(), theme=$x, time=Past()))), becomes=Aside(Not(Read(agent=Speaker(), theme=$x))))
+Reading(on=Read(), pattern=Assert(Not(Read(agent=Speaker(), theme=$x))), becomes=Aside(Not(Read(agent=Speaker(), theme=$x))))
+
+// =============================================================================================
+// 13. Tone (design section 8). Tone words cost nothing to skip and add their tone to the turn.
+
+Concept(Emphasis())
+Concept(Frustration())
+Concept(Amusement())
+Concept(Hedge())
+Concept(Politeness())
+Concept(Urgency())
+Concept(Warmth())
+Concept(Apology())
+Concept(Surprise())
+
+Concept(Fuck(), Lemma("fuck"), Form("fucking"), Form("fuckin"), Form("fking"), Form("fkn"), Form("fucked"), Form("fck"), Form("fucks"),
+  Category(Manner(), Modifies(side=Right(), category=Property())), Category(Clause()), Tone(Frustration()), Tone(Emphasis()))
+Concept(Shit(), Lemma("shit"), Form("shitty"), Form("sh*t"), Form("bullshit"), Form("bs"), Category(Clause()), Tone(Frustration()))
+Concept(Damn(), Lemma("damn"), Form("dammit"), Form("damnit"), Form("goddamn"), Form("god damn"), Form("darn"), Form("dang"),
+  Category(Manner(), Modifies(side=Right(), category=Property())), Category(Clause()), Tone(Frustration()))
+Concept(Hell(), Lemma("hell"), Form("the hell"), Form("tf"), Form("the fuck"), Form("wtf"), Form("wth"), Category(Clause()), Tone(Frustration()))
+Concept(Ugh(), Lemma("ugh"), Form("argh"), Form("ffs"), Form("smh"), Form("jeez"), Form("geez"), Form("sigh"), Category(Clause()), Tone(Frustration()))
+Concept(Omg(), Lemma("omg"), Form("oh my god"), Form("wow"), Form("whoa"), Form("woah"), Form("holy"), Category(Clause()), Tone(Surprise()))
+Concept(Idk(), Lemma("idk"), Form("i dunno"), Form("dunno"), Form("not sure"), Form("idek"), Category(Clause()), Tone(Hedge()))
+Concept(Imo(), Lemma("imo"), Form("imho"), Form("i think"), Form("i guess"), Form("i feel like"), Form("tbh"), Form("ngl"), Form("honestly"),
+  Category(Manner(), Modifies(side=Right(), category=Clause())), Tone(Hedge()))
+Concept(Asap(), Lemma("asap"), Form("quickly"), Form("quick"), Form("right away"), Form("immediately"), Form("urgent"),
+  Category(Manner(), Modifies(side=Left(), category=Act())), Tone(Urgency()))
+Concept(Um(), Lemma("um"), Form("umm"), Form("uh"), Form("uhh"), Form("hmm"), Form("hm"), Form("er"), Form("erm"), Form("well"), Form("oh"),
+  Form("ah"), Form("ahh"), Form("so"), Form("anyway"), Form("anyways"), Form("like"), Form("basically"), Form("dude"), Form("man"), Form("bro"),
+  Form("lemme see"), Form("ok so"), Category(Clause()), Tone(Hedge()))
+
+// =============================================================================================
+// 14. Number words. Digits are shapes (section 17).
+
+Concept(Zero(), Lemma("zero"), Form("none"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(One(), Form("a single"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Two(), Form("a couple"), Form("a couple of"), Form("couple"), Form("pair"), Category(Thing()),
+  Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Three(), Lemma("three"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Four(), Lemma("four"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Five(), Lemma("five"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Six(), Lemma("six"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Seven(), Lemma("seven"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Eight(), Lemma("eight"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Nine(), Lemma("nine"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Ten(), Lemma("ten"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Dozen(), Lemma("dozen"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Hundred(), Lemma("hundred"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Thousand(), Lemma("thousand"), Category(Thing()), Category(Property(), Modifies(side=Right(), category=Noun())))
+Concept(Half(), Lemma("half"), Category(Thing()), Category(Thing(), Takes(side=Right(), category=Thing(), head=Of())))
+Concept(Twice(), Lemma("twice"), Category(Manner(), Modifies(side=Left(), category=Act())))
+
+Reading(on=Zero(), pattern=Zero(), becomes=0)
+Reading(on=One(), pattern=One(), becomes=1)
+Reading(on=Two(), pattern=Two(), becomes=2)
+Reading(on=Three(), pattern=Three(), becomes=3)
+Reading(on=Four(), pattern=Four(), becomes=4)
+Reading(on=Five(), pattern=Five(), becomes=5)
+Reading(on=Six(), pattern=Six(), becomes=6)
+Reading(on=Seven(), pattern=Seven(), becomes=7)
+Reading(on=Eight(), pattern=Eight(), becomes=8)
+Reading(on=Nine(), pattern=Nine(), becomes=9)
+Reading(on=Ten(), pattern=Ten(), becomes=10)
+Reading(on=Dozen(), pattern=Dozen(), becomes=12)
+Reading(on=Hundred(), pattern=Hundred(), becomes=100)
+Reading(on=Thousand(), pattern=Thousand(), becomes=1000)
+Reading(on=Half(), pattern=Half($x), becomes=Part($x, extent=0.5))
+Reading(on=Twice(), pattern=Twice($a), becomes=Then($a, $a))
+
+// =============================================================================================
+// 15. Punctuation. Clause boundaries are facts on marks (runtime.md section 3.2).
+
+Concept(Period(), Lemma("."), EndsClause(), Category(Mark()))
+Concept(QuestionMark(), Lemma("?"), Form("??"), Form("???"), Form("?!"), EndsClause(),
+  Category(Clause(), Takes(side=Left(), category=Clause()), wraps=Interrogative()),
+  Category(Clause(), Takes(side=Left(), category=Thing()), wraps=Interrogative()),
+  Category(Clause(), Takes(side=Left(), category=Act()), wraps=Interrogative()))
+Concept(ExclamationMark(), Lemma("!"), Form("!!"), Form("!!!"), EndsClause(), Tone(Emphasis()), Category(Mark()))
+Concept(Comma(), Lemma(","), Category(Mark()), Joins(category=Thing()), Joins(category=Act()))
+Concept(Semicolon(), Lemma(";"), EndsClause(), Category(Mark()))
+Concept(Colon(), Lemma(":"), Category(Mark()),
+  Category(Any(), Takes(side=Left(), category=Act()), Takes(side=Right(), category=Thing())))
+Concept(Ellipsis(), Lemma("..."), Form("…"), Form(".."), EndsClause(), Tone(Hedge()), Category(Mark()))
+Concept(Dash(), Lemma("-"), Form("--"), Form("—"), Form("–"), Category(Mark()))
+Concept(Slash(), Lemma("/"), Joins(category=Noun()), Joins(category=Thing()))
+Concept(OpenParen(), Lemma("("), Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=CloseParen()), wraps=Aside()))
+Concept(CloseParen(), Lemma(")"), Category(Mark()))
+Concept(OpenBracket(), Lemma("["), Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=CloseBracket())))
+Concept(CloseBracket(), Lemma("]"), Category(Mark()))
+Concept(DoubleQuote(), Lemma("\""), Form("“"), Form("”"),
+  Category(Thing(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=DoubleQuote()), wraps=Quote()))
+Concept(SingleQuote(), Lemma("'"), Form("‘"), Form("’"),
+  Category(Thing(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=SingleQuote()), wraps=Quote()))
+Concept(Ampersand(), Lemma("&"), Joins(category=Any()))
+
+// Quoted words are content: the chart builds Quote(...), and nothing inside is rewritten.
+Reading(on=OpenParen(), pattern=Aside($x), becomes=Aside($x))
+
+// =============================================================================================
+// 16. Markdown marks (design section 25b). Marks are as ambiguous as words: each is a competing
+// entry, chosen by the score.
+
+Concept(Star(), Lemma("*"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=Star()), wraps=Contrast()),
+  Category(Mark()),
+  Category(Manner(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Thing())),
+  Category(Mark(), Modifies(side=Right(), category=Clause())))
+Concept(DoubleStar(), Lemma("**"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=DoubleStar()), wraps=Important()),
+  Category(Mark()))
+Concept(TripleStar(), Lemma("***"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=TripleStar()), wraps=ImportantContrast()),
+  Category(Mark()))
+Concept(Underscore(), Lemma("_"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=Underscore()), wraps=Contrast()),
+  Category(Mark()))
+Concept(DoubleUnderscore(), Lemma("__"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=DoubleUnderscore()), wraps=Important()),
+  Category(Mark()))
+Concept(Tilde(), Lemma("~"), Form("~~"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=Tilde()), wraps=Withdrawn()),
+  Category(Mark()))
+Concept(InsTag(), Lemma("<ins>"),
+  Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=InsCloseTag()), wraps=Inserted()))
+Concept(InsCloseTag(), Lemma("</ins>"), Category(Mark()))
+Concept(Backtick(), Lemma("`"), Form("``"),
+  Category(Thing(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=Backtick()), wraps=Code()),
+  Category(Mark()))
+Concept(Hash(), Lemma("#"), Form("##"), Form("###"), Form("####"), Form("#####"), Form("######"),
+  Category(Thing(), Takes(side=Right(), category=Any()), wraps=Heading()), OpensClause())
+Concept(GreaterThan(), Lemma(">"),
+  Category(Thing(), Takes(side=Right(), category=Any()), wraps=Quote()),
+  Category(Thing(), Takes(side=Right(), category=Mark(), head=CalloutTag()), Takes(side=Right(), category=Any()), wraps=Callout()),
+  OpensClause())
+Concept(CalloutTag(), Lemma("[!NOTE]"), Form("[!TIP]"), Form("[!IMPORTANT]"), Form("[!WARNING]"), Form("[!CAUTION]"), Category(Mark()))
+Concept(Bullet(), Lemma("- "), Form("* "), Form("+ "), Form("• "),
+  Category(Thing(), Takes(side=Right(), category=Any()), wraps=Item()), OpensClause())
+Concept(NumberedBullet(), Lemma("1."), Form("1)"), Category(Thing(), Takes(side=Right(), category=Any()), wraps=Item()), OpensClause())
+Concept(TaskOpen(), Lemma("- [ ]"), Form("[ ]"), Category(Thing(), Takes(side=Right(), category=Any()), wraps=OpenTask()), OpensClause())
+Concept(TaskDone(), Lemma("- [x]"), Form("[x]"), Form("- [X]"), Category(Thing(), Takes(side=Right(), category=Any()), wraps=DoneTask()), OpensClause())
+Concept(LinkText(), Lemma("]("),
+  Category(Thing(), Takes(side=Left(), category=Any()), Takes(side=Right(), category=Thing()), Takes(side=Right(), category=Mark(), head=CloseParen())))
+Concept(ImageMark(), Lemma("!["), Category(Thing(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Thing(), head=LinkText())))
+Concept(NoteMark(), Lemma("[^"), Category(Thing(), Takes(side=Right(), category=Thing()), Takes(side=Right(), category=Mark(), head=CloseBracket()),
+  wraps=Note()))
+Concept(Backslash(), Lemma("\\"), Category(Mark(), Modifies(side=Right(), category=Mark())))
+Concept(LineBreakTag(), Lemma("<br>"), Form("<br/>"), Form("<br />"), EndsClause(), Category(Mark()))
+Concept(SubTag(), Lemma("<sub>"), Form("<sup>"), Form("</sub>"), Form("</sup>"), Category(Mark()))
+
+// "***x***" is both kinds of stress, a kind of its own (design section 25b).
+Concept(ImportantContrast())
+Concept(OpenTask())
+Concept(DoneTask())
+Reading(on=ImportantContrast(), pattern=ImportantContrast($x), becomes=Important(Contrast($x)))
+Reading(on=OpenTask(), pattern=OpenTask($x), becomes=Task($x, done=false))
+Reading(on=DoneTask(), pattern=DoneTask($x), becomes=Task($x, done=true))
+Reading(on=LinkText(), pattern=LinkText($text, $to), becomes=Link($text, to=$to))
+Reading(on=ImageMark(), pattern=ImageMark($alt, LinkText(_, $src)), becomes=Image($src, alt=$alt))
+// "~~push~~ commit": strikethrough is a correction inside the message (design section 17).
+Reading(on=Withdrawn(), pattern=Withdrawn($x), becomes=Withdrawn($x))
+Fact(Tilde(), Corrects())
+
+// =============================================================================================
+// 17. Shapes (runtime.md section 3.4). A shape proposes a kind for a span; it never decides.
+
+Concept(Numeral(), IsA(Number()), HasShape(Repeat(Digit(), 1, 15)))
+Concept(Decimal(), IsA(Number()), HasShape(Seq(Repeat(Digit(), 1, 15), Literal("."), Repeat(Digit(), 1, 15))))
+Concept(Percent(), IsA(Amount()), HasShape(Seq(Repeat(Digit(), 1, 15), Literal("%"))))
+Concept(ClockTime(), IsA(Moment()),
+  HasShape(Seq(Repeat(Digit(), 1, 2), Literal(":"), Digits(2))),
+  HasShape(Seq(Repeat(Digit(), 1, 2), OneOf(Literal("am"), Literal("pm")))))
+Concept(CalendarDate(), IsA(Moment()), HasShape(Seq(Digits(4), Literal("-"), Digits(2), Literal("-"), Digits(2))))
+Concept(Url(), IsA(Name()),
+  HasShape(Seq(OneOf(Literal("http://"), Literal("https://")), Repeat(Any(), 1, 2000))))
+Concept(EmailAddress(), IsA(Name()),
+  HasShape(Seq(Repeat(OneOf(Letter(), Digit(), Literal("."), Literal("_"), Literal("-"), Literal("+")), 1, 64), Literal("@"),
+    Repeat(OneOf(Letter(), Digit(), Literal("."), Literal("-")), 1, 255))))
+Concept(Handle(), IsA(Name()), HasShape(Seq(Literal("@"), Repeat(OneOf(Letter(), Digit(), Literal("_"), Literal("-"), Literal("/")), 1, 64))))
+Concept(HexColor(), IsA(Value()), HasShape(Seq(Literal("#"), OneOf(Repeat(OneOf(Digit(), Letter()), 6, 6), Repeat(OneOf(Digit(), Letter()), 3, 3)))))
+Concept(SnakeCase(), IsA(Name()), HasShape(Seq(Repeat(OneOf(Lower(), Digit()), 1, 64), Repeat(Seq(Literal("_"), Repeat(OneOf(Lower(), Digit()), 1, 64)), 1, 16))))
+Concept(CamelCase(), IsA(Name()), HasShape(Seq(Lower(), Repeat(OneOf(Lower(), Digit()), 0, 64), Repeat(Seq(Upper(), Repeat(OneOf(Lower(), Digit()), 0, 64)), 1, 16))))
+Concept(Emoji(), HasShape(Seq(Literal(":"), Repeat(OneOf(Lower(), Digit(), Literal("_"), Literal("+"), Literal("-")), 1, 40), Literal(":"))),
+  Tone(Warmth()))
+
+// Set aside before the chart: content, never heard (runtime.md section 3.1; design section 25b).
+Concept(CodeFence(), IsA(CodeBlock()), SetsAside(),
+  HasShape(Seq(Literal("```"), Repeat(Any(), 0, 1000000), Literal("```"))),
+  HasShape(Seq(Literal("~~~"), Repeat(Any(), 0, 1000000), Literal("~~~"))))
+Concept(HiddenComment(), SetsAside(), HasShape(Seq(Literal("<!--"), Repeat(Any(), 0, 1000000), Literal("-->"))))

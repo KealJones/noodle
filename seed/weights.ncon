@@ -1,0 +1,29 @@
+// Seed part 5: initial weights (design section 6, part 5; runtime.md section 8).
+//
+// The starting weight of every feature template before any learning, frozen for arm A. Sense
+// frequency, words used, wanted kind, shape fit and, in stage two, reached an act at 1; every
+// other template at 0. ReachedAct is the strong prior toward the executable reading, named so it
+// can be ablated.
+
+Pack(name="seed-weights", version="0.1.0", from=Seed("weights"))
+
+// Stage one (runtime.md section 8.1)
+Concept(WordsUsed(), Weight(1))
+Concept(WantedKind(), Weight(1))
+Concept(ShapeFit(), Weight(1))
+Concept(SenseFrequency(), Weight(1))
+Concept(CandidateSource(), Weight(0))
+Concept(Neighbour(), Weight(0))
+Concept(Evidence(), Weight(0))
+Concept(Match(), Weight(0))
+Concept(Trust(), Weight(0))
+Concept(Coverage(), Weight(0))
+Concept(FocusSource(), Weight(0))
+
+// Stage two (runtime.md section 8.2)
+Concept(ReachedAct(), Weight(1))
+Concept(NeedsMet(), Weight(0))
+Concept(ChecksWouldPass(), Weight(0))
+Concept(Blocked(), Weight(0))
+Concept(UnknownEffects(), Weight(0))
+Concept(Unworked(), Weight(0))

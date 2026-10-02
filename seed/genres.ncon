@@ -1,0 +1,82 @@
+// Seed part 7: genre shapes (design sections 6 and 25).
+//
+// Loose outlines for writing: what a kind of text usually has, in order. Never rigid: a part with
+// optional=true may be left out, and the stated constraints of a request always win. Parts are
+// document heads (seed/core.ncon) over what the text is about. A genre is the same for any
+// project: a commit message is the summary-of-a-change shape, not a git template.
+
+Pack(name="seed-genres", version="0.1.0", from=Seed("genres"))
+
+Concept(Genre())
+Concept(Outline())     // the parts, in order
+Concept(Requires())    // a constraint every text of the genre meets
+
+// Summary of a change (a commit message is one). Its constraint: it names every changed part's
+// area and the request it answers (design section 25).
+Concept(ChangeSummary(), IsA(Genre()),
+  Outline(
+    Paragraph(Short(Say(Change(theme=$change)))),
+    Paragraph(Because($change, reason=Want(experiencer=Speaker(), theme=$p)), optional=true),
+    List(Every(Part($change)), optional=true)),
+  Requires(Every(Part($change), where=Mention($it))),
+  Requires(Mention(Want(experiencer=Speaker(), theme=$p))))
+
+// A plan: what will be done, in order, each step something that can be checked.
+Concept(Plan(), IsA(Genre()),
+  Outline(
+    Paragraph(Short(Say(Want(experiencer=Speaker(), theme=$goal)))),
+    List(Every(Task($step, done=false))),
+    Paragraph(Say(Know(experiencer=Addressee(), theme=True($goal))), optional=true)))
+
+// An answer to a question: the answer first, then why, then what it does not cover.
+Concept(AnswerShape(), IsA(Genre()),
+  Outline(
+    Paragraph(Answer(theme=$answer)),
+    Paragraph(Because($answer, reason=$why), optional=true),
+    Paragraph(Not(Know(experiencer=Addressee(), theme=$rest)), optional=true)))
+
+// A report of what ran: what was done, what was not and why, what is next.
+Concept(Report(), IsA(Genre()),
+  Outline(
+    List(Every(Act(), where=Happen(theme=$it, time=Past()))),
+    List(Every(Act(), where=Not(Happen(theme=$it))), optional=true),
+    Paragraph(Next(Act(), $plan), optional=true)))
+
+// An explanation: the main point, the reasons in order, an example.
+Concept(Explanation(), IsA(Genre()),
+  Outline(
+    Paragraph(Short(Say($point))),
+    List(Every(Because($point, reason=$it)), optional=true),
+    Paragraph(Like($example, $point), optional=true)))
+
+// Advice: the choices, what each is good and bad for, then which and why.
+Concept(AdviceShape(), IsA(Genre()),
+  Outline(
+    List(Every(Item(And($choice, Good($choice), Bad($choice))))),
+    Paragraph(Prefer(experiencer=Addressee(), theme=$best, standard=Other($best, $choice)), optional=true)))
+
+// A review: overall, then each problem with where it is, then what would fix it.
+Concept(Review(), IsA(Genre()),
+  Outline(
+    Paragraph(Short(Say(Good($thing)))),
+    List(Every(Item(And(Bad($problem), BeIn($problem, $place))))),
+    List(Every(Item(Cause(result=Good($thing)))), optional=true)))
+
+// A letter: who it is to, what it is about, the body, who it is from.
+Concept(Letter(), IsA(Genre()),
+  Outline(
+    Paragraph(Say(recipient=$to)),
+    Paragraph(Topic($about), optional=true),
+    Paragraph($body),
+    Paragraph(Name($from))))
+
+// Research: what was found, each with where it came from, then what could not be found.
+Concept(ResearchReport(), IsA(Genre()),
+  Outline(
+    Paragraph(Short(Say($finding))),
+    List(Every(Item(And($fact, Link(Source($fact), to=$source))))),
+    Paragraph(Not(Know(experiencer=Addressee(), theme=$missing)), optional=true)))
+
+// A list of options to pick from: numbered, so "2" can point at one (design section 14).
+Concept(Options(), IsA(Genre()),
+  Outline(List(Every(Item($option)))))
