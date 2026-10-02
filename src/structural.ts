@@ -112,8 +112,12 @@ export const STRUCTURAL = {
     names: [
       "File", "Directory", "Entry", "GitStatus", "GitLog", "GitBranches", "Changed", "Untracked", "GitCommit", "GitBranch",
       "Ran", "Args", "Wrote", "Edited", "Replace", "Inserted", "Withdrawn",
+      // Read of a manual page: the page, its parts, and its usage lines (Optional, Repeat, Literal
+      // and Block are structural already).
+      "ManPage", "Section", "Subsection", "Paragraph", "Item", "Synopsis", "Usage",
+      "Choice", "Group", "Flag", "Option", "Placeholder", "Unparsed",
       // Roles of those structures that realizations read.
-      "Path", "Media", "Exit", "Error", "Previous",
+      "Path", "Media", "Exit", "Error", "Previous", "Term", "Summary", "Command",
       // How Sort and Rank order, and how Compare tests equality.
       "Name", "Same",
     ],

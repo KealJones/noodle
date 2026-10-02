@@ -3,7 +3,9 @@
 //
 // Result and argument heads the primitives introduce, all listed in structural.ts under
 // primitiveResults: File, Directory, Entry (Read of a path); GitStatus, GitLog, GitBranches,
-// Changed, Untracked, GitCommit, GitBranch (Read of git state); Ran, Args (Run); Wrote (Write);
+// Changed, Untracked, GitCommit, GitBranch (Read of git state); ManPage, Section, Subsection,
+// Paragraph, Item, Synopsis, Usage, Choice, Group, Flag, Option, Placeholder, Unparsed (Read of a
+// manual page, manpage.ts and synopsis.ts); Ran, Args (Run); Wrote (Write);
 // Edited, Replace, Inserted, Withdrawn (Edit); Name (Sort and Rank); Same (Compare).
 // Role is the chart's structural name, used by Sort and Rank to order by a role.
 
