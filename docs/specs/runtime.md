@@ -486,7 +486,10 @@ only route to the world (section 11b).
   act; the update moves weights toward the highest-scoring derivation that reaches that act and away
   from the chosen one. Stage two is trained by the same update on its own features.
 - **Caps**: one update moves any weight by at most a fixed amount (a config value, frozen with the
-  system); few feature templates in the experiment.
+  system); few feature templates in the experiment. A template feature every reading shares
+  (Unworked, WantedKind) moves a quarter of the cap, so one correction cannot erase it; a feature
+  about one thing (Evidence:..., a template with an instance) moves the whole cap, and keeps
+  stepping, a few times at most, until the corrected reading wins on the corrected input.
 - **Corrections** (design section 17) are an operation on the last reading: signal words (facts in
   the seed lexicon) bind to a choice point; the runtime flips it, runs again, and updates. What a
   correction may create is only: weights; a link from a word to an existing sense or concept; a

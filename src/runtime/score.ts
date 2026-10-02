@@ -57,17 +57,24 @@ export class Weights {
     }
   }
 
-  /** The perceptron's capped update (runtime.md section 15): move toward good, away from bad. */
+  /**
+   * The perceptron's capped update (runtime.md section 15): move toward good, away from bad. A
+   * feature about one thing (a template with an instance, "Evidence:..." or "WordsUsed:...") moves
+   * a whole step; a template feature, which every reading shares, moves a quarter, so one
+   * correction cannot erase what the seed weighs everywhere. The features about one thing keep
+   * stepping (a few times at most) until the corrected reading wins, since the user said so.
+   */
   update(good: Features, bad: Features, rate = 1, cap = 1): Map<string, number | undefined> {
     const before = new Map<string, number | undefined>();
-    const names = new Set([...good.keys(), ...bad.keys()]);
-    for (const n of names) {
+    const names = [...new Set([...good.keys(), ...bad.keys()])].filter((n) => (good.get(n) ?? 0) !== (bad.get(n) ?? 0));
+    const step = (n: string, c: number) => {
       const d = ((good.get(n) ?? 0) - (bad.get(n) ?? 0)) * rate;
-      if (!d) continue;
-      const step = Math.max(-cap, Math.min(cap, d));
-      before.set(n, this.learned.get(n));
-      this.learned.set(n, this.get(n) + step);
-    }
+      if (!before.has(n)) before.set(n, this.learned.get(n));
+      this.learned.set(n, this.get(n) + Math.max(-c, Math.min(c, d)));
+    };
+    for (const n of names) step(n, n.includes(":") ? cap : cap / 4);
+    const own = names.filter((n) => n.includes(":"));
+    for (let i = 0; own.length && i < 4 && scoreOf(good, this.get) <= scoreOf(bad, this.get); i++) for (const n of own) step(n, cap);
     return before;
   }
 
