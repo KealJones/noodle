@@ -11,6 +11,16 @@ export interface Found {
   url: string;
   /** Which source: a concept name with a trust level in the trust table. */
   source: "Wikipedia" | "Wiktionary" | "Wikidata" | "Web";
+  /** The Wikidata entity the page is about, where the source says. */
+  entity?: string;
+}
+
+/** A Wikidata claim on an entity: the property's label and the value's, as the source gives them. */
+export interface Claim {
+  property: string;
+  value: string | number;
+  /** The unit a quantity is in, by its label. */
+  unit?: string;
 }
 
 export interface SearchResult {
@@ -82,7 +92,7 @@ export function htmlText(html: string): string {
 async function summary(key: string): Promise<Found | undefined> {
   const sum = await json(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(key)}`);
   if (!sum?.extract || sum.type === "disambiguation") return undefined;
-  return { text: String(sum.extract).trim(), title: sum.title, url: sum.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${key}`, source: "Wikipedia" };
+  return { text: String(sum.extract).trim(), title: sum.title, url: sum.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${key}`, source: "Wikipedia", entity: typeof sum.wikibase_item === "string" ? sum.wikibase_item : undefined };
 }
 
 /** Wikipedia's page about a topic: by its title, then the best title match. */
@@ -122,7 +132,69 @@ export async function wikidata(query: string): Promise<Found | undefined> {
   const s = await json(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&limit=1`);
   const e = s?.search?.[0];
   if (!e?.description) return undefined;
-  return { text: `${e.label}: ${e.description}`, title: e.label, url: `https://www.wikidata.org/wiki/${e.id}`, source: "Wikidata" };
+  return { text: `${e.label}: ${e.description}`, title: e.label, url: `https://www.wikidata.org/wiki/${e.id}`, source: "Wikidata", entity: e.id };
+}
+
+/** English labels of Wikidata entities and properties, fifty at a time. */
+async function labels(ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const d = await json(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${ids.slice(i, i + 50).join("|")}&props=labels&languages=en&format=json`);
+    for (const [id, e] of Object.entries<any>(d?.entities ?? {})) if (e?.labels?.en?.value) out.set(id, e.labels.en.value);
+  }
+  return out;
+}
+
+/** Wikidata's datatypes for a claim about the thing itself (not an identifier, a file or a link). */
+const CLAIM_TYPES = new Set(["wikibase-item", "quantity", "time"]);
+
+/**
+ * An entity's claims, labelled: for each property whose value is another entity, a quantity or a
+ * time, its best value (preferred rank, else the first). Identifiers, media and links are left
+ * out: they are references to other sites, not claims about the thing.
+ */
+export async function wikidataClaims(id: string, max = 120): Promise<Claim[]> {
+  const d = await json(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${encodeURIComponent(id)}&props=claims&format=json`);
+  const claims = d?.entities?.[id]?.claims as Record<string, any[]> | undefined;
+  if (!claims) return [];
+  const raw: { property: string; value: any; type: string }[] = [];
+  for (const [prop, list] of Object.entries(claims)) {
+    const best = list.find((x) => x.rank === "preferred") ?? list.find((x) => x.rank !== "deprecated");
+    const snak = best?.mainsnak;
+    if (snak?.snaktype !== "value" || !CLAIM_TYPES.has(snak.datatype)) continue;
+    raw.push({ property: prop, value: snak.datavalue?.value, type: snak.datatype });
+    if (raw.length >= max) break;
+  }
+  const unitOf = (x: any) => (typeof x?.unit === "string" && x.unit.includes("/entity/") ? x.unit.split("/entity/")[1] : undefined);
+  const ids = new Set<string>();
+  for (const r of raw) {
+    ids.add(r.property);
+    if (r.type === "wikibase-item" && r.value?.id) ids.add(r.value.id);
+    const u = unitOf(r.value);
+    if (u) ids.add(u);
+  }
+  const names = await labels([...ids]);
+  const out: Claim[] = [];
+  for (const r of raw) {
+    const property = names.get(r.property);
+    if (!property) continue;
+    if (r.type === "wikibase-item") {
+      const label = names.get(r.value?.id);
+      if (label) out.push({ property, value: label });
+    } else if (r.type === "quantity") {
+      const amount = Number(r.value?.amount);
+      const u = unitOf(r.value);
+      if (Number.isFinite(amount)) out.push({ property, value: amount, unit: u ? names.get(u) : undefined });
+    } else {
+      // A time, to the precision the source gives (9 a year, 10 a month, 11 a day).
+      const m = /^([+-]\d+)-(\d\d)-(\d\d)/.exec(String(r.value?.time ?? ""));
+      if (!m) continue;
+      const year = String(Number(m[1]));
+      const p = Number(r.value?.precision ?? 11);
+      out.push({ property, value: p >= 11 ? `${year}-${m[2]}-${m[3]}` : p === 10 ? `${year}-${m[2]}` : year });
+    }
+  }
+  return out;
 }
 
 /** A general web search (DuckDuckGo's HTML results). */

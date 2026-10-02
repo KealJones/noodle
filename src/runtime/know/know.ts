@@ -1,15 +1,17 @@
 // Know (design section 21; runtime.md section 14): the one door to knowledge from outside.
 //   1. if the graph holds it and it is fresh, return it;
 //   2. else ask the live sources that answer that kind of question, in order;
-//   3. keep what came back as content, with its source (understanding it into structure, down to
-//      the seed, is the next step: phase 4);
+//   3. understand what came back (learn.ts: a page's opening heard into facts on what it is
+//      about, an entity's claims kept as facts), and keep it as content too, with its source;
 //   4. save it with provenance; return it.
 // During Suppose, Know answers from the graph and the cache only: nothing leaves the machine.
+// Offline, it never does: what the graph holds and what was kept are all it has.
 
 import { createHash } from "node:crypto";
 import { type Call, type Expr, c, isCall, positional, role, s } from "../expr.js";
 import type { Store } from "../store.js";
-import { type Found, type SearchResult, page, webSearch, wikidata, wikipedia, wikipediaTopic, wiktionary } from "./sources.js";
+import { type Learned, Learner, type Recalled, topicName } from "./learn.js";
+import { type Found, type SearchResult, page, webSearch, wikidata, wikidataClaims, wikipedia, wikipediaTopic, wiktionary } from "./sources.js";
 
 export interface Knowledge {
   block: string;
@@ -21,11 +23,50 @@ export interface Knowledge {
 /** How long an answer stays fresh, in days (a fact on a source, here its starting value). */
 const FRESH_DAYS = 30;
 
+export interface KnowOptions {
+  /** Never go out: answer from the graph and what was kept. */
+  offline?: boolean;
+}
+
 export class Know {
+  readonly learner: Learner;
+  /** What learning found, for the report (fact counts per page). */
+  readonly learned: Learned[] = [];
+
   constructor(
     readonly store: Store,
     readonly now: () => Date,
-  ) {}
+    readonly opts: KnowOptions = {},
+  ) {
+    this.learner = new Learner(store);
+  }
+
+  /** An answer from the graph to a question's proposition (step 1), or none. */
+  recall(p: Expr): Recalled | undefined {
+    return this.learner.recall(p);
+  }
+
+  /** Understand what was found: its opening, and its entity's claims where the source names one. */
+  private async understand(f: Found): Promise<void> {
+    // A page understood once is not heard again.
+    if (this.store.facts(topicName(f), "Said").length) return;
+    const claims = f.entity && !this.opts.offline ? await wikidataClaims(f.entity).catch(() => []) : [];
+    this.learned.push(this.learner.learn(f, claims));
+    this.learner.forget();
+  }
+
+  /**
+   * Learn about a thing a question names, by its words (step 2 and 3 for a thing): its page, its
+   * claims. Once learned, it is not asked again; offline, nothing is.
+   */
+  async learnAbout(words: string): Promise<boolean> {
+    if (this.opts.offline || this.cached("about", words)) return false;
+    const found = await wikipediaTopic(words);
+    if (!found || !this.about(found, words)) return false;
+    this.keep("about", words, found);
+    await this.understand(found);
+    return true;
+  }
 
   private keyOf(kind: string, q: string): string {
     return createHash("sha256").update(`${kind}|${q.trim().toLowerCase()}`).digest("hex").slice(0, 16);
@@ -39,7 +80,7 @@ export class Know {
       const [qk, block] = positional(claim);
       if (qk?.kind !== "string" || qk.value !== k || !isCall(block)) continue;
       const at = role(claim, "at");
-      if (at?.kind === "string" && (this.now().getTime() - Date.parse(at.value)) / 86400000 > FRESH_DAYS) continue;
+      if (at?.kind === "string" && !this.opts.offline && (this.now().getTime() - Date.parse(at.value)) / 86400000 > FRESH_DAYS) continue;
       const id = positional(block)[0];
       const src = role(claim, "source");
       const title = role(claim, "title");
@@ -69,14 +110,17 @@ export class Know {
    */
   async answer(question: string, topic?: string, about: "thing" | "reason" = "thing"): Promise<Knowledge | undefined> {
     const have = this.cached("answer", question);
-    if (have) return have;
+    if (have || this.opts.offline) return have;
     const tries: (() => Promise<Found | undefined>)[] =
       about === "thing" && topic
         ? [() => wikipediaTopic(topic), () => wikipedia(question), () => wikidata(topic), () => this.webFound(question)]
         : [() => wikipedia(question), ...(topic ? [() => wikipediaTopic(topic)] : []), () => this.webFound(question)];
     for (const t of tries) {
       const found = await t();
-      if (found && this.about(found, topic)) return this.keep("answer", question, found);
+      if (!found || !this.about(found, topic)) continue;
+      const k = this.keep("answer", question, found);
+      await this.understand(found).catch(() => undefined);
+      return k;
     }
     return undefined;
   }
@@ -106,7 +150,7 @@ export class Know {
   /** What a word means, from a dictionary. */
   async define(word: string): Promise<Knowledge | undefined> {
     const have = this.cached("define", word);
-    if (have) return have;
+    if (have || this.opts.offline) return have;
     const found = await wiktionary(word);
     return found ? this.keep("define", word, found) : undefined;
   }
@@ -114,14 +158,14 @@ export class Know {
   /** A page by its URL. */
   async page(url: string): Promise<Knowledge | undefined> {
     const have = this.cached("page", url);
-    if (have) return have;
+    if (have || this.opts.offline) return have;
     const found = await page(url);
     return found ? this.keep("page", url, found) : undefined;
   }
 
   /** A web search: its results, kept as one block. */
   async search(query: string): Promise<{ results: SearchResult[]; knowledge?: Knowledge }> {
-    const results = await webSearch(query);
+    const results = this.opts.offline ? [] : await webSearch(query);
     if (!results.length) return { results };
     const text = results.map((r) => `${r.title}\n${r.url}\n${r.snippet}`).join("\n\n");
     return { results, knowledge: this.keep("search", query, { text, title: query, url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`, source: "Web" }) };
