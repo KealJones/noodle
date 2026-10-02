@@ -1,12 +1,12 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 06:19 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 16:12 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
 | | RIGHT | HONEST | WRONG | ERROR |
 |---|---|---|---|---|
-| Noodle | 34 | 47 | 13 | 0 |
+| Noodle | 36 | 47 | 11 | 0 |
 | Napkin | 31 | 49 | 14 | 0 |
 
 By session (RIGHT / HONEST / WRONG / ERROR):
@@ -16,16 +16,16 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | small talk | 5 / 3 / 0 / 0 | 6 / 1 / 1 / 0 |
 | facts | 4 / 3 / 1 / 0 | 2 / 5 / 1 / 0 |
 | math | 5 / 1 / 1 / 0 | 5 / 1 / 1 / 0 |
-| units | 1 / 4 / 0 / 0 | 2 / 3 / 0 / 0 |
+| units | 1 / 3 / 1 / 0 | 2 / 3 / 0 / 0 |
 | time and reminders | 2 / 2 / 1 / 0 | 4 / 1 / 0 / 0 |
 | lists and memory | 2 / 5 / 2 / 0 | 2 / 5 / 2 / 0 |
 | definitions | 2 / 4 / 0 / 0 | 3 / 1 / 2 / 0 |
 | files | 3 / 4 / 1 / 0 | 0 / 7 / 1 / 0 |
-| git | 2 / 2 / 4 / 0 | 0 / 8 / 0 / 0 |
-| instructions | 2 / 2 / 0 / 0 | 0 / 4 / 0 / 0 |
+| git | 2 / 4 / 2 / 0 | 0 / 8 / 0 / 0 |
+| instructions | 2 / 1 / 1 / 0 | 0 / 4 / 0 / 0 |
 | multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
-| typos and messy phrasing | 2 / 5 / 1 / 0 | 2 / 5 / 1 / 0 |
-| near-misses | 3 / 3 / 1 / 0 | 2 / 3 / 2 / 0 |
+| typos and messy phrasing | 3 / 5 / 0 / 0 | 2 / 5 / 1 / 0 |
+| near-misses | 4 / 3 / 0 / 0 | 2 / 3 / 2 / 0 |
 | conversation | 0 / 6 / 0 / 0 | 3 / 1 / 2 / 0 |
 
 ## small talk
@@ -72,7 +72,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 24 | how many inches in a foot | From Wikipedia, [Inch](https://en.wikipedia.org/wiki/Inch):<br><br>The inch is a unit of length in the British Imperial and the United States customary systems of measurement. It is equal to ⁠1/36⁠ yard or ⁠1/12⁠ of a foot. Derived from the Roman uncia ("twelfth"), the word inch is also sometimes used to translate similar units in other measurement systems, usually understood as deriving from the  ... | RIGHT | 12 inches. | RIGHT |
 | 25 | convert 5 km to miles | I couldn't work out "convert 5 km to miles". | HONEST | 5 km is 3.106855961 miles. | RIGHT |
-| 26 | what is 70 fahrenheit in celsius | I couldn't 70: Read's source must be a string<br><br>I couldn't work out "what is 70 fahrenheit in celsius". | HONEST | I don't know that yet. | HONEST |
+| 26 | what is 70 fahrenheit in celsius | From Wikipedia, [Celsius](https://en.wikipedia.org/wiki/Celsius):<br><br>The degree Celsius is the unit of temperature on the Celsius temperature scale, one of two temperature scales used in the International System of Units (SI), the other being the closely related Kelvin scale. The degree Celsius can refer to a specific point on the Celsius temperature scale or to a difference or range between t ... | WRONG | I don't know that yet. | HONEST |
 | 27 | how many grams are in a pound | I couldn't work out "how many grams are in a pound". | HONEST | I don't know yet. | HONEST |
 | 28 | how many minutes are in 3 hours | I couldn't work out "how many minutes are in 3 hours". | HONEST | I don't know yet. | HONEST |
 
@@ -80,9 +80,9 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 11:19 PM. | RIGHT | It is 10:59 PM. | RIGHT |
-| 30 | what day is it today | Today is Thursday, October 1. | RIGHT | Thursday. | RIGHT |
-| 31 | what's the date tomorrow | Today is Thursday, October 1. | WRONG | Friday, October 2, 2026 | RIGHT |
+| 29 | what time is it | It's 9:12 AM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 30 | what day is it today | Today is Friday, October 2. | RIGHT | Thursday. | RIGHT |
+| 31 | what's the date tomorrow | Today is Friday, October 2. | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
 | 33 | how many days until christmas | I couldn't work out "how many days until christmas". | HONEST | 85 days. | RIGHT |
 
@@ -128,21 +128,21 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-K1RkSV`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-Scg3yQ`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | - `.git/`<br>- `README.md`<br>- `notes.txt`<br>- `package.json`<br>- `src/` | WRONG | I don't know how to log yet. | HONEST |
-| 60 | commit my changes with the message 'update readme' | I can run `git commit my changes`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
-| 61 | yes go ahead | `git commit your change` failed (exit 1):<br><br>```<br>Aborting commit due to empty commit message.<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit bc34a0d125139f1b40cb95b7513df3df848d3944<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 09:12:37 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 60 | commit my changes with the message 'update readme' | I couldn't work out "commit my changes with the message 'update readme'". | HONEST | I don't know how to commit yet. | HONEST |
+| 61 | yes go ahead | There's nothing I'm waiting to do. | HONEST | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
 | 62 | is the working tree clean now? | I couldn't work out "is the working tree clean now?". | HONEST | I don't know yet. | HONEST |
 | 63 | create a branch called feature-login | I don't know what `feature-login` means here. | HONEST | I worked that out, but I don't know how to say it yet: BudgetExceeded(kind="steps", limit=4000) | HONEST |
-| 64 | push it | I can run `git push it`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
+| 64 | push it | I can run `git push`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
 
 ## instructions
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 65 | don't run any git commands without asking me first | Got it: I won't not any git commands.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
-| 66 | show me the git status | I couldn't work out "show me the git status". | HONEST | I don't know how to status yet. | HONEST |
+| 65 | don't run any git commands without asking me first | Got it: I won't not `git ...`.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
+| 66 | show me the git status | ```<br>git status<br>```<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I don't know how to status yet. | HONEST |
 | 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short". | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
 | 68 | stop | Stopped. | RIGHT | I worked that out, but I don't know how to say it yet: Stop() | HONEST |
 
@@ -162,7 +162,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 74 | waht is teh capitol of france | I couldn't work out "waht is teh capitol of france". | HONEST | Paris. | RIGHT |
 | 75 | hwo many days in a leap yeer | I couldn't work out "hwo many days in a leap yeer". | HONEST | I don't know that yet. | HONEST |
-| 76 | pls show me whats in teh readme | Do you mean `git show`, or `git show you`? | WRONG | I don't know how to what yet. | HONEST |
+| 76 | pls show me whats in teh readme | I couldn't work out "pls show me whats in teh readme". I understood `git show me`, but I don't know how to do it.<br><br>`README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I don't know how to what yet. | HONEST |
 | 77 | whats 9 tims 9 | 9 times 9 is 81. | RIGHT | I don't know yet. | HONEST |
 | 78 | remmber my fav color is green | I couldn't work out "remmber my fav color is green". | HONEST | I don't know how to is yet. | HONEST |
 | 79 | wats my fav color | You haven't told me that. | HONEST | I see. | WRONG |
@@ -175,7 +175,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 82 | i pushed the code yesterday | Do you mean add I to code, or add yesterday to code? | RIGHT | I'm sorry to hear that. | RIGHT |
 | 83 | my friend deleted his whole repo lol | Ha. | RIGHT | I see. | RIGHT |
-| 84 | what does git commit do? | From Wikipedia, [Git](https://en.wikipedia.org/wiki/Git):<br><br>Git is a distributed version control software system that is capable of managing versions of source code or data. It is often used to control source code by programmers who are developing software collaboratively. It was originally created by Linus Torvalds for version control in the development of the Linux kernel. | WRONG | I don't know commit git yet. | HONEST |
+| 84 | what does git commit do? | From the manual page `git-commit`:<br><br>Record changes to the repository | RIGHT | I don't know commit git yet. | HONEST |
 | 85 | the word delete has six letters | I couldn't work out "the word delete has six letters". | HONEST | I don't know what letters is yet. Tell me (like "letters is ...") and I'll remember. | HONEST |
 | 86 | should i use tabs or spaces? | I couldn't work out "should i use tabs or spaces?". | HONEST | I couldn't find tabs and spaces as two of the same kind of thing, so I can't compare them yet. | HONEST |
 | 87 | how do i make a new branch in git | I couldn't work out "how do i make a new branch in git". | HONEST | Git/Branching & merging (from https://en.wikibooks.org/wiki/Git%2FBranching_%26_merging, CC BY-SA 4.0):<br><br>Why Branch?:<br>- You may have branches representing “stable” releases, which continue to get incremental bug fixes but no (major) new features. At the same time, you may have multiple “unstable” branches representing various new features being proposed for the next major release, and bei | WRONG |
@@ -186,7 +186,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 89 | tell me a joke | I couldn't work out "tell me a joke". | HONEST | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
-| 90 | what can you do? | I couldn't work out "what can you do?". | HONEST | Arithmetic, follow up arithmetic, dates and times, remember what you tell me, recall what you said, describe what i know, learn new words, look things up, continue sequences, compare two things, say what a plan is missing and forget what you ask. | WRONG |
+| 90 | what can you do? | I don't know that about myself. | HONEST | Arithmetic, follow up arithmetic, dates and times, remember what you tell me, recall what you said, describe what i know, learn new words, look things up, continue sequences, compare two things, say what a plan is missing and forget what you ask. | WRONG |
 | 91 | that's not what I meant | I couldn't work out "that's not what I meant". | HONEST | I don't know how to is yet. | HONEST |
 | 92 | who made you | I don't know that about myself. | HONEST | I see. | WRONG |
 | 93 | wow | I couldn't work out "wow". | HONEST | Glad you like it! | RIGHT |

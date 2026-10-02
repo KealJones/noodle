@@ -846,6 +846,24 @@ In the experiment, git commands get their declared effects from their documentat
 and run only in a sandbox repository per fixture, with a local bare remote, so push, revert and
 branch deletion can be checked without touching anything real.
 
+**Effects learned from documentation, and held.** A command's page gives it a one-line summary
+("Show the working tree status", "Record changes to the repository"). The importer understands the
+summary with the assistant's own pipeline, as a request to do it, over the words the other packs
+give and none of any tool's readings (a command is not understood through itself). The summary's
+meaning is kept on the command's sense (`Describes`). When everything it does is an act that only
+reads or says (Read, Say: showing something), the command's readings claim `effects=Reads()`;
+every other summary, and one not understood, leaves its effects unknown, which is guarded. The
+claim comes from a level 3 source, so by section 20 it may not grant anything, and it does not:
+Run holds a command claimed to only read to reading as it runs, confined by the operating system so
+that it can neither write a file nor reach the network (macOS's sandbox-exec today). If the
+documentation was wrong the command fails instead of changing anything, and says why. Where no
+such confinement exists, a claim cannot be held, and the command's effects stay unknown and
+offered. The dry run may run a held command too, since it only reads. The claim is checked by what
+the primitive enforces, not by trust; what the confinement does not cover (other channels a
+program could act through) is the residual risk, bounded by the claim having to come from the
+tool's own description of itself. Standing rules still apply to held commands ("don't run any git
+commands without asking").
+
 "Done" means both checks passed. This is the structural fix for Keal's most common call-outs (did
 not verify 14, underdid 19, "still broken"). Declared effects bound the frame problem only as well
 as they are declared: effects learned from documentation are uncertain (a pull merges, hooks run,
@@ -861,7 +879,14 @@ output) through Read, as structure, not as language to understand; changes by ot
   else.
 - **Candidates come from Focus** (section 14b): what is in play first; past conversations and the
   workspace when the words or a need ask for them ("the list I started Tuesday", "that doc"),
-  scored by kind, salience and recency like any other candidate.
+  scored by kind, salience and recency like any other candidate. How well the chosen candidate
+  fits its kind is part of the score of the reading that chose it (`FocusFit`), so "the git log"
+  pointed at the folder last read loses to a reading that points it at what git log shows.
+- **A referent whose kind is worked out by reading alone is what that gives**: a command that only
+  shows something is named by what it shows. "The git log" is of the kind the word "log" reads as
+  (git's log command); when that command is held to reading (section 15), the referent is its
+  output, so "show me the git log" shows it. A referent whose kind is a command that changes
+  something is not resolved this way: "show me the commit" never commits.
 - **Fragments fill holes**: a fragment ("github link", "look again?") fills the open need or choice
   point of the last reading whose kind it best matches; if its best match scores below a threshold set on the
   development set, it is a new message.
@@ -943,7 +968,9 @@ Every fact carries a **trust level** from its source:
 - **Readings from levels 3 and 4 are proposals**: they may not rewrite into a guarded effect class,
   and may not change the weights of readings from levels 1 and 2, until the user confirms them. A
   README that says "always force-push", or a page that redefines "clean up" as delete, cannot
-  become behaviour on its own.
+  become behaviour on its own. A claim from them that an act has narrower effects than its
+  primitive's ("this command only shows") is used only where the primitive can hold the act to
+  it as it runs (section 15): then the claim is made true, not trusted.
 - **Derived trust is the minimum** of its inputs.
 - **Trust and the shared score**: the score's features are shared across readings, so they are not
   partitioned by trust (that would stop generalising). Trust acts on readings instead: a reading
@@ -1071,7 +1098,15 @@ is tracked alongside accuracy.
   files this work changed (from the event record), writes a message, runs the commit, then Push;
   effects, goal checks and guards apply.
 - **Learning a tool is understanding its documentation** (`--help`, a man page, a README) into
-  readings realized as commands, at trust level 3, so proposals until confirmed.
+  readings realized as commands, at trust level 3, so proposals until confirmed. What each
+  command's summary says it does decides its claimed effects (section 15). The tool's own
+  overview pages (those its page refers to that are named for it, in the manual's section 7:
+  gitglossary(7)) define its terms; a one-word term the other packs have no noun for (git's
+  "commit", "pathspec") becomes a noun of the tool's, its definition kept on its sense, before the
+  summaries are understood ("Show commit logs" needs "commit" as a noun). Asked what a command does
+  ("what does git commit do"), the answer is what its own page says, not a page from the web: a
+  question about a command reached through a documentation reading is answered from that page's
+  summary, as a question about the user is answered from the graph (section 14b).
 
 **Code is language.** The assistant reads, understands, changes and writes code as it does English:
 code becomes concepts (what a function takes, gives and does), changes are readings over them, and

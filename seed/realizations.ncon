@@ -133,6 +133,10 @@ Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(
   becomes=Paragraph("You said not to ", $r, " yet. Do it now?"))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not($r)))),
   becomes=Paragraph("You said not to ", $r, ", so I didn't."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not(Run($p, $args))))),
+  becomes=Paragraph("You said not to run ", Run($p, $args), ", so I didn't run ", $a, "."))
+Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Not(Run($p, $args)), until=Told()))),
+  becomes=Paragraph("You said not to run ", Run($p, $args), " yet. Run ", $a, " now?"))
 Reading(on=Constraint(), mode=Speaking(), pattern=Echo(BlockedBy($a, Constraint(Only($r)))),
   becomes=Paragraph("You said to only ", $r, ", so I didn't ", $a, "."))
 
@@ -162,6 +166,14 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ra
   becomes=Document(Paragraph(Run($p, $args), " failed (exit ", $x, "):"), CodeBlock($err)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Run($p, $args), result=Ran($p2, $args2, exit=$x, output=$out), checked=false),
   becomes=Document(Paragraph(Run($p, $args), " failed (exit ", $x, "):"), CodeBlock($out)))
+// What a command that only shows something gave, said as what was asked for ("show me the git
+// log"): the command and what it printed, or that it failed.
+Reading(on=Ran(), mode=Speaking(), pattern=Ran($p, $args, exit=0, output=$out),
+  becomes=Document(CodeBlock(Run($p, $args)), CodeBlock($out)))
+Reading(on=Ran(), mode=Speaking(), pattern=Ran($p, $args, exit=0),
+  becomes=Paragraph("Ran ", Run($p, $args), "."))
+Reading(on=Ran(), mode=Speaking(), pattern=Ran($p, $args, exit=$x, error=$err),
+  becomes=Document(Paragraph(Run($p, $args), " failed (exit ", $x, "):"), CodeBlock($err)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=File(path=$path, content=$b, media=$m)),
   becomes=Document(Paragraph(Code($path), ":"), CodeBlock($b)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r),
@@ -228,6 +240,12 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p, about=$x), r
   becomes=Document(Paragraph("From ", $src, ", ", Link($t, to=$u), ":"), Paragraph($b)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=Page(path=$u, title=$t, content=$b)),
   becomes=Document(Paragraph(Link($t, to=$u), ":"), Paragraph($b)))
+// An answer from a tool's own documentation on this machine: the manual page named, its words.
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=Found($b, from=$src)),
+  becomes=Document(Paragraph("From ", $src, ":"), Paragraph($b)))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p, about=$x), result=Found($b, from=$src)),
+  becomes=Document(Paragraph("From ", $src, ":"), Paragraph($b)))
+Reading(on=ToolDoc(), mode=Speaking(), pattern=ToolDoc($page, $part), becomes=Paragraph("the manual page ", Code($page)))
 Reading(on=Wikipedia(), mode=Speaking(), pattern=Wikipedia(), becomes="Wikipedia")
 Reading(on=Wiktionary(), mode=Speaking(), pattern=Wiktionary(), becomes="Wiktionary")
 Reading(on=Wikidata(), mode=Speaking(), pattern=Wikidata(), becomes="Wikidata")

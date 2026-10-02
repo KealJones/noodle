@@ -11,7 +11,7 @@ import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
 import type { Mode, Step } from "./rewrite.js";
 import type { Store } from "./store.js";
-import { type Features, Weights, addFeature, scoreOf } from "./score.js";
+import { type Features, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { isThing, things } from "./primitives/hold.js";
 import { STRUCTURAL } from "../structural.js";
 
@@ -42,6 +42,16 @@ class Failed extends Error {
   }
 }
 
+/** An act inside another's arguments that a standing rule forbids. */
+class Blocked extends Error {
+  constructor(
+    readonly call: Expr,
+    readonly rule: StandingRule,
+  ) {
+    super("blocked");
+  }
+}
+
 /** Who each participant is, as the answer names them: the assistant itself, and the user. */
 const PARTICIPANT = { Addressee: "Self", Speaker: "User" } as const;
 const SPEECH_ACTS = new Set(["Question", "Assert", "Directive", "Advice", "Constraint"]);
@@ -50,6 +60,8 @@ const SUPPOSE_CALLS = 20;
 
 export class Evaluator {
   private calls = 0;
+  /** Checks that passed for pure calls worked out inside other acts' arguments. */
+  private innerChecks = 0;
 
   constructor(
     readonly store: Store,
@@ -190,9 +202,9 @@ export class Evaluator {
   /** Decide a proposition with pure primitives only, or not at all. */
   private async decide(p: Expr): Promise<boolean | undefined> {
     const prim = this.primitiveCall(p);
-    if (!prim || !prim.p.pure) return undefined;
+    if (!prim || !this.pureFor(prim.p, p)) return undefined;
     try {
-      const r = await prim.p.run(await Promise.all(prim.args.map((x) => this.value(x))), this.world);
+      const r = await prim.p.run(await Promise.all(prim.args.map((x) => this.value(x))), this.world, this.held(prim.p, p));
       return r.kind === "boolean" ? r.value : undefined;
     } catch {
       return undefined;
@@ -255,6 +267,10 @@ export class Evaluator {
         return isHead(q, "Quote") && positional(q)[0]?.kind === "string" ? q : x;
       }
       if (!isHead(x, "Ref")) return undefined;
+      // A referent of a kind that is worked out by reading alone is what that gives: a command
+      // that only shows something is named by what it shows ("the git log" is what git log shows).
+      const kind = role(x, "kind");
+      if (isCall(kind) && this.pureCall(kind)) return kind;
       const said = role(x, "said");
       const named = said && [...walk(said)].find((y) => y.kind === "string");
       if (named) return named;
@@ -268,26 +284,28 @@ export class Evaluator {
    * A referent's candidates (design sections 14b and 16): what is in play, and the user's things in
    * the graph, kept across sessions. Each is scored: by kind (WantedKind, minus how far up the
    * candidate's kinds, as a noun, the kind it was said as is; a thing that is not of that kind is not a
-   * candidate, and a literal in play, whose kind the graph does not know, counts as far), by the words it was
+   * candidate, nor is a literal an act found to be of another kind, and a literal whose kind the graph
+   * does not know counts as far), by the words it was
    * said with (Match:Said, "my shopping list" again), and by where it came from, with its salience
    * (FocusSource). Ties go to the more salient, then the more recent.
    */
   private referent(ref: Call): Expr | undefined {
     const kind = role(ref, "kind");
     const said = role(ref, "said");
-    const cands: { expr: Expr; salience: number; source: string }[] = [];
-    for (const v of this.conversation.inPlay.values()) cands.push({ expr: v.expr, salience: v.salience, source: "CurrentConversation" });
+    const cands: { expr: Expr; salience: number; source: string; kind?: string }[] = [];
+    for (const v of this.conversation.inPlay.values()) cands.push({ expr: v.expr, salience: v.salience, source: "CurrentConversation", kind: v.kind });
     // The user's things are the speaker's: "your name" (of the addressee) is none of them.
     const of = role(ref, "of");
     if (!of || isHead(of, "Speaker")) for (const t of things(this.store)) if (!cands.some((x) => key(x.expr) === key(t))) cands.push({ expr: t, salience: 0, source: "UserFacts" });
     this.weights ??= new Weights(this.store);
-    let best: { expr: Expr; score: number; salience: number } | undefined;
+    let best: { expr: Expr; score: number; salience: number; f: Features } | undefined;
     for (const cand of cands) {
       const f: Features = new Map();
       if (isCall(kind)) {
         // What "the list" points at is a list: the referent's kind is one of the candidate's kinds.
-        const d = isCall(cand.expr) ? this.store.kinds(cand.expr.head, "Noun").get(kind.head) : undefined;
-        if (d === undefined && isCall(cand.expr)) continue;
+        const kindOf = isCall(cand.expr) ? cand.expr.head : cand.kind;
+        const d = kindOf ? this.store.kinds(kindOf, "Noun").get(kind.head) : undefined;
+        if (d === undefined && kindOf) continue;
         addFeature(f, "WantedKind", -Math.min(d ?? 4, 4));
       }
       if (said && isCall(cand.expr) && this.store.facts(cand.expr.head, "Said").some((x) => key(positional(x.claim as Call)[0]) === key(said))) addFeature(f, "Match:Said", 1);
@@ -297,9 +315,23 @@ export class Evaluator {
       if (cand.source === "UserFacts" && !f.get("Match:Said") && (!isCall(kind) || kind.head === "Thing" || (f.get("WantedKind") ?? 0) < -2)) continue;
       addFeature(f, `FocusSource:${cand.source}`, cand.salience);
       const score = scoreOf(f, this.weights.get) + (f.get("Match:Said") ?? 0) * 1e-6;
-      if (!best || score > best.score || (score === best.score && cand.salience > best.salience)) best = { expr: cand.expr, score, salience: cand.salience };
+      if (!best || score > best.score || (score === best.score && cand.salience > best.salience)) best = { expr: cand.expr, score, salience: cand.salience, f };
     }
+    // How well what was chosen fits its kind is part of the reading that chose it (runtime.md 8.1:
+    // Focus's candidates are scored with the rest): "the git log" is not the folder last read.
+    const fit = best?.f.get("WantedKind");
+    if (fit) this.focus.set(key(ref), new Map([["FocusFit", fit]]));
     return best?.expr;
+  }
+
+  /** The features of the referents this evaluation chose, one set per referent. */
+  private focus = new Map<string, Features>();
+
+  /** What choosing referents added to the reading's score. */
+  focusFeatures(): Features {
+    let out: Features = new Map();
+    for (const f of this.focus.values()) out = mergeFeatures(out, f);
+    return out;
   }
 
   private primitiveCall(a0: Expr): { p: Primitive; args: Expr[] } | undefined {
@@ -347,6 +379,9 @@ export class Evaluator {
     const ready: Expr[] = [];
     for (let i = 0; i < args.length; i++) {
       const name = p.params[i];
+      // An act is not what an act is done with: "run git status" does not run a program named by
+      // the command git status.
+      if (p.instruments?.includes(name) && isCall(args[i]) && this.primitives.get((args[i] as Call).head)?.pure === false) return undefined;
       const x = p.plans?.includes(name)
         ? plan(positional(a0 as Call)[i])
         : unready(args[i], !!p.concepts?.includes(name), !!p.makes?.includes(name), !!p.times?.includes(name))
@@ -361,7 +396,27 @@ export class Evaluator {
   /** A call to a pure primitive with the arguments it takes, and no others. */
   private pureCall(y: Call): boolean {
     const p = this.primitives.get(y.head);
-    return !!p?.pure && y.args.every((a) => a.name === undefined) && y.args.length === p.params.length;
+    return !!p && this.pureFor(p, y) && y.args.every((a) => a.name === undefined) && y.args.length === p.params.length;
+  }
+
+  /**
+   * The effects the readings that led to an act claim for it (ncon.md section 4: an acting
+   * reading's effects narrow its primitive's), when the primitive can hold the call to them as it
+   * runs. A claim it cannot hold is not used: the primitive's own effects apply, whatever a reading
+   * from documentation says (design section 20).
+   */
+  private held(p: Primitive, act: Expr): EffectClass[] | undefined {
+    if (!p.holds) return undefined;
+    const keys = new Set(this.ancestry(act).map(key));
+    const claimed = new Set<EffectClass>();
+    for (const st of this.steps) if (keys.has(key(st.after))) for (const e of st.effects) if (isCall(e)) claimed.add(e.head as EffectClass);
+    const effects = [...claimed];
+    return effects.length && p.holds(effects, this.world) ? effects : undefined;
+  }
+
+  /** Whether this call only reads: its primitive is pure, or it is held to reading. */
+  private pureFor(p: Primitive, act: Expr): boolean {
+    return p.pure || (this.held(p, act)?.every((e) => e === "Reads") ?? false);
   }
 
   /** An argument with the pure primitive calls inside it worked out, innermost first. */
@@ -370,8 +425,21 @@ export class Evaluator {
     const args = await Promise.all(x.args.map(async (a) => ({ ...a, value: await this.value(a.value) })));
     const y: Call = { ...x, args };
     if (!this.pureCall(y)) return y;
+    const p = this.primitives.get(y.head)!;
+    // An act that only reads because it is held to reading (a command, "the git log") is still an
+    // act: the standing rules apply to it as to any other ("don't run git without asking").
+    const blocked = p.pure ? undefined : this.blockedBy(y);
+    if (blocked) throw new Blocked(y, blocked.rule);
+    // In Suppose, within the budget and never out of the machine (runtime.md 10.1).
+    if (this.mode === "Supposing") {
+      if (this.calls >= SUPPOSE_CALLS || p.effects(positional(y), this.world).includes("SendsOutside")) return y;
+      this.calls++;
+    }
     try {
-      return await this.primitives.get(y.head)!.run(positional(y), this.world);
+      const held = this.held(p, y);
+      const result = await p.run(positional(y), this.world, held);
+      if (p.check && (await p.check(positional(y), result, this.world))) this.innerChecks++;
+      return result;
     } catch (err) {
       // What failed is the inner call, as it was said ("10 divided by 0"), not the act around it.
       throw new Failed(x, err instanceof Error ? err.message : String(err));
@@ -448,14 +516,16 @@ export class Evaluator {
 
   private async callInner(p: Primitive, args: Expr[], act: Expr, granted = false): Promise<Outcome> {
     let effects: EffectClass[];
+    const held = this.held(p, act);
+    const pure = this.pureFor(p, act);
     try {
-      effects = p.effects(args, this.world);
+      effects = held ?? p.effects(args, this.world);
     } catch (err) {
       return { ...this.out(), said: [c("Outcome", act, ["error", s(err instanceof Error ? err.message : String(err))])], unworked: 1 };
     }
     // An effectful act a reading from documentation or the web led to is a proposal until the
     // user confirms it, whatever the config grants (runtime.md 13).
-    const untrusted = !p.pure && this.untrustedReadings(this.ancestry(act)).length > 0;
+    const untrusted = !pure && this.untrustedReadings(this.ancestry(act)).length > 0;
     const guarded = untrusted ? effects.filter((e) => e !== "Reads" && e !== "Speaks") : effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
     // A rewrite the user teaches applies after it is echoed and confirmed (design sections 19 and
     // 20): a misheard rule must not quietly become behaviour.
@@ -487,18 +557,38 @@ export class Evaluator {
     if (this.mode === "Supposing") {
       // Nothing leaves the machine in Suppose (runtime.md 10.1): a call that would send outside is
       // captured like an effectful one.
-      if (!p.pure || effects.includes("SendsOutside") || this.calls >= SUPPOSE_CALLS) return { ...this.out(), acts: p.pure ? [] : [act], reachedAct: true };
+      if (!pure || effects.includes("SendsOutside") || this.calls >= SUPPOSE_CALLS) {
+        // Captured, not run; what it would be given is worked out where that only reads, so a dry
+        // run tells an act whose input would fail, or pass its checks, from one that would not
+        // ("show me the git log": what git log shows, worked out).
+        const before = this.innerChecks;
+        if (!pure)
+          try {
+            for (const x of args) await this.value(x);
+          } catch (err) {
+            if (err instanceof Blocked) return { ...this.out(), acts: [act], reachedAct: true, blocked: 1 };
+            return { ...this.out(), said: [c("Outcome", err instanceof Failed ? err.call : act, ["error", s(err instanceof Error ? err.message : String(err))])], unworked: 1 };
+          }
+        return { ...this.out(), acts: pure ? [] : [act], reachedAct: true, checksPassed: this.innerChecks - before };
+      }
       this.calls++;
     }
     try {
       args = await Promise.all(args.map((x) => this.value(x)));
-      const result = await p.run(args, this.world);
+      const result = await p.run(args, this.world, held);
       const checked = p.check ? await p.check(args, result, this.world) : undefined;
       if (this.mode === "Doing") {
         this.conversation.events.push({ turn: this.conversation.turnIndex, act, result, checked });
         // What an act was done to is in play (runtime.md 11): a later "it" can point at it. A thing
         // in the graph it was done to, or made, is in play too ("add eggs to it").
-        for (const x of args) if (x.kind === "string") this.conversation.inPlay.set(key(x), { expr: x, salience: 1 });
+        // What it was done with (Run's program) is not what it was done to. A path the act found
+        // to be a thing of a kind (Read found "notes.txt" a File, "." a Directory) is of that kind.
+        const path = role(result, "path");
+        args.forEach((x, i) => {
+          if (x.kind !== "string" || p.instruments?.includes(p.params[i])) return;
+          const kind = isCall(result) && path?.kind === "string" && path.value === x.value ? result.head : undefined;
+          this.conversation.inPlay.set(key(x), { expr: x, salience: 1, kind });
+        });
         for (const x of [...args, result].flatMap((y) => [...walk(y)])) if (isThing(this.store, x)) this.conversation.inPlay.set(key(x), { expr: x, salience: 1 });
       }
       const outcome = c(
@@ -511,6 +601,10 @@ export class Evaluator {
       if (effects.includes("Speaks")) return { ...this.out(), said: args, acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
       return { ...this.out(), said: [outcome], acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
     } catch (err) {
+      if (err instanceof Blocked) {
+        const r = err.rule;
+        return { ...this.out(), said: [c("Echo", c("BlockedBy", err.call, r.until ? c("Constraint", r.rule, ["until", r.until]) : c("Constraint", r.rule)))], blocked: 1, reachedAct: true };
+      }
       if (this.mode === "Doing") this.conversation.events.push({ turn: this.conversation.turnIndex, act, error: String(err) });
       return { ...this.out(), said: [c("Outcome", err instanceof Failed ? err.call : act, ["error", s(err instanceof Error ? err.message : String(err))])], unworked: 1 };
     }
@@ -522,7 +616,7 @@ export class Evaluator {
   private async question(lf: Call): Promise<Outcome> {
     const [p] = positional(lf);
     const prim = this.primitiveCall(p);
-    if (prim && prim.p.pure) {
+    if (prim && this.pureFor(prim.p, p)) {
       const r = await this.call(prim.p, prim.args, p);
       // A yes or no is the answer to the question, and so is an answer to a question that names
       // the kind it asks for ("what day is it" is said as a day); anything else is what the act found.
@@ -540,6 +634,10 @@ export class Evaluator {
       if (r) return { ...this.out(), said: [c("Outcome", lf, ["result", r])], reachedAct: true };
       return this.stuck(lf, c("NoSource", lf, ["about", c(PARTICIPANT[who])]));
     }
+    // A question about a command ("what does git commit do") is answered by what the command's
+    // own documentation says it does: the summary its page gave the sense its reading came from.
+    const doc = this.documentation(p);
+    if (doc) return { ...this.out(), said: [c("Outcome", lf, ["result", c("Found", doc.said, ["from", doc.from])])], reachedAct: true };
     // Nothing here answers it: the need is knowledge, and Know is the one door to it (runtime.md
     // 11b, phase 2; 14). The question's words are the query. In Suppose it answers from the cache
     // only; a lookup that would go out counts as reaching an answer. A question whose words name
@@ -604,6 +702,30 @@ export class Evaluator {
       const owner = isHead(y, "Ref") ? isWho(role(y, "of")) : undefined;
       if (owner) return owner;
       if (vals.some((v) => isHead(v, "Gap"))) for (const v of vals) if (isWho(v)) return isWho(v);
+    }
+    return undefined;
+  }
+
+  /**
+   * What a command's documentation says of it, when the question is about the command: a call to
+   * Run standing beside the gap in the same proposition ("what does git commit do": Do(agent=Run(
+   * "git", Args("commit")), theme=Gap())), reached by a reading from a page of documentation. What
+   * the page says is the summary the same page gave its word's sense (Said).
+   */
+  private documentation(p: Expr): { said: Expr; from: Expr } | undefined {
+    for (const y of walk(p)) {
+      if (!isCall(y) || !y.args.some((a) => isHead(a.value, "Gap"))) continue;
+      for (const a of y.args) {
+        if (!isHead(a.value, "Run")) continue;
+        const step = this.steps.find((st) => key(st.after) === key(a.value) && this.trustLevel(st.from) >= 3);
+        if (!step) continue;
+        for (const f of this.store.facts(step.owner, "Sense")) {
+          const sense = positional(f.claim as Call)[0];
+          if (!isCall(sense) || key(f.meta.from) !== key(step.from)) continue;
+          const said = this.store.facts(sense.head, "Said").map((x) => positional(x.claim as Call)[0])[0];
+          if (said) return { said, from: step.from };
+        }
+      }
     }
     return undefined;
   }

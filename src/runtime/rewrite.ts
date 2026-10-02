@@ -19,6 +19,8 @@ export interface Step {
   /** The reading's source (its trust is looked up from it, runtime.md 13) and its stable key. */
   from: Expr;
   key: string;
+  /** The effects the reading declares, a claim that narrows its primitive's (ncon.md section 4). */
+  effects: Expr[];
 }
 
 export interface Derivation {
@@ -60,7 +62,15 @@ export class Rewriter {
       if (!m) return;
       const result = carry(instantiate(r.becomes!, m.bindings), m.extra);
       if (key(result) === key(e)) return;
-      out.push({ r, b: m.bindings, result, features });
+      // Roles of the expression the pattern did not name are carried over, and counted (runtime.md
+      // 6.1): of two readings of the same expression, the one that accounts for more of what was
+      // said fits better ("the git status" is git's status, not any status with "git" left over).
+      // Roles of what the pattern only passes through, deeper down, are not this reading's to read.
+      const pattern = r.pattern as Call;
+      const unmatched = target.args.filter((a) => a.name !== undefined && !pattern.args.some((p) => p.name === a.name)).length;
+      const f: Features = new Map(features ?? []);
+      if (unmatched) addFeature(f, "Unmatched", -unmatched);
+      out.push({ r, b: m.bindings, result, features: f.size ? f : undefined });
     };
     for (const r of this.store.readingsFor(e.head)) consider(r, e);
     // Senses (runtime.md 7): a word's senses with readings of their own are candidates for the
@@ -175,7 +185,7 @@ export class Rewriter {
     const cands = this.candidates(e);
     const alts: Omit<Derivation, "score">[] = [];
     for (const { r, b, result, features } of cands) {
-      const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result, from: r.meta.from, key: readingKey(r) };
+      const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result, from: r.meta.from, key: readingKey(r), effects: r.effects };
       const own = features ? mergeFeatures(this.wantFeatures(r, b), features) : this.wantFeatures(r, b);
       addFeature(own, `Evidence:${readingKey(r)}`, 1);
       for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });

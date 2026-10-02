@@ -300,9 +300,11 @@ Templates (design section 9):
 | `SenseFrequency` | log of the imported sense count, smoothed |
 | `Evidence` | log counts of (word, neighbour, chosen sense) and (word, neighbour, chosen reading), with backoff from neighbour to neighbour kind |
 | `Match` | the scored match's features (section 6.2) |
+| `Unmatched` | minus the roles of the expression a reading's pattern did not name, carried over (section 6.1): of two readings of the same expression, the one that accounts for more of it fits better (seed weight 0.25) |
 | `Trust` | the reading's source trust level (a feature, not a gate; section 13) |
 | `Coverage` | share of content tokens covered by the cover |
 | `FocusSource` | for a candidate Focus supplied: its source (current conversation, past conversation, user facts, workspace, world), salience, recency |
+| `FocusFit` | for each referent the evaluation resolved (stage two): minus the kind distance of what it chose to the kind it was said as, so a reading that points "the git log" at the folder last read pays for it (seed weight 0.25). A literal an act found to be of a kind (Read found "notes.txt" a File) is of that kind; one of no known kind counts as far |
 
 Adding a template is a runtime change (a version bump, and a design check: AGENTS.md rule 12).
 A reading keeps losing when it should win: the fix is a feature, a fact on a word, or a weight, and
@@ -382,7 +384,18 @@ run         the code
   cache is not counted as reaching an act, so a reading is chosen by what the graph can do with it,
   not by whether its words were looked up before (a question once answered from Wikipedia is read
   anew once the graph can answer it);
-- standing rules and guards are checked as if Doing, and blocks are recorded.
+- standing rules and guards are checked as if Doing, and blocks are recorded;
+- what a captured act would be given is worked out where that only reads: pure calls inside its
+  arguments run (within the same budget), so an act whose input would fail is unworked and one
+  whose input passes its checks counts them ("show me the git log": what git log shows).
+
+A call is pure for this when its primitive is pure, or when the readings that led to it claim
+effects its primitive can **hold** it to (`Primitive.holds`): a reading may declare narrower
+effects than its primitive's (a command its documentation says only shows something declares
+`Reads()`), and a primitive that can make the claim true as it runs (Run, confined so that it can
+neither write a file nor reach the network) runs it held. A claim the primitive cannot hold is
+ignored and the primitive's own effects apply. A held call is still an act: standing rules apply
+to it wherever it runs, inside another act's arguments too.
 
 The result is the value (or placeholders), the planned effects, blocks, needs met and unmet, and
 checks that could be evaluated.

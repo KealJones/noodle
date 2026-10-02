@@ -327,7 +327,7 @@ export class Session {
           alts = [] as Alt[];
           for (const d of chart.variants(e).flatMap((v) => rewriter.normalize(v.expr).slice(0, this.opts.derivations))) {
             const o = await this.suppose({ lfs: [d.expr], steps: d.steps, features: d.features, score: 0, cover: cv }, segText, conv);
-            const f2: Features = new Map();
+            const f2: Features = new Map(o.focus);
             addFeature(f2, "Unworked", -o.unworked);
             addFeature(f2, "Blocked", o.blocked);
             addFeature(f2, "ChecksWouldPass", o.checksPassed);
@@ -368,14 +368,14 @@ export class Session {
       });
   }
 
-  private async suppose(r: Reading, segText: string, conv: Conversation = this.conversation): Promise<Outcome> {
+  private async suppose(r: Reading, segText: string, conv: Conversation = this.conversation): Promise<Outcome & { focus: Features }> {
     const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Supposing", r.steps, segText, (x) => this.canSay(x));
     let o: Outcome = { said: [], acts: [], reachedAct: false, unworked: 0, blocked: 0, checksPassed: 0 };
     for (const lf of r.lfs) {
       const x = await ev.run(lf);
       o = { said: [...o.said, ...x.said], acts: [...o.acts, ...x.acts], reachedAct: o.reachedAct || x.reachedAct, unworked: o.unworked + x.unworked, blocked: o.blocked + x.blocked, checksPassed: o.checksPassed + x.checksPassed };
     }
-    return o;
+    return { ...o, focus: ev.focusFeatures() };
   }
 
   /** Whether the seed has words for this (a Reply to a social turn, say). */

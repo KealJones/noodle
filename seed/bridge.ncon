@@ -78,6 +78,10 @@ Reading(on=Say(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)),
 // which of the two is meant is the score's, by whether the thing can be read.
 Reading(on=Read(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)), becomes=Read($x))
 Reading(on=Read(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Read($x))
+// The assistant making something seen, with no one named to see it ("show the log", and a tool's
+// own "Show the working tree status"), shows it to whoever it is talking to.
+Reading(on=Say(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x))), becomes=Say($x), effects=Speaks())
+Reading(on=Read(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x))), becomes=Read($x))
 // Asking to be told something is asking what it is ("tell me your name": what is your name).
 Reading(on=Question(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Question(Be(Gap(), $x), about=Gap()))
 Reading(on=Question(), pattern=Directive(Question($q, about=$a)), becomes=Question($q, about=$a))
@@ -202,12 +206,14 @@ Concept(Motion())
 Concept(Transfer())
 Concept(TransferInfo())
 Concept(Perceive())
+Concept(Appear())
 Concept(Contact())
 Concept(Utilize())
 Concept(Desire())
 Concept(Destroyed())
 Concept(HasAttribute())
 Concept(HasInformation())
+Concept(Function())
 Concept(Understand())
 Concept(Contain())
 Concept(Occur())
@@ -227,11 +233,15 @@ Reading(on=Motion(), pattern=Motion($x, $path), becomes=Move(theme=$x, path=$pat
 Reading(on=Transfer(), pattern=Transfer($a, $t, $r), becomes=Cause(agent=$a, result=Become(Have($r, $t))))
 Reading(on=TransferInfo(), pattern=TransferInfo($a, $t, $r), becomes=Say(agent=$a, theme=$t, recipient=$r))
 Reading(on=Perceive(), pattern=Perceive($e, $x), becomes=See(experiencer=$e, stimulus=$x))
+// Appearing is coming to be seen, by no one named (reflexive_appearance-48.1.2: "show the log").
+Reading(on=Appear(), pattern=Appear($x), becomes=See(stimulus=$x))
 Reading(on=Contact(), pattern=Contact($x, $y), becomes=Touch($x, $y))
 Reading(on=Utilize(), pattern=Utilize($a, $x), becomes=Use(agent=$a, theme=$x))
 Reading(on=Desire(), pattern=Desire($e, $x), becomes=Want(experiencer=$e, theme=$x))
 Reading(on=Destroyed(), pattern=Destroyed($x), becomes=Not(Exist($x)))
 Reading(on=HasInformation(), pattern=HasInformation($e, $x), becomes=Know(experiencer=$e, theme=$x))
+// VerbNet's function (function-105.2.1, "the machine runs") is working: doing what it is for.
+Reading(on=Function(), pattern=Function($x), becomes=Work(theme=$x))
 Reading(on=Understand(), pattern=Understand($e, $x), becomes=Know(experiencer=$e, theme=$x))
 Reading(on=Contain(), pattern=Contain($h, $x), becomes=BeIn($x, $h))
 Reading(on=Occur(), pattern=Occur($e), becomes=Happen($e))
@@ -261,3 +271,11 @@ Concept(EffectsOf(), Frame(Program()))
 
 Reading(on=Run(), pattern=$what, needs=All(Describes($program, $what), Usage($program, $args)),
   becomes=Run($program, $args), effects=EffectsOf($program), checks=$what)
+
+// Making a command or a program work is running it ("run git status", "run `pwd`").
+Reading(on=Run(), pattern=Work(theme=Run($p, $a)), becomes=Run($p, $a))
+Reading(on=Run(), pattern=Work(theme=$p), wants=IsA($p, Program()), becomes=Run($p, Args()))
+// Reading or showing what a command gives ("show me the git log") is running it: its output is
+// what is shown.
+Reading(on=Run(), pattern=Read(Run($p, $a)), becomes=Run($p, $a))
+Reading(on=Run(), pattern=Say(Run($p, $a)), becomes=Run($p, $a))
