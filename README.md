@@ -15,7 +15,50 @@ The lineage: spoon, soup, napkin, and now noodle.
 - `AGENTS.md`: the rules for anyone (or any agent) building it. Read it first.
 - `docs/specs/`: the phase 0 specs (data model, format, logical form, runtime, built-ins, testing).
 
-Status: design done, specs drafted and in review. No runtime yet.
+Status: specs reviewed (checkpoint 0), seed drafted (0.1.0, `seed/README.md`), and a first runtime
+running end to end: hearing, the chart, rewriting, the two-stage score, evaluation, Speaking, the
+primitives, and the chat endpoints. It knows only the seed's function words and core meanings, plus
+what it learns from a tool's own man pages; content words wait on the imports (`docs/imports.md`).
+
+## Running it
+
+```bash
+pnpm install
+```
+
+```bash
+pnpm test
+```
+
+```bash
+pnpm chat
+```
+
+`pnpm chat` talks to it in the terminal, in the directory it is started from (or `NOODLE_ROOT`);
+`pnpm chat -- --why` prints the reasons log after each reply. Other commands:
+
+- `pnpm import tool git`: learn git's commands from the local man pages (no download), into
+  `~/.noodle/packs/`. `pnpm import wordnet ...` and `pnpm import verbnet ...` take downloaded data
+  (`docs/imports.md`).
+- `pnpm seed:count`: the seed's entries per part, and its checks.
+- `pnpm measure`: hearing and chart numbers on the local corpus (ids only).
+
+What it can do today, with git's pages learned: "git status", "show me the diff", "add b.txt",
+"what's in README.md?", "whats in it?", "don't push yet" (and then refusing a "push"), "thanks",
+"sorry byeeee". Anything it cannot work out, it says so, naming the word it has no sense for.
+
+### Permissions
+
+Every command a tool's documentation taught it has unknown effects, so it is offered before it runs
+("I can run `git status`, but I don't know yet what it changes. Go ahead?"), and runs on "yes",
+"ok" or "go ahead". `~/.noodle/config.json` is the user's own grant (design section 20):
+
+```json
+{ "grants": ["UnknownEffects"], "programs": ["git"] }
+```
+
+`grants` lists effect classes that run without an offer; `programs` limits what Run may start;
+`root` and `timeoutMs` are optional. Nothing Noodle learns can write this file.
 
 ## Talking to it from a chat UI
 
