@@ -348,9 +348,9 @@ test("Read GitLog and GitBranches on a real repository", async () => {
   sh(root, "push", "-q", "-u", "origin", "main");
   const branches = await run(w, "Read", c("GitBranches"));
   assert.deepEqual(positional(branches as never), [
-    c("Branch", s("feature/x"), ["current", b(false)], ["remote", b(false)]),
-    c("Branch", s("main"), ["current", b(true)], ["remote", b(false)], ["upstream", s("origin/main")]),
-    c("Branch", s("origin/main"), ["current", b(false)], ["remote", b(true)]),
+    c("GitBranch", s("feature/x"), ["current", b(false)], ["remote", b(false)]),
+    c("GitBranch", s("main"), ["current", b(true)], ["remote", b(false)], ["upstream", s("origin/main")]),
+    c("GitBranch", s("origin/main"), ["current", b(false)], ["remote", b(true)]),
   ]);
 });
 

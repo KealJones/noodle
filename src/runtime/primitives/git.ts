@@ -60,7 +60,7 @@ export function readLog(world: World, k: number): Expr {
   const commits: Expr[] = [];
   for (let i = 0; i + 4 < f.length; i += 5) {
     const parents = f[i + 1] ? f[i + 1].split(" ").map(s) : [];
-    commits.push(c("Commit", ["hash", s(f[i])], ["parents", c("And", ...parents)], ["author", s(f[i + 2])], ["date", s(f[i + 3])], ["subject", s(f[i + 4])]));
+    commits.push(c("GitCommit", ["hash", s(f[i])], ["parents", c("And", ...parents)], ["author", s(f[i + 2])], ["date", s(f[i + 3])], ["subject", s(f[i + 4])]));
   }
   return c("GitLog", ...commits);
 }
@@ -76,7 +76,7 @@ export function readBranches(world: World): Expr {
     if (remote && ref.endsWith("/HEAD")) continue;
     const name = ref.slice(remote ? 13 : 11);
     const extra: [string, Expr][] = upstream ? [["upstream", s(upstream)]] : [];
-    branches.push(c("Branch", s(name), ["current", b(mark === "*")], ["remote", b(remote)], ...extra));
+    branches.push(c("GitBranch", s(name), ["current", b(mark === "*")], ["remote", b(remote)], ...extra));
   }
   return c("GitBranches", ...branches);
 }
