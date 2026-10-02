@@ -31,6 +31,13 @@ Reading(on=Remove(), pattern=Cause(result=Become(Not(BeIn($x, $h)))),
 Reading(on=Remove(), pattern=Cause(result=Become(Not(Have($h, $x)))),
   becomes=Remove($h, $x), checks=Not(Contains($h, $x)))
 
+// Putting a number into a number, or taking one out of it, is adding or subtracting ("add 5 to
+// 10", "subtract 3 from 10", "add 45 and 38"): the answer is its value.
+Reading(on=Arithmetic(), pattern=Cause(result=Become(BeIn($x, $h))), wants=All(IsA($x, Number()), IsA($h, Number())),
+  becomes=Question(Arithmetic(Addition(), $h, $x), about=Gap()))
+Reading(on=Arithmetic(), pattern=Cause(result=Become(Not(BeIn($x, $h)))), wants=All(IsA($x, Number()), IsA($h, Number())),
+  becomes=Question(Arithmetic(Subtraction(), $h, $x), about=Gap()))
+
 // Cause something to stop existing: Remove it from where it is.
 Reading(on=Remove(), pattern=Cause(result=Become(Not(Exist($x)))), needs=BeIn($x, $h),
   becomes=Remove($h, $x), checks=Not(Contains($h, $x)))

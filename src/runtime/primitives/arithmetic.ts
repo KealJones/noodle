@@ -83,4 +83,8 @@ export const Arithmetic: Primitive = {
     if (!isCall(op) || op.args.length) throw new Error("Arithmetic takes an operation");
     return n(compute(op.head, operand(a), operand(b)));
   },
+  // The value came out a finite number (compute throws otherwise).
+  async check(_args, result) {
+    return result.kind === "number" && Number.isFinite(result.value);
+  },
 };

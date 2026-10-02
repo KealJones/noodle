@@ -69,6 +69,8 @@ export const STRUCTURAL = {
       "Evidence", "Match", "Trust", "Coverage", "FocusSource",
       "ReachedAct", "NeedsMet", "ChecksWouldPass", "Blocked", "UnknownEffects", "Unworked",
       "Feature", "Weight",
+      // The kind a number literal is of when a want is scored (the seed's shape for digits).
+      "Numeral",
       // The CandidateSource template's keys (runtime.md 3.3), and a set-aside span's.
       "Exact", "Inflected", "CaseMatch", "SpellDistance", "SoundDistance", "Stretched", "InPlay", "Shape", "Unknown", "SetAside",
       "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",

@@ -116,6 +116,12 @@ export const Remember: Primitive = {
     // A claim the user made about themselves or their things: a fact on what it is about.
     const a = isCall(item) ? about(item, world) : undefined;
     if (a) {
+      // What a thing is, said again, replaces what it was said to be ("my name is Sam" after "my
+      // name is Keal"); the earlier claim is retracted, not deleted.
+      if (isHead(a.claim, "Be")) {
+        const [x] = positional(a.claim as Call);
+        for (const old of world.store.facts(a.subject.head, "Be")) if (key(positional(old.claim as Call)[0]) === key(x)) world.store.retract(old);
+      }
       const f = world.store.addFact(a.subject.head, a.claim, USER);
       world.keep?.(c("Fact", a.subject, a.claim, ["from", USER]));
       // What was kept, with the things it now names, so it can be said back.
