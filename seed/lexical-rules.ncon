@@ -89,6 +89,18 @@ Reading(on=Segment(), pattern=Thing($x), becomes=Clause(Declarative(Be(Ref(said=
 // between them is a mark the chart may skip; no rule is needed here.
 
 // ---------------------------------------------------------------------------------------------
+// Inflection: a regular form is its word plus a suffix. Hearing tries a token with no exact
+// candidate as a lemma plus each suffix here, and the form keeps the feature (runtime.md 3.3).
+// restore= puts back a letter the suffix replaced ("creating" is "create"); undouble=true drops a
+// doubled last letter ("stopped" is "stop"). English, so seed, never runtime.
+
+Concept(Plural(), Suffix("s"), Suffix("es"), Suffix("ies", restore="y"))
+Concept(ThirdSingular(), Suffix("s"), Suffix("es"), Suffix("ies", restore="y"))
+Concept(Past(), Suffix("ed"), Suffix("d"), Suffix("ed", undouble=true), Suffix("ied", restore="y"))
+Concept(PastParticiple(), Suffix("ed"), Suffix("d"), Suffix("ed", undouble=true), Suffix("ied", restore="y"))
+Concept(Gerund(), Suffix("ing"), Suffix("ing", restore="e"), Suffix("ing", undouble=true))
+
+// ---------------------------------------------------------------------------------------------
 // Imported words: the part-of-speech to category mapping (runtime.md, open question 1).
 
 Concept(PartOfSpeechNoun(), Lemma("noun"))

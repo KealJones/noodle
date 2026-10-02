@@ -59,6 +59,33 @@ export async function learnTool(program: string, read: Primitive, world: World, 
       claims.push(c("Category", c("Thing")), c("Category", c("Manner"), c("Modifies", ["side", c("Right")], ["category", c("Act")], ["role", c("Instrument")])));
     forms.push(c("Concept", c(toolWord), ...claims, ["from", toolFrom]));
   }
+  const protectedWord = (lemma: string) => store.lookup(lemma).some((h) => store.facts(h.concept).some((f) => isSeedPart(f.meta.from, "function-words")));
+  const act = (lemma: string, from: Expr) => {
+    const word = names.word(lemma);
+    const claims: Expr[] = [];
+    if (!store.facts(word, "Lemma").length) claims.push(c("Lemma", s(lemma)));
+    // A command is something done: its word is an act that may take what it is done to.
+    if (!store.facts(word, "Category").length)
+      claims.push(c("Category", c("Act"), c("Takes", ["side", c("Right")], ["category", c("Thing")], ["role", c("Theme")], ["optional", { kind: "boolean", value: true, pos: { line: 0, column: 0 } }])));
+    return { word, claims };
+  };
+  const senseOf = (word: string, doc: Expr, pageFrom: Expr, usage: Call | undefined) => {
+    const sense = `${word}#${encodeLemma(program) ?? "Tool"}Command`;
+    const summary = blockText(world.store, role(doc, "summary"));
+    const senseClaims: Expr[] = [c("SenseOf", c(word)), c("IsA", c("Program"))];
+    if (summary) {
+      const id = "b_" + createHash("sha256").update(summary).digest("hex").slice(0, 16);
+      forms.push(c("Block", ["id", s(id)], ["media", s("text/plain")], ["body", s(summary)], ["from", pageFrom]));
+      senseClaims.push(c("Said", c("Block", s(id))));
+    }
+    if (usage) senseClaims.push(c("Usage", c(sense), usage));
+    forms.push(c("Concept", c(sense), ...senseClaims, ["from", pageFrom]));
+    return sense;
+  };
+  const run = (words: string[], extra?: Expr) => c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w)), ...(extra ? [extra] : [])));
+  const reading = (word: string, pattern: Expr, becomes: Expr, from: Expr) =>
+    forms.push(c("Reading", ["on", c(word)], ["pattern", pattern], ["becomes", becomes], ["effects", c("UnknownEffects")], ["from", from]));
+
   for (const sub of subs) {
     let doc: Expr;
     try {
@@ -71,60 +98,58 @@ export async function learnTool(program: string, read: Primitive, world: World, 
     const usage = firstUsage(doc);
     const words = usage ? leadingWords(usage) : [];
     // The command line's words after the program are the subcommand; it must be the page's own.
-    if (words[0] !== program || words[1] !== lemma) {
-      skipped.push(sub.name);
-      continue;
-    }
     // The function-word lexicon is protected (design section 20): a word or form it has ("am" is
     // a form of "be") never gets a learned reading.
-    if (store.lookup(lemma).some((h) => store.facts(h.concept).some((f) => isSeedPart(f.meta.from, "function-words")))) {
+    if (words[0] !== program || words[1] !== lemma || protectedWord(lemma)) {
       skipped.push(sub.name);
       continue;
     }
     const pageFrom = c("ToolDoc", s(sub.name), s("NAME"));
-    const word = names.word(lemma);
-    const sense = `${word}#${encodeLemma(program) ?? "Tool"}Command`;
-    const summary = blockText(world.store, role(doc, "summary"));
-    const claims: Expr[] = [c("Sense", c(sense))];
-    if (!store.facts(word, "Lemma").length) claims.unshift(c("Lemma", s(lemma)));
-    // A command is something done: its word is an act that may take what it is done to.
-    if (!store.facts(word, "Category").length)
-      claims.push(c("Category", c("Act"), c("Takes", ["side", c("Right")], ["category", c("Thing")], ["role", c("Theme")], ["optional", { kind: "boolean", value: true, pos: { line: 0, column: 0 } }])));
-    forms.push(c("Concept", c(word), ...claims, ["from", pageFrom]));
-    const senseClaims: Expr[] = [c("SenseOf", c(word)), c("IsA", c("Program"))];
-    if (summary) {
-      const id = "b_" + createHash("sha256").update(summary).digest("hex").slice(0, 16);
-      forms.push(c("Block", ["id", s(id)], ["media", s("text/plain")], ["body", s(summary)], ["from", pageFrom]));
-      senseClaims.push(c("Said", c("Block", s(id))));
+    // A group of commands ("gh pr" lists gh-pr-view(1), gh-pr-create(1)...) names a kind of thing
+    // its commands are done to: "view the pr" is gh pr view.
+    const leaves = references(world.store, doc).filter((r) => r.name.startsWith(`${sub.name}-`));
+    if (leaves.length) {
+      const noun = names.word(lemma);
+      const nounClaims: Expr[] = [];
+      if (!store.facts(noun, "Lemma").length) nounClaims.push(c("Lemma", s(lemma)));
+      if (!store.facts(noun, "Category").length) nounClaims.push(c("Category", c("Noun")));
+      if (nounClaims.length) forms.push(c("Concept", c(noun), ...nounClaims, ["from", pageFrom]));
+      for (const leaf of leaves) {
+        let leafDoc: Expr;
+        try {
+          leafDoc = await read.run([c("ManPage", s(leaf.name), { kind: "number", value: leaf.section, pos: { line: 0, column: 0 } })], world);
+        } catch {
+          skipped.push(leaf.name);
+          continue;
+        }
+        const verb = leaf.name.slice(sub.name.length + 1);
+        const leafUsage = firstUsage(leafDoc);
+        const leafWords = leafUsage ? leadingWords(leafUsage) : [];
+        if (leafWords.join(" ") !== [program, lemma, verb].join(" ") || protectedWord(verb) || verb.includes("-")) {
+          skipped.push(leaf.name);
+          continue;
+        }
+        const leafFrom = c("ToolDoc", s(leaf.name), s("NAME"));
+        const { word, claims } = act(verb, leafFrom);
+        const sense = senseOf(word, leafDoc, leafFrom, leafUsage);
+        forms.push(c("Concept", c(word), c("Sense", c(sense)), ...claims, ["from", leafFrom]));
+        // Done to the group's kind of thing: the pr, a pr, pr.
+        for (const theme of [c("Ref", ["kind", c(noun)]), c(noun), c("Some", c(noun)), c("Every", c(noun))])
+          reading(word, c(word, ["theme", theme]), run(leafWords), leafFrom);
+        commands.push(`${lemma} ${verb}`);
+      }
+      continue;
     }
-    if (usage) senseClaims.push(c("Usage", c(sense), usage));
-    forms.push(c("Concept", c(sense), ...senseClaims, ["from", pageFrom]));
+    const { word, claims } = act(lemma, pageFrom);
+    const sense = senseOf(word, doc, pageFrom, usage);
+    forms.push(c("Concept", c(word), c("Sense", c(sense)), ...claims, ["from", pageFrom]));
     // Told to do it, it runs the command. The pattern names no agent: in "commit and push" the
     // addressee is on the conjunction, not on each act. What it changes is not known yet: unknown
     // effects are guarded, so it is offered first (design sections 13 and 20).
-    forms.push(
-      c(
-        "Reading",
-        ["on", c(word)],
-        ["pattern", c(word)],
-        ["becomes", c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w))))],
-        ["effects", c("UnknownEffects")],
-        ["from", pageFrom],
-      ),
-    );
+    reading(word, c(word), run(words), pageFrom);
     // A command line that takes a positional argument (a placeholder in its synopsis, not an
     // option's value) takes what the act is done to: "add a.txt" runs git add a.txt.
-    if (usage && takesPlaceholder(usage))
-      forms.push(
-        c(
-          "Reading",
-          ["on", c(word)],
-          ["pattern", c(word, ["theme", v("x")])],
-          ["becomes", c("Run", s(program), c("Args", ...words.slice(1).map((w) => s(w)), v("x")))],
-          ["effects", c("UnknownEffects")],
-          ["from", pageFrom],
-        ),
-      );
+    if (usage && takesPlaceholder(usage)) reading(word, c(word, ["theme", v("x")]), run(words, v("x")), pageFrom);
     commands.push(lemma);
   }
   return { text: format({ forms: forms as Call[] }), commands, skipped };

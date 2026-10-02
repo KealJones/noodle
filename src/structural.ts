@@ -23,7 +23,7 @@ export const STRUCTURAL = {
   },
   formFeatures: {
     why: "seed draft: what imports put on forms and what lexical rules are triggered by",
-    names: ["Plural", "Past", "Present", "PastParticiple", "Gerund", "ThirdSingular"],
+    names: ["Plural", "Past", "Present", "PastParticiple", "Gerund", "ThirdSingular", "Suffix", "Restore", "Undouble"],
   },
   chart: {
     why: "the chart's six steps read these facts and compare these categories by identity",
@@ -68,7 +68,7 @@ export const STRUCTURAL = {
       "ReachedAct", "NeedsMet", "ChecksWouldPass", "Blocked", "UnknownEffects", "Unworked",
       "Feature", "Weight",
       // The CandidateSource template's keys (runtime.md 3.3), and a set-aside span's.
-      "Exact", "CaseMatch", "SpellDistance", "SoundDistance", "Stretched", "InPlay", "Shape", "Unknown", "SetAside",
+      "Exact", "Inflected", "CaseMatch", "SpellDistance", "SoundDistance", "Stretched", "InPlay", "Shape", "Unknown", "SetAside",
       "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",
     ],
   },
