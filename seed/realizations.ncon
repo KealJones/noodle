@@ -34,6 +34,7 @@ Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, "
 // A set is a list when it is long, a phrase when it is short.
 Reading(on=Every(), mode=Speaking(), pattern=Every($k), becomes=Paragraph("every ", $k))
 Reading(on=List(), mode=Speaking(), pattern=And($a, $b), becomes=Paragraph($a, " and ", $b))
+Reading(on=List(), mode=Speaking(), pattern=And($a, And($b, $c)), becomes=Paragraph($a, ", ", And($b, $c)))
 Reading(on=List(), mode=Speaking(), pattern=Or($a, $b), becomes=Paragraph($a, " or ", $b))
 Reading(on=Not(), mode=Speaking(), pattern=Not($a), becomes=Paragraph("not ", $a))
 Reading(on=Speaker(), mode=Speaking(), pattern=Speaker(), becomes="you")
@@ -44,6 +45,8 @@ Reading(on=Addressee(), mode=Speaking(), pattern=Addressee(), becomes="I")
 
 Reading(on=NoSense(), mode=Speaking(), pattern=NoSense($w),
   becomes=Paragraph("I don't know what ", Code($w), " means here."))
+Reading(on=NoSense(), mode=Speaking(), pattern=NoSense(And($a, $b)),
+  becomes=Paragraph("I don't know these words yet: ", And($a, $b), "."))
 Reading(on=NoSense(), mode=Speaking(), pattern=NoSense($w, in=$x),
   becomes=Paragraph("I don't know what ", Code($w), " means in ", $x, "."))
 Reading(on=NoReading(), mode=Speaking(), pattern=NoReading($x),

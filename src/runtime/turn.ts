@@ -136,7 +136,7 @@ export class Session {
       // the most useful why is a word it has no sense for.
       if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
-        said.push(...(unknown.length ? unknown.map((w) => c("NoSense", s(w))) : [c("Unworked", s(segText))]));
+        said.push(unknown.length ? c("NoSense", pairs(unknown.map((w) => s(w)))) : c("Unworked", s(segText)));
       } else if (reached) {
         // Where part of the segment did something, a fragment beside it that worked out nothing on
         // its own is left out of the reply and kept in the reasons log.
@@ -165,6 +165,17 @@ export class Session {
     if (choices.length) this.last = choices[choices.length - 1];
 
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
+    // Words it has no sense for, across segments, are said once.
+    const unknownSaid = said.filter((x) => isCall(x) && x.head === "NoSense");
+    if (unknownSaid.length > 1) {
+      const flat = (w: Expr): Expr[] => (isCall(w) && w.head === "And" ? positional(w).flatMap(flat) : [w]);
+      const words = unknownSaid.flatMap((x) => flat(positional(x as Call)[0]));
+      const at = said.indexOf(unknownSaid[0]);
+      const rest = said.filter((x) => !unknownSaid.includes(x));
+      rest.splice(at, 0, c("NoSense", pairs(words)));
+      said.length = 0;
+      said.push(...rest);
+    }
     // Several offers in one turn are said as one offer of all of them, as they are one proposal.
     const offers = said.filter((x) => isCall(x) && x.head === "Offer");
     if (offers.length > 1) {
@@ -318,6 +329,11 @@ function collectWords(e: Edge, text: string, h: Hearing, out: Map<string, string
   const w = textOf(text, h, e.start, e.end);
   if (!out.has(k) && w && !/^[\p{P}\p{S}\s]+$/u.test(w)) out.set(k, w);
   for (const b2 of e.back) collectWords(b2, text, h, out);
+}
+
+/** One thing, or nested pairs And(a, And(b, c)): a set said pairwise. */
+function pairs(xs: Expr[]): Expr {
+  return xs.length === 1 ? xs[0] : c("And", xs[0], pairs(xs.slice(1)));
 }
 
 function hasSignal(store: Store, h: Hearing): boolean {
