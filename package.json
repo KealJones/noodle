@@ -11,7 +11,8 @@
     "serve": "pnpm build && node dist/serve/cli.js serve",
     "seed:count": "pnpm build && node dist/seed/count.js",
     "chat": "pnpm build && node dist/assistant/chat.js",
-    "measure": "pnpm build && node scripts/measure.mjs"
+    "measure": "pnpm build && node scripts/measure.mjs",
+    "import": "pnpm build && node dist/know/cli.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
