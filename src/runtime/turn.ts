@@ -197,8 +197,8 @@ export class Session {
         if (o.reachedAct) reached = anything = true;
       }
       // Honest when stuck (design section 23): a segment nothing worked for says why once, and
-      // the most useful why is a word it has no sense for.
-      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && role(x, "because") && isCall(role(x, "because")) && (role(x, "because") as Call).head === "NeedUnmet");
+      // the most useful why is a word it has no sense for, a need, or there being no source.
+      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && isCall(role(x, "because")) && ["NeedUnmet", "NoSource"].includes((role(x, "because") as Call).head));
       if (!reached && specific.length) said.push(...specific);
       else if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
@@ -413,10 +413,14 @@ export class Session {
     const said = (x: Expr): Expr | undefined => {
       // A primitive call is said by its own realization (a command line, a file's content).
       if (!isCall(x) || this.primitives.has(x.head) || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply") return undefined;
-      // The kind a question asks for decides how its answer is said ("what day is it" is said as a
-      // day), so it stays a kind; the rest of the question is in the user's words.
-      const about = role(x, "about");
-      if (x.head === "Question" && about && !(isCall(about) && about.head === "Gap")) return { ...x, args: x.args.map((a) => (a.name === "about" ? a : { ...a, value: mapExpr(a.value, said) })) };
+      // A question is said by its answer's realization, which is keyed on it ("From Wikipedia,
+      // ..."). The kind a question asks for decides how its answer is said ("what day is it" is
+      // said as a day), so it stays a kind, and the rest of that question is in the user's words.
+      if (x.head === "Question") {
+        const about = role(x, "about");
+        if (!about || (isCall(about) && about.head === "Gap")) return undefined;
+        return { ...x, args: x.args.map((a) => (a.name === "about" ? a : { ...a, value: mapExpr(a.value, said) })) };
+      }
       const w = find(x);
       return w ? s(w) : undefined;
     };

@@ -1,6 +1,6 @@
 {
   "name": "noodle",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "private": true,
   "type": "module",
   "description": "An assistant that understands and acts without a language model, built as a graph of nested concepts (N-Con).",
@@ -14,7 +14,8 @@
     "measure": "pnpm build && node scripts/measure.mjs",
     "import": "pnpm build && node dist/know/cli.js",
     "score:acts": "pnpm build && node scripts/acts.mjs",
-    "killtest": "pnpm build && node scripts/killtest.mjs"
+    "killtest": "pnpm build && node scripts/killtest.mjs",
+    "versus": "pnpm build && node scripts/versus.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

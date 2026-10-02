@@ -228,3 +228,10 @@ Concept(LineBreak(), Lemma("line break"))
 Concept(Tip(), Lemma("tip"), IsA(Kind()))                                 // a callout kind
 Concept(Warning(), Lemma("warning"), IsA(Kind()))                         // a callout kind
 Concept(Caution(), Lemma("caution"), IsA(Kind()))                         // a callout kind
+
+// ---------------------------------------------------------------------------------------------
+// The assistant itself: what it holds about the one addressed in every conversation, so a
+// question about it is answered from here (design section 14b), never from the world's sources.
+
+Fact(Addressee(), Name("Noodle"))
+Fact(Addressee(), State(Good()))
