@@ -77,15 +77,18 @@ export interface Config {
   programs?: string[];
   root?: string;
   timeoutMs?: number;
-  /** Use Know, the door to outside knowledge (the chat and the endpoints turn it on). */
-  know?: boolean;
+  /**
+   * Use Know, the door to outside knowledge (the chat and the endpoints turn it on). "offline":
+   * Know answers from the graph and what it kept, and never goes out.
+   */
+  know?: boolean | "offline";
   /** Check learned weight changes against the hand-checked items (testing.md section 4). */
   replay?: boolean;
   /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
   learn?: boolean;
 }
 
-export function readConfig(path = join(homedir(), ".noodle", "config.json")): Config {
+export function readConfig(path = process.env.NOODLE_CONFIG ?? join(homedir(), ".noodle", "config.json")): Config {
   if (!existsSync(path)) return {};
   return JSON.parse(readFileSync(path, "utf8")) as Config;
 }
@@ -103,7 +106,7 @@ export function createSession(store: Store, root: string, config: Config = {}, o
   };
   // Know, the door to outside knowledge, where the channel turns it on; whether it may go out is
   // the SendsOutside grant.
-  if (config.know) world.know = new Know(store, world.now);
+  if (config.know) world.know = new Know(store, world.now, { offline: config.know === "offline" });
   // Readings from documentation the user has confirmed, kept as facts (runtime.md 13).
   const confirmed = new Set(
     store
