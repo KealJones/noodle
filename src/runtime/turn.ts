@@ -50,7 +50,7 @@ export class Session {
   readonly conversation = new Conversation();
   private last?: LastChoice;
   /** Called after learning changes the weights, so the channel can keep them (no file access here). */
-  onLearn?: (weights: Weights) => void;
+  onLearn?: (weights: Weights, changed: string[]) => void;
   /**
    * The replay gate (testing.md section 4): given the features an update changed, whether the
    * hand-checked items they touch still come out right. A change it vetoes is put back.
@@ -234,7 +234,7 @@ export class Session {
     const snapshot = this.gate ? this.weights.clone() : undefined;
     const before = this.weights.update(alt.features, last.winner.features);
     const kept = !this.gate || !snapshot || (await this.gate(new Set(before.keys()), this.weights, snapshot));
-    if (kept) this.onLearn?.(this.weights);
+    if (kept) this.onLearn?.(this.weights, [...before.keys()]);
     else this.weights.revert(before);
     record.reasons.push(choice(kept ? "weights updated" : "weights update vetoed by the replay gate", [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
     record.reasons.push(choice(`correction of "${last.segText}"`, [last.winner, alt].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 1));
@@ -259,7 +259,7 @@ export class Session {
     for (const cv of covers) {
       const chosen: Alt[][] = [];
       for (const e of cv.edges) {
-        const k = key(e.expr);
+        const k = `${e.category}:${key(e.expr)}`;
         let alts: Alt[] | undefined = perEdge.get(k);
         if (!alts) {
           alts = [] as Alt[];

@@ -79,23 +79,24 @@ Reading(on=Zap(), pattern=Zap(agent=Addressee()), wants=IsA(Zap(), Moment()), be
   assert.match(again.text, ranFirst ? /second/ : /first/);
 });
 
-test("what a correction teaches is kept across sessions", async () => {
+test("what a correction teaches is kept across sessions, in the store", async () => {
   const lex = `Pack(name="test-zap2", version="0", from=Seed("test"))
 Concept(Zap(), Lemma("zap"), Category(Act()))
-Reading(on=Zap(), pattern=Zap(agent=Addressee()), becomes=Run("echo", Args("first")), effects=UnknownEffects())
-Reading(on=Zap(), pattern=Zap(agent=Addressee()), wants=IsA(Zap(), Moment()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("first")), effects=UnknownEffects())
+Reading(on=Zap(), pattern=Zap(), wants=IsA(Zap(), Moment()), becomes=Run("echo", Args("second")), effects=UnknownEffects())
 `;
-  const learnedPath = join(mkdtempSync(join(tmpdir(), "noodle-learned-")), "learned.ncon");
+  const db = join(mkdtempSync(join(tmpdir(), "noodle-store-")), "store.db");
   const root = mkdtempSync(join(tmpdir(), "noodle-turn-"));
-  const store1 = seededStore();
+  const store1 = seededStore(undefined, db);
   store1.load(lex);
-  const s1 = createSession(store1, root, { grants: ["UnknownEffects"], learn: true, learnedPath });
+  const s1 = createSession(store1, root, { grants: ["UnknownEffects"], learn: true });
   const ranFirst = (await s1.turn("zap")).text.includes("first");
   await s1.turn("no");
-  // A new store and session, with the learned weights loaded after the seed.
-  const store2 = seededStore();
-  store2.load(lex);
-  store2.load(readFileSync(learnedPath, "utf8"));
+  store1.close();
+  // The same database opened again: the seed and the lexicon are not read again, and the
+  // learned weights are there.
+  const store2 = seededStore(undefined, db);
+  assert.equal(store2.load(lex), 0);
   const s2 = createSession(store2, root, { grants: ["UnknownEffects"] });
   assert.match((await s2.turn("zap")).text, ranFirst ? /second/ : /first/);
 });

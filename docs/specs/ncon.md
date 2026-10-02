@@ -295,8 +295,10 @@ The store holds, as data (design section 28):
 - the trust table and the protected base's contents (runtime spec, section 13);
 - packs and their versions.
 
-It is SQLite, indexed by lemma, by fact head, by concepts named in claims, and by pattern heads, and
-loads senses and readings lazily. `.ncon` files are its readable text form, used for the seed, packs,
+It is SQLite (`~/.noodle/store.db`), indexed by lemma, by fact head, by concepts named in claims,
+and by pattern heads; lookups are queries with a cache in front, so nothing is loaded up front. A
+pack is kept with its hash: loading the same text again does nothing, and new text replaces its
+items. Items are stored as JSON of their structure (the parse positions dropped). `.ncon` files are its readable text form, used for the seed, packs,
 export and import; export then import gives the same store contents (ids aside).
 
 ## 10. What N-Con is not

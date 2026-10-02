@@ -38,7 +38,11 @@ pnpm chat
 `pnpm chat -- --why` prints the reasons log after each reply. Other commands:
 
 - `pnpm import tool git`: learn git's commands from the local man pages (no download), into
-  `~/.noodle/packs/`. `pnpm import wordnet ...` and `pnpm import verbnet ...` take downloaded data
+  `~/.noodle/packs/`. Every pack there, and the seed, is imported into the store,
+  `~/.noodle/store.db` (SQLite), the first time it is opened after a pack changes (about 20 seconds
+  for WordNet, VerbNet and Wiktionary together); after that it opens in a quarter of a second and
+  looks things up as it needs them. What it learns, is taught, confirms and looks up is kept there
+  too. `pnpm import wordnet ...` and `pnpm import verbnet ...` take downloaded data
   (`docs/imports.md`).
 - `pnpm seed:count`: the seed's entries per part, and its checks.
 - `pnpm measure`: hearing and chart numbers on the local corpus (ids only).

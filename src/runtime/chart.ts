@@ -508,7 +508,7 @@ export class Chart {
       best[i] = options
         .sort((x, y) => y.score - x.score)
         .filter((cv) => {
-          const sig = cv.edges.map((e) => key(e.expr)).join(" | ");
+          const sig = cv.edges.map((e) => `${e.category}:${key(e.expr)}`).join(" | ");
           if (seen.has(sig)) return false;
           seen.add(sig);
           return true;
