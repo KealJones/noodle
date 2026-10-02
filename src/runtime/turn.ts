@@ -154,8 +154,8 @@ export class Session {
         if (o.reachedAct) reached = anything = true;
       }
       // Honest when stuck (design section 23): a segment nothing worked for says why once, and
-      // the most useful why is a word it has no sense for.
-      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && role(x, "because") && isCall(role(x, "because")) && (role(x, "because") as Call).head === "NeedUnmet");
+      // the most useful why is a word it has no sense for, a need, or there being no source.
+      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && isCall(role(x, "because")) && ["NeedUnmet", "NoSource"].includes((role(x, "because") as Call).head));
       if (!reached && specific.length) said.push(...specific);
       else if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
@@ -364,8 +364,9 @@ export class Session {
       args: e.args.map((a) => ({
         ...a,
         value: mapExpr(a.value, (x) => {
-          // A primitive call is said by its own realization (a command line, a file's content).
-          if (!isCall(x) || this.primitives.has(x.head) || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply") return undefined;
+          // A primitive call is said by its own realization (a command line, a file's content), and
+          // so is a question its answer's realization is keyed on ("From Wikipedia, ...").
+          if (!isCall(x) || this.primitives.has(x.head) || x.head === "Constraint" || x.head === "BlockedBy" || x.head === "Reply" || x.head === "Question") return undefined;
           const w = find(x);
           return w ? s(w) : undefined;
         }),
