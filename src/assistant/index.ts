@@ -26,7 +26,7 @@ export interface AssistantOptions {
 
 /** The store: one SQLite file, imported into once, queried as it is used (ncon.md section 9). */
 export const STORE = process.env.NOODLE_STORE ?? join(homedir(), ".noodle", "store.db");
-export const PACKS = join(homedir(), ".noodle", "packs");
+export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "packs");
 
 /**
  * The durable store with the seed and every pack in ~/.noodle/packs/ in it (pnpm import). A part or

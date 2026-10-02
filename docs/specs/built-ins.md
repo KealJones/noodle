@@ -30,9 +30,9 @@ may run them.
 
 | Primitive | Pure | Effect classes | Check | Inverse | Experiment |
 |---|---|---|---|---|---|
-| `Store(holder, item)` | no | ChangesLocal | holder contains item | Remove | later |
-| `Remove(holder, item)` | no | Deletes | holder does not contain item | Store (if the item was kept) | later |
-| `Contains(holder, item)` | yes | none | none | none | later |
+| `Store(holder, item)` | no | ChangesGraph for a holder in the graph (a file holder would be ChangesLocal) | holder contains item | Remove | **yes**: holders in the graph |
+| `Remove(holder, item)` | no | ChangesGraph for a holder in the graph (a file holder would be Deletes) | holder does not contain item | Store | **yes**: holders in the graph |
+| `Contains(holder, item)` | yes | none | none | none | **yes** |
 | `Set(thing, property, value)` | no | ChangesLocal | property has value | Set to old value | later |
 | `Remember(item)` | no | ChangesGraph | the fact or reading is in the store | Retract | **yes**: a fact, or a rewrite the user taught (`Rewrite(from, to)`), confirmed first |
 | `Compare(a, b, by)` | yes | none | none | none | later |
@@ -50,6 +50,23 @@ may run them.
 | `Suppose(expr)` | yes | none (captures others) | none | none | **yes** |
 | `Sequence(steps...)` | as its steps | as its steps | each step's | each step's, in reverse | **yes** |
 
+- **Holders in the graph** (hold.ts). A list the user has, their name, anything their words point
+  at that nothing fits yet, is a thing minted in the graph by Store or Remember: `Fact(X,
+  IsA(kind))`, `Fact(X, Said(how it was said))`, and `Fact(Speaker, Have(Speaker, X))`, the user's
+  things, all from the user (level 1). What it holds is `Fact(X, Have(X, item))`; what the user says
+  of it is a fact on it (`Be(X, "Keal")`). Read of a thing returns what the graph holds of it.
+  Store and Remove of a holder in the graph are **ChangesGraph**, like Remember: Remove retracts the
+  fact (status Retracted, still in the store with its source), so nothing is lost and Store restores
+  it. That is why taking out what the user put in is not a guarded Deletes and is not offered every
+  time: Deletes is for what cannot be had back. Store takes a referent nothing fits yet as its
+  holder (`makes`) and words as its item (`concepts`); Remove takes only a holder that exists.
+- **Referents** are resolved by the score (logical-form.md section 4): candidates are what is in
+  play and the user's things; features are WantedKind (the referent's kind among the candidate's
+  noun kinds), Match:Said (said with the same words) and FocusSource (salience); a thing not of the
+  referent's kind is not a candidate. "my shopping list" finds the same thing in every session.
+- **Assert remembers** a claim about the user or their things (logical-form.md section 2) through
+  Remember, when the claim is understood (its head a core meaning whose Frame it fits) and says
+  something beside its referents ("my name is Keal", not "I am me").
 - **Know** is not a primitive that readings call directly (design section 10); it is the runtime's
   one door to outside knowledge (runtime spec, section 14), and its source adapters declare
   `SendsOutside`.

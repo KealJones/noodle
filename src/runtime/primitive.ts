@@ -52,6 +52,13 @@ export interface Primitive {
   name: string;
   /** Its parameters, in the order its positional arguments come. */
   params: readonly string[];
+  /**
+   * Parameters that take concepts as they are: a word's concept ("milk" on a list), or a claim made
+   * of words (a fact to remember). Other parameters take data only (built-ins.md section 2).
+   */
+  concepts?: readonly string[];
+  /** Parameters that may be a referent nothing fits yet: the primitive makes the thing (a new list). */
+  makes?: readonly string[];
   /** Pure primitives only read; Suppose may run them. */
   pure: boolean;
   /** The effect classes this call may cause, given its arguments. */

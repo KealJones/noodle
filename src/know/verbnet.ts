@@ -45,18 +45,21 @@ export function importVerbNet(files: { name: string; xml: string }[], store: Sto
   let frames = 0;
   let skippedFrames = 0;
 
-  const visit = (cls: XmlElement, inherited: string[]) => {
+  // A subclass has its parent's frames and its own (VerbNet: subclasses inherit; their members
+  // are not members of the parent). So frames go down the tree, members do not.
+  const visit = (cls: XmlElement, inherited: { frame: XmlElement; from: Expr }[]) => {
     classes++;
     const id = cls.attrs.ID;
-    const from = c("VerbNet", s(id));
-    const members = [...inherited, ...childrenNamed(child(cls, "MEMBERS") ?? cls, "MEMBER").map((m) => m.attrs.name.replace(/_/g, " "))];
-    for (const frame of elements(child(cls, "FRAMES") ?? cls, "FRAME")) {
+    const own: { frame: XmlElement; from: Expr }[] = [...elements(child(cls, "FRAMES") ?? cls, "FRAME")].map((frame: XmlElement) => ({ frame, from: c("VerbNet", s(id)) }));
+    const members = childrenNamed(child(cls, "MEMBERS") ?? cls, "MEMBER").map((m) => m.attrs.name.replace(/_/g, " "));
+    for (const { frame, from } of [...inherited, ...own]) {
       const parsed = readFrame(frame);
       if (!parsed) {
-        skippedFrames++;
+        // Counted once, in the class that has it.
+        if (own.some((o) => o.frame === frame)) skippedFrames++;
         continue;
       }
-      frames++;
+      if (own.some((o) => o.frame === frame)) frames++;
       for (const r of parsed.roles) roles.add(r);
       for (const p of parsed.predicates) predicates.add(p);
       for (const m of members) {
@@ -69,7 +72,7 @@ export function importVerbNet(files: { name: string; xml: string }[], store: Sto
         }
       }
     }
-    for (const sub of childrenNamed(child(cls, "SUBCLASSES") ?? { name: "", attrs: {}, children: [], text: "" }, "VNSUBCLASS")) visit(sub, members);
+    for (const sub of childrenNamed(child(cls, "SUBCLASSES") ?? { name: "", attrs: {}, children: [], text: "" }, "VNSUBCLASS")) visit(sub, [...inherited, ...own]);
   };
   for (const f of files) for (const cls of elements(parseXml(f.xml), "VNCLASS")) visit(cls, []);
 
@@ -130,8 +133,9 @@ function readFrame(frame: XmlElement): Frame | undefined {
 /**
  * VerbNet's event semantics: predicates over events and roles, with cause(e_i, e_j). What the verb
  * becomes is the caused result, Cause(agent=$agent, result=Become(the predicates at e_j)), or, with
- * no cause, the predicates of its last event. Predicates negated (bool="!") are the state before;
- * implicit roles (?Role) are left out.
+ * no cause, the predicates of its last event. Predicates negated (bool="!") at an earlier event are
+ * the state before and left out; negated at the result event they are Not(...) of the result.
+ * Implicit roles (?Role) are left out.
  */
 function readSemantics(sem: XmlElement | undefined, roles: Set<string>): { expr: Expr; predicates: string[] } | undefined {
   if (!sem) return undefined;
@@ -158,11 +162,13 @@ function readSemantics(sem: XmlElement | undefined, roles: Set<string>): { expr:
   const at = (event: string | undefined): Expr[] => {
     const out: Expr[] = [];
     for (const p of preds) {
-      if (p.raw === "cause" || p.raw === "do" || p.negated || eventOf(p) !== event) continue;
+      if (p.raw === "cause" || p.raw === "do" || eventOf(p) !== event) continue;
       const args = roleArgs(p);
       if (!args) continue;
       used.push(p.name);
-      out.push(c(p.name, ...args));
+      // A predicate negated at the result event is what stops holding ("remove the eggs from
+      // the list": not located there any more); negated at an earlier event, it is the state before.
+      out.push(p.negated ? c("Not", c(p.name, ...args)) : c(p.name, ...args));
     }
     return out;
   };
@@ -171,7 +177,12 @@ function readSemantics(sem: XmlElement | undefined, roles: Set<string>): { expr:
   if (cause) {
     const events = cause.args.filter((a) => a.type === "Event").map((a) => a.value);
     const agentRole = cause.args.find((a) => a.type === "ThemRole")?.value ?? preds.find((p) => p.raw === "do" && eventOf(p) === events[0])?.args.find((a) => a.type === "ThemRole")?.value;
-    const result = and(at(events[events.length - 1]));
+    // The caused event, or the state it ends in when the frame goes on past it (VerbNet 3.4's
+    // event structure: put's process ë3 culminates in e4, the theme at the destination).
+    const caused = events[events.length - 1];
+    const order = [...new Set(preds.map(eventOf).filter(Boolean))];
+    const last = order[order.length - 1];
+    const result = (last !== caused && order.indexOf(last) > order.indexOf(caused) ? and(at(last)) : undefined) ?? and(at(caused));
     if (!result) return undefined;
     const agent = agentRole && roles.has(roleName(agentRole)) ? v(lower(roleName(agentRole))) : undefined;
     return { expr: c("Cause", ...(agent ? ([["agent", agent]] as [string, Expr][]) : []), ["result", c("Become", result)]), predicates: used };

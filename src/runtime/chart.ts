@@ -142,6 +142,13 @@ export class Chart {
     // A candidate covering several tokens (a URL, a multi-word name) counts for each of them.
     addFeature(features, `CandidateSource:${cand.source}`, cand.source === "Unknown" ? 0 : cand.distance ? -cand.distance : cand.end - cand.start);
     if (cand.kind) addFeature(features, `ShapeFit:${cand.kind}`, 1);
+    // A noun the lexicon lists as one word ("shopping list"), read as that noun: +1 per token past
+    // the first, so the listed compound is preferred to the same nouns put together by the chart.
+    const joined = (f: Features, category: string) => {
+      const out = new Map(f);
+      if (category === "Noun" && cand.source === "Exact" && cand.end - cand.start > 1) addFeature(out, "WordsUsed:Joined", cand.end - cand.start - 1);
+      return out;
+    };
     if (cand.concept) {
       const { entries, joins } = this.entries(cand.concept);
       for (const en of entries) {
@@ -160,7 +167,7 @@ export class Chart {
             acceptsGap: en.fillsGap,
             word: cand.concept,
             formFeatures: cand.features,
-            features: new Map(features),
+            features: joined(features, en.category),
             step: "word",
             back: [],
           }),
@@ -278,6 +285,8 @@ export class Chart {
     const q = arg.pending[0];
     if (!p || !q || p.takes.side !== "Right" || q.takes.side !== "Right") return undefined;
     if (this.complete(arg) || (p.takes.category !== arg.category && p.takes.category !== "Any")) return undefined;
+    // A slot for one word's phrase ("to the list") is filled by that word, composed or not.
+    if (p.takes.head && !(isCall(arg.expr) && (arg.word === p.takes.head || arg.expr.head === p.takes.head))) return undefined;
     if (head.pending.length + arg.pending.length > 3) return undefined;
     const at = argCount(head.expr, p.path);
     const expr = addArg(head.expr, p.path, p.takes.role, arg.expr);

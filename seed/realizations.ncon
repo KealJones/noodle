@@ -20,6 +20,9 @@ Pack(name="seed-realizations", version="0.1.0", from=Seed("realizations"))
 // A concept with no realization of its own is said by its lemma.
 Reading(on=Lemma(), mode=Speaking(), pattern=$x, needs=Fact($x, Lemma($l)), becomes=$l)
 
+// A thing the user has in the graph is said the way they said it.
+Reading(on=Said(), mode=Speaking(), pattern=$x, needs=Fact($x, Said($s)), becomes=$s)
+
 // A referent is said the way the user said it.
 Reading(on=Ref(), mode=Speaking(), pattern=Ref(said=$s), becomes=$s)
 
@@ -31,6 +34,10 @@ Reading(on=Run(), mode=Speaking(), pattern=Run($p, $args), becomes=Code(Paragrap
 Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
 
+// Putting into and taking out of a holder.
+Reading(on=Store(), mode=Speaking(), pattern=Store($h, $x), becomes=Paragraph("add ", $x, " to ", $h))
+Reading(on=Remove(), mode=Speaking(), pattern=Remove($h, $x), becomes=Paragraph("remove ", $x, " from ", $h))
+
 // A set is a list when it is long, a phrase when it is short.
 Reading(on=Every(), mode=Speaking(), pattern=Every($k), becomes=Paragraph("every ", $k))
 Reading(on=List(), mode=Speaking(), pattern=And($a, $b), becomes=Paragraph($a, " and ", $b))
@@ -39,6 +46,11 @@ Reading(on=List(), mode=Speaking(), pattern=Or($a, $b), becomes=Paragraph($a, " 
 Reading(on=Not(), mode=Speaking(), pattern=Not($a), becomes=Paragraph("not ", $a))
 Reading(on=Speaker(), mode=Speaking(), pattern=Speaker(), becomes="you")
 Reading(on=Addressee(), mode=Speaking(), pattern=Addressee(), becomes="I")
+// What is the user's ("my list") is, said back to them, theirs.
+Reading(on=My(), mode=Speaking(), pattern=My($n), becomes=Paragraph("your ", $n))
+// X is Y; X has Y.
+Reading(on=Be(), mode=Speaking(), pattern=Be($x, $y), becomes=Paragraph($x, " is ", $y))
+Reading(on=Have(), mode=Speaking(), pattern=Have($x, $y), becomes=Paragraph($x, " has ", $y))
 
 // =============================================================================================
 // 2. Honest when stuck, one per reason (design section 23)
@@ -92,6 +104,9 @@ Reading(on=Offer(), mode=Speaking(), pattern=Offer(Remember(Rewrite($w, $d))),
   becomes=Paragraph("So when you say \"", $w, "\", you mean \"", $d, "\"? I'll remember it if so."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Remember(Rewrite($w, $d)), result=$r, checked=true),
   becomes=Paragraph("Got it: \"", $w, "\" means \"", $d, "\"."))
+// A fact about the user kept: said back, as what it now says of their things.
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Remember($p), result=Remembered($f, $c), checked=true),
+  becomes=Paragraph("Got it: ", $c, "."))
 
 // =============================================================================================
 // 4. Echoes of what it heard
@@ -147,6 +162,26 @@ Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=File(pat
   becomes=Document(Paragraph(Code($path), ":"), CodeBlock($b)))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r),
   becomes=Paragraph($r))
+// Holding in the graph: what was put in or taken out of a holder, and what a holder holds or what a
+// thing is, said of the thing the way the user said it ("your shopping list").
+Reading(on=Store(), mode=Speaking(), pattern=Outcome(Store($h, $x), result=Have($t, $y), checked=true),
+  becomes=Paragraph("Added ", $x, " to ", $t, "."))
+Reading(on=Remove(), mode=Speaking(), pattern=Outcome(Remove($h, $x), result=Have($t, $y), checked=true),
+  becomes=Paragraph("Removed ", $x, " from ", $t, "."))
+Reading(on=Remove(), mode=Speaking(), pattern=Outcome(Remove($h, $x), result=Have($t), checked=true),
+  becomes=Paragraph("Removed ", $x, " from ", $t, "."))
+Reading(on=Have(), mode=Speaking(), pattern=Outcome(Read($x), result=Have($t, $y)), needs=Fact($t, Said(My($n))),
+  becomes=Paragraph("Your ", $n, " has ", $y, "."))
+Reading(on=Have(), mode=Speaking(), pattern=Outcome(Read($x), result=Have($t, $y)),
+  becomes=Paragraph(Have($t, $y), "."))
+Reading(on=Have(), mode=Speaking(), pattern=Outcome(Read($x), result=Have($t)), needs=Fact($t, Said(My($n))),
+  becomes=Paragraph("Your ", $n, " is empty."))
+Reading(on=Have(), mode=Speaking(), pattern=Outcome(Read($x), result=Have($t)),
+  becomes=Paragraph($t, " is empty."))
+Reading(on=Be(), mode=Speaking(), pattern=Outcome(Read($x), result=Be($t, $y)), needs=Fact($t, Said(My($n))),
+  becomes=Paragraph("Your ", $n, " is ", $y, "."))
+Reading(on=Be(), mode=Speaking(), pattern=Outcome(Read($x), result=Be($t, $y)),
+  becomes=Paragraph(Be($t, $y), "."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Count($s), result=$n),
   becomes=Paragraph($n))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Undo($a)),
