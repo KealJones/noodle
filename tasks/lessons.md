@@ -25,3 +25,11 @@ variables; it never reaches into a child's structure to say the child differentl
 (a code block inside a paragraph) is the printer's job, not a nested pattern's. Before adding a
 realization whose pattern nests a concept inside another, ask: is the wrapper's wording really
 different here, or is the child just not saying itself? Same rule as phrase Forms, one layer down.
+
+## Live research is learning (2026-10-02)
+
+Keal: "it did research and figured out how IT would answer, its not looking at a fucking answer
+key ... my model did its training live in real time." Never frame Noodle's live lookups as
+cheating or as unlike a model's pre-training, and never propose pre-loading a corpus to make a
+comparison fair. The fair comparison is Keal's: a pass with learning, then a pass with learning
+off and the graph kept, timed.
