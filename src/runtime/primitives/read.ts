@@ -1,5 +1,5 @@
-// Read and Contains (built-ins.md section 2; runtime.md section 9). Read turns a path or a git
-// state into structure; both only observe.
+// Read and Contains (built-ins.md section 2; runtime.md section 9). Read turns a path, a git
+// state or a manual page into structure; both only observe.
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -8,6 +8,7 @@ import type { Expr } from "../expr.js";
 import type { Primitive } from "../primitive.js";
 import { blockRef, SELF, str } from "./args.js";
 import { logCount, readBranches, readLog, readStatus } from "./git.js";
+import { readManPage } from "./manpage.js";
 import { mediaFor, resolveInside } from "./paths.js";
 
 const entryKind = (dir: string, d: fs.Dirent): Expr => {
@@ -36,6 +37,8 @@ export const Read: Primitive = {
           return readLog(world, logCount(source));
         case "GitBranches":
           return readBranches(world);
+        case "ManPage":
+          return readManPage(world, source);
       }
       throw new Error(`Read does not know how to read ${source.head}`);
     }

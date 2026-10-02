@@ -348,6 +348,10 @@ run         the code
 - A primitive's effects are declared; after an effectful primitive runs, the world is **observed**
   (a pure Read of the state it changed), not trusted from the declaration (design section 15).
   Observation reads tools' machine formats (git porcelain and plumbing) as structure.
+- Read also understands a tool's documentation as structure: `Read(ManPage(name))` or
+  `Read(ManPage(name, section))` finds the page with `man -w` and parses it with mandoc (a real
+  roff parser), giving sections, tagged items and the SYNOPSIS as Usage structures (design
+  section 25). What the SYNOPSIS grammar cannot read stays `Unparsed`.
 - The list of primitives is in `built-ins.md`, section 2. Adding one is a design change.
 
 ## 10. Suppose and Sequence
