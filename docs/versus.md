@@ -1,6 +1,6 @@
 # Noodle beside Napkin
 
-Run 2026-10-02 16:12 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-02 16:23 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
@@ -18,14 +18,14 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | math | 5 / 1 / 1 / 0 | 5 / 1 / 1 / 0 |
 | units | 1 / 3 / 1 / 0 | 2 / 3 / 0 / 0 |
 | time and reminders | 2 / 2 / 1 / 0 | 4 / 1 / 0 / 0 |
-| lists and memory | 2 / 5 / 2 / 0 | 2 / 5 / 2 / 0 |
+| lists and memory | 2 / 6 / 1 / 0 | 2 / 5 / 2 / 0 |
 | definitions | 2 / 4 / 0 / 0 | 3 / 1 / 2 / 0 |
 | files | 3 / 4 / 1 / 0 | 0 / 7 / 1 / 0 |
-| git | 2 / 4 / 2 / 0 | 0 / 8 / 0 / 0 |
+| git | 3 / 3 / 2 / 0 | 0 / 8 / 0 / 0 |
 | instructions | 2 / 1 / 1 / 0 | 0 / 4 / 0 / 0 |
 | multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
 | typos and messy phrasing | 3 / 5 / 0 / 0 | 2 / 5 / 1 / 0 |
-| near-misses | 4 / 3 / 0 / 0 | 2 / 3 / 2 / 0 |
+| near-misses | 3 / 3 / 1 / 0 | 2 / 3 / 2 / 0 |
 | conversation | 0 / 6 / 0 / 0 | 3 / 1 / 2 / 0 |
 
 ## small talk
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 9:12 AM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 9:23 AM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Friday, October 2. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | Today is Friday, October 2. | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -93,7 +93,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 34 | start a grocery list | I couldn't work out "start a grocery list". | HONEST | I don't know how to start yet. | HONEST |
 | 35 | add eggs and milk to it | I can run `git add`, but I don't know yet what it changes. Go ahead? | WRONG | Added eggs and milk to your start. | RIGHT |
 | 36 | also add bread | I couldn't work out "also add bread". | HONEST | I don't know how to add yet. | HONEST |
-| 37 | what's on my grocery list? | Your shopping list is empty. | WRONG | I don't know yet. | HONEST |
+| 37 | what's on my grocery list? | You haven't told me that. | HONEST | I don't know yet. | HONEST |
 | 38 | take milk off the list | I couldn't work out "take milk off the list". | HONEST | I don't know how to milk yet. | HONEST |
 | 39 | remember that my sister's birthday is june 4 | I couldn't work out "remember that my sister's birthday is june 4". | HONEST | That makes 4. | WRONG |
 | 40 | when is my sister's birthday? | I couldn't work out "when is my sister's birthday?". | HONEST | I don't know your sister's birthday yet. | HONEST |
@@ -128,12 +128,12 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-Scg3yQ`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-hgjAJP`. | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit bc34a0d125139f1b40cb95b7513df3df848d3944<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 09:12:37 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 83208bcd86076035743c615e035b257998ca2a9f<br>Author: Versus <versus@example.com><br>Date:   Fri Oct 2 09:23:59 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I couldn't work out "commit my changes with the message 'update readme'". | HONEST | I don't know how to commit yet. | HONEST |
 | 61 | yes go ahead | There's nothing I'm waiting to do. | HONEST | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
-| 62 | is the working tree clean now? | I couldn't work out "is the working tree clean now?". | HONEST | I don't know yet. | HONEST |
+| 62 | is the working tree clean now? | Do you mean ` git clean  `, or `git clean`? | RIGHT | I don't know yet. | HONEST |
 | 63 | create a branch called feature-login | I don't know what `feature-login` means here. | HONEST | I worked that out, but I don't know how to say it yet: BudgetExceeded(kind="steps", limit=4000) | HONEST |
 | 64 | push it | I can run `git push`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
 
@@ -153,7 +153,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 69 | read notes.txt and tell me how many lines it has | I couldn't work out "read notes.txt and tell me how many lines it has". | HONEST | I don't know how to note yet. | HONEST |
 | 70 | make a file called a.txt, then another called b.txt | I don't know these words yet: a.txt and b.txt. | HONEST | I don't know how to called yet. | HONEST |
 | 71 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
-| 72 | list the files and then show me package.json | `package.json`:<br><br>```<br>{<br>  "name": "shop",<br>  "version": "1.0.0"<br>}<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
+| 72 | list the files and then show me package.json | I couldn't work out "list the files and then show me package.json".<br><br>`package.json`:<br><br>```<br>{<br>  "name": "shop",<br>  "version": "1.0.0"<br>}<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
 | 73 | what's 6 times 7 and what's the capital of italy | 6 times 7 is 42.<br><br>I couldn't the capital of italy: no such file or directory: italy | WRONG | I don't know how to multiply yet. | HONEST |
 
 ## typos and messy phrasing
@@ -175,7 +175,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 82 | i pushed the code yesterday | Do you mean add I to code, or add yesterday to code? | RIGHT | I'm sorry to hear that. | RIGHT |
 | 83 | my friend deleted his whole repo lol | Ha. | RIGHT | I see. | RIGHT |
-| 84 | what does git commit do? | From the manual page `git-commit`:<br><br>Record changes to the repository | RIGHT | I don't know commit git yet. | HONEST |
+| 84 | what does git commit do? | Do you mean `git commit DO`, or `git commit gap`? | WRONG | I don't know commit git yet. | HONEST |
 | 85 | the word delete has six letters | I couldn't work out "the word delete has six letters". | HONEST | I don't know what letters is yet. Tell me (like "letters is ...") and I'll remember. | HONEST |
 | 86 | should i use tabs or spaces? | I couldn't work out "should i use tabs or spaces?". | HONEST | I couldn't find tabs and spaces as two of the same kind of thing, so I can't compare them yet. | HONEST |
 | 87 | how do i make a new branch in git | I couldn't work out "how do i make a new branch in git". | HONEST | Git/Branching & merging (from https://en.wikibooks.org/wiki/Git%2FBranching_%26_merging, CC BY-SA 4.0):<br><br>Why Branch?:<br>- You may have branches representing “stable” releases, which continue to get incremental bug fixes but no (major) new features. At the same time, you may have multiple “unstable” branches representing various new features being proposed for the next major release, and bei | WRONG |

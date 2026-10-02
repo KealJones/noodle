@@ -17,7 +17,7 @@ import { Chart, DEFAULT_CHART, type Edge, entriesOf } from "../runtime/chart.js"
 import { hear } from "../runtime/hear.js";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { Rewriter } from "../runtime/rewrite.js";
-import { Weights } from "../runtime/score.js";
+import { type Features, Weights, addFeature, scoreOf } from "../runtime/score.js";
 import type { ReadingItem, Store } from "../runtime/store.js";
 import { format } from "../ncon/index.js";
 import { STRUCTURAL_NAMES } from "../structural.js";
@@ -30,6 +30,12 @@ const CATEGORIES: Record<string, string[]> = {
   PartOfSpeechNoun: ["Noun", "Thing"],
 };
 /** A word's chart category, as used in a definition, to the part of speech of the sense meant. */
+/**
+ * How a definition's words may be heard: as written, or as an inflection of a word. A definition is
+ * edited text, so a word heard recased ("or" as the acronym OR) or as a spelling correction is a
+ * mishearing, and a reading built on one is not a reading of the definition.
+ */
+const AS_WRITTEN = new Set(["CandidateSource:Exact", "CandidateSource:Inflected", "CandidateSource:Unknown"]);
 const POS_OF: Record<string, string> = { Act: "PartOfSpeechVerb", Property: "PartOfSpeechAdjective", Manner: "PartOfSpeechAdverb", Noun: "PartOfSpeechNoun", Thing: "PartOfSpeechNoun" };
 
 export interface Definition {
@@ -58,9 +64,11 @@ export interface UnderstandOptions {
   edges: number;
   /** Senses of a word tried, best first. */
   senses: number;
+  /** Chart edges kept per span and category: a definition has open arguments, so more readings tie. */
+  k: number;
 }
 
-export const DEFAULT_UNDERSTAND: UnderstandOptions = { maxDepth: 3, edges: 3, senses: 2 };
+export const DEFAULT_UNDERSTAND: UnderstandOptions = { maxDepth: 3, edges: 3, senses: 1, k: 12 };
 
 interface Alt {
   expr: Expr;
@@ -93,14 +101,17 @@ export class Understander {
     readonly opts: UnderstandOptions = DEFAULT_UNDERSTAND,
   ) {
     this.weights = new Weights(store);
-    // Rewriting a definition reduces it toward core meanings and stops there: readings that act
-    // (a primitive, a command) are for requests, and readings already learned from definitions
-    // are what is being worked out.
+    // Rewriting a definition reduces it by the seed's own readings (its constructions: "make" a
+    // thing a property, "cause" a thing to act) and stops there. Readings that act (a primitive, a
+    // command) are for requests; readings already learned from definitions are what is being
+    // worked out; and an import's reductions to its predicates say less than the definition
+    // (VerbNet's "cover" is something being in a place, which turns "cover with paper" into paper
+    // being in it), so they apply when a request using the definition is rewritten, not here.
     this.rewriter = new Rewriter(store, this.weights.get, { mode: "Doing", beam: 3, maxSteps: 8, allow: (r) => this.reduces(r) });
   }
 
   private reduces(r: ReadingItem): boolean {
-    if (PRIMITIVES.has(r.owner) || r.effects.length || this.isSense(r.owner)) return false;
+    if (PRIMITIVES.has(r.owner) || r.effects.length || this.isSense(r.owner) || !isCall(r.meta.from) || r.meta.from.head !== "Seed") return false;
     return !r.becomes || ![...walkCalls(r.becomes)].some((x) => PRIMITIVES.has(x.head));
   }
 
@@ -116,6 +127,26 @@ export class Understander {
       this.seedCache.set(concept, x);
     }
     return x;
+  }
+
+  /**
+   * In the seed as it was heard. A core meaning is its exponent's word (seed decision 1), so the
+   * word "part" heard as an act is not the core meaning Part (a part of a whole) but one of the
+   * word's own verb senses: a core meaning grounds an act only where the seed gives it an act's
+   * entry or a frame that relates things or holds of a proposition (named roles, more than one
+   * place, or a Prop: "become"). Intransitive core acts with a one-thing frame ("live") are then
+   * read through the word's verb senses, which costs coverage, not precision.
+   */
+  grounds(concept: string, category: string | undefined): boolean {
+    if (!this.inSeed(concept)) return false;
+    if (category !== "Act" || STRUCTURAL_NAMES.has(concept)) return true;
+    const seed = this.store.facts(concept).filter((f) => isCall(f.meta.from) && f.meta.from.head === "Seed");
+    return seed.some((f) => {
+      const claim = f.claim as Call;
+      if (claim.head === "Category") return true;
+      if (claim.head === "Frame") return claim.args.some((a) => a.name !== undefined) || positional(claim).length > 1 || positional(claim).some((a) => isCall(a) && a.head === "Prop");
+      return key(f.meta.from) !== key(c("Seed", s("core")));
+    });
   }
 
   /** A word's senses of a part of speech, most frequent first, as many as are tried. */
@@ -144,25 +175,37 @@ export class Understander {
     if (!gloss) return out;
     const t0 = performance.now();
     const cats = CATEGORIES[pos ?? ""] ?? ["Act"];
+    const objects = pos === "PartOfSpeechVerb" ? this.objects(sense) : undefined;
     // The whole definition; failing that, its head before the first comma (what follows a comma in
     // a WordNet definition is usually a qualification: "cause to have, in the abstract sense").
-    let { edges, unheard } = this.wholeReadings(gloss, cats);
+    let { edges, unheard } = this.wholeReadings(sense, gloss, cats, objects);
     out.unheard = unheard;
     const head = gloss.split(",")[0].trim();
     if (!edges.length && head !== gloss) {
-      ({ edges } = this.wholeReadings(head, cats));
+      ({ edges } = this.wholeReadings(sense, head, cats, objects));
       if (edges.length) out.gloss = head;
     }
     const tried = new Set<string>();
     for (const e of edges) {
       const words = wordCategories(e);
       const template = mapExpr(e.expr, (x) => (isCall(x) && x.head === "Gap" && !x.args.length ? v("x") : undefined));
-      // A definition that is a choice ("remove or make invisible") is each of its alternatives.
-      const parts = isCall(template) && template.head === "Or" ? positional(template).filter(isCall) : [template];
-      // As rewriting reduces it, best first (leaving it as heard is one of rewriting's alternatives).
+      // A definition that is a choice ("remove or make invisible") is each of its alternatives,
+      // each with what is said of the whole choice ("move or strike with a noise"). The parts of a
+      // choice are alike: each is said of what the definition is said of, or none is, and none
+      // takes nothing where another takes something. What follows a choice is said of each part
+      // ("include or contain" something, "make or become" black), and the chart puts it in the
+      // last part only, so a part that takes nothing takes what the last part takes. A reading
+      // whose parts are still not alike is not a reading of the definition.
+      const open = hasObject(template);
+      const choice = !isCall(template) ? [] : template.head === "Or" ? shareRight(orParts(template)) : [template];
+      const alike = choice.every((p) => hasObject(p) === open) && (choice.every((p) => p.args.length) || choice.every((p) => !p.args.length));
+      const parts = alike ? choice : [];
+      // As heard first, its words the senses meant: what it says is kept in its own words where
+      // they bottom out (a reduction to core predicates says less: "enclose" is not "touch"), and
+      // a request using it is reduced further when it is rewritten. Then as rewriting reduces it.
       for (const part of parts)
-        for (const expr of [...this.rewriter.normalize(part).slice(0, 3).map((d) => d.expr), part]) {
-          if (tried.has(key(expr))) continue;
+        for (const expr of [part, ...this.rewriter.normalize(part).slice(0, 3).map((d) => d.expr)]) {
+          if (tried.has(key(expr)) || (open && !hasObject(expr))) continue;
           tried.add(key(expr));
           out.alts.push({ expr, words });
         }
@@ -172,33 +215,77 @@ export class Understander {
     return out;
   }
 
-  /** The chart's readings of a text that span all of it as one phrase of these categories, best first. */
-  private wholeReadings(text: string, cats: string[]): { edges: Edge[]; unheard: string[] } {
+  /**
+   * The chart's readings of a text that span all of it as one phrase of these categories, and of
+   * those the best: by the chart's score, how likely each word is to be of the part of speech it
+   * was heard as (SenseFrequency:Category), and whether the reading leaves open as many objects
+   * as the sense takes (ShapeFit:Frame). A reading that ties with the best is kept beside it; the
+   * rest are not meanings of the definition, however well they bottom out. A reading that passes
+   * over a word does not say all the definition says, and is not one; nor does one with two open
+   * arguments, which one variable cannot stand for.
+   */
+  private wholeReadings(sense: string, text: string, cats: string[], objects?: Set<number>): { edges: Edge[]; unheard: string[] } {
     const h = hear(this.store, text, { names: [] });
-    const chart = new Chart(this.store, h, 0, h.tokens.length, this.weights.get, { ...DEFAULT_CHART, open: true }).build();
+    // The sense's own words heard as one compound ("make full" for a sense of "fill") are the
+    // sense itself: a definition is heard from its words.
+    const own = new Set(this.store.facts(sense, "SenseOf").map((f) => positional(f.claim as Call)[0]).filter(isCall).map((w) => w.head));
+    h.candidates = h.candidates.map((cs) => cs.filter((x) => x.end - x.start < 2 || !x.concept || !own.has(x.concept)));
+    const chart = new Chart(this.store, h, 0, h.tokens.length, this.weights.get, { ...DEFAULT_CHART, k: this.opts.k, open: true }).build();
     const seen = new Set<string>();
     const unheard = h.tokens.filter((_, i) => h.candidates[i].every((x) => x.source === "Unknown")).map((t) => t.text);
-    const edges = chart
+    const gaps = (e: Edge) => [...walkAll(e.expr)].filter((x) => isCall(x) && x.head === "Gap" && !x.args.length).length;
+    const scored = chart
       .edges()
       .filter((e) => cats.includes(e.category) && !e.wraps && !e.heads && e.pending.every((p) => p.takes.optional) && (!e.gap || e.gap === "Thing"))
-      .sort((a, b) => b.score - a.score)
+      .filter((e) => ![...e.features.keys()].some((k) => k.startsWith("WordsUsed:Skipped") || (k.startsWith("CandidateSource:") && !AS_WRITTEN.has(k))) && gaps(e) < 2)
       .filter((e) => {
         const k = key(e.expr);
         if (seen.has(k)) return false;
         seen.add(k);
         return true;
       })
-      .slice(0, this.opts.edges);
-    return { edges, unheard };
+      .map((e) => ({ e, score: e.score + scoreOf(this.fit(e, objects), this.weights.get) }))
+      .sort((a, b) => b.score - a.score);
+    const best = scored[0]?.score;
+    return { edges: scored.filter((x) => x.score >= best - 1e-9).slice(0, this.opts.edges).map((x) => x.e), unheard };
+  }
+
+  /**
+   * The understander's own feature of a whole reading of a definition: whether it leaves open as
+   * many objects as the sense takes (the chart's own score has the rest).
+   */
+  fit(e: Edge, objects?: Set<number>): Features {
+    const f: Features = new Map();
+    if (objects?.size) {
+      const gaps = [...walkAll(e.expr)].filter((x) => isCall(x) && x.head === "Gap" && !x.args.length).length;
+      addFeature(f, "ShapeFit:Frame", gaps ? ([...objects].some((n) => n >= gaps) ? 1 : -1) : objects.has(0) ? 1 : -1);
+    }
+    return f;
+  }
+
+  /**
+   * How many objects the sense takes after the verb, in each way WordNet says its words are used
+   * ("Somebody ----s something" is one, "Somebody ----s somebody something" two): the things that
+   * follow the verb before anything else does. None when WordNet says nothing.
+   */
+  objects(sense: string): Set<number> | undefined {
+    const out = new Set<number>();
+    for (const f of this.store.facts(sense, "SyntacticFrame")) {
+      const after = positional(f.claim as Call).slice(1);
+      let n = 0;
+      while (n < after.length && isCall(after[n]) && entriesOf(this.store, (after[n] as Call).head).entries.some((en) => en.category === "Thing")) n++;
+      out.add(n);
+    }
+    return out.size ? out : undefined;
   }
 
   /** The senses a definition's words could mean (what has to be understood before it can be). */
   private dependencies(alt: Alt): string[] {
     const out: string[] = [];
     for (const x of walkCalls(alt.expr)) {
-      if (this.inSeed(x.head)) continue;
+      if (this.grounds(x.head, alt.words.get(x.head))) continue;
       if (this.isSense(x.head)) out.push(x.head);
-      else out.push(...this.sensesOf(x.head, POS_OF[alt.words.get(x.head) ?? ""]));
+      else if (alt.words.has(x.head)) out.push(...this.sensesOf(x.head, POS_OF[alt.words.get(x.head)!]));
     }
     return out;
   }
@@ -300,7 +387,10 @@ export class Understander {
   /** The concept a word or sense in a definition resolves to, if one has bottomed out. */
   private meant(head: string, alt: Alt, level: Map<string, number>): string | undefined {
     if (this.isSense(head)) return level.has(head) ? head : undefined;
-    return this.sensesOf(head, POS_OF[alt.words.get(head) ?? ""]).find((sn) => level.has(sn));
+    // Only a word of the definition means one of its senses: a head a reading made (a VerbNet
+    // predicate) is a concept of its own, not a word to look up.
+    if (!alt.words.has(head)) return undefined;
+    return this.sensesOf(head, POS_OF[alt.words.get(head)!]).find((sn) => level.has(sn));
   }
 
   /** A reading of a definition with every word resolved to a sense that has bottomed out, or none. */
@@ -311,7 +401,7 @@ export class Understander {
         failed = true;
         return x;
       }
-      if (!isCall(x) || this.inSeed(x.head)) return undefined;
+      if (!isCall(x) || this.grounds(x.head, alt.words.get(x.head))) return undefined;
       const head = this.meant(x.head, alt, level);
       if (!head) {
         failed = true;
@@ -325,7 +415,7 @@ export class Understander {
   /** The same, keeping words that did not resolve as they are (for a Pending reading). */
   private resolveLoose(alt: Alt, level: Map<string, number>): Expr {
     return mapExpr(alt.expr, (x) => {
-      if (!isCall(x) || this.inSeed(x.head)) return undefined;
+      if (!isCall(x) || this.grounds(x.head, alt.words.get(x.head))) return undefined;
       const head = this.meant(x.head, alt, level) ?? x.head;
       return { ...x, head, args: x.args.map((a) => ({ ...a, value: this.resolveLoose({ expr: a.value, words: alt.words }, level) })) };
     });
@@ -336,19 +426,20 @@ export class Understander {
     const out: string[] = [];
     for (const x of walkAll(alt.expr)) {
       if (x.kind === "string") out.push(JSON.stringify(x.value));
-      if (isCall(x) && !this.inSeed(x.head) && !this.meant(x.head, alt, level)) out.push(x.head);
+      if (isCall(x) && !this.grounds(x.head, alt.words.get(x.head)) && !this.meant(x.head, alt, level)) out.push(x.head);
     }
     return out;
   }
 
-  /** A noun sense grounded by its kinds: one of them is a sense of a word the seed has. */
+  /**
+   * A noun sense grounded by its kinds: it has a broader kind, so it is somewhere in WordNet's
+   * hierarchy of things, whose top the seed's Something stands for. (Asking instead that a kind be
+   * a sense of a word the seed has made a noun's grounding depend on which words the seed happens
+   * to have: "butter" the person who butts grounded, through "someone", and butter the food did
+   * not, so the rarer sense was taken.)
+   */
   groundedKind(sense: string): boolean {
-    for (const k of this.store.kinds(sense).keys())
-      for (const f of this.store.facts(k, "SenseOf")) {
-        const w = positional(f.claim as Call)[0];
-        if (isCall(w) && this.inSeed(w.head) && !STRUCTURAL_NAMES.has(w.head)) return true;
-      }
-    return false;
+    return this.store.facts(sense, "IsA").length > 0;
   }
 
   /**
@@ -387,6 +478,22 @@ export class Understander {
 }
 
 const hasObject = (e: Expr) => [...walkVars(e)].includes("$x");
+
+/** Parts of a choice that take nothing take what its last part takes (see hearSense). */
+function shareRight(parts: Call[]): Call[] {
+  const last = parts.at(-1);
+  if (!last?.args.length) return parts;
+  return parts.map((p) => (p.args.length ? p : { ...p, args: last.args }));
+}
+
+/** The alternatives of a choice, each with what is said of the whole choice (its roles). */
+function orParts(e: Call): Call[] {
+  const shared = e.args.filter((a) => a.name !== undefined);
+  return positional(e)
+    .filter(isCall)
+    .flatMap((p) => (p.head === "Or" ? orParts(p) : [p]))
+    .map((p) => ({ ...p, args: [...p.args, ...shared.filter((a) => !p.args.some((b) => b.name === a.name))] }));
+}
 
 /** Each word in an edge's derivation, with the category it was heard as. */
 function wordCategories(e: Edge, out = new Map<string, string>()): Map<string, string> {

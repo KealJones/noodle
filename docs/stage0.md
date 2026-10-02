@@ -215,3 +215,36 @@ those name their commands.
   one of its 49 WordNet senses.
 - **SenseFrequency is a rank, not a frequency.** WordNet's order is all there is; ties across parts
   of speech (noun "full" against adjective "full") have no data to break them.
+
+## Second pass (2026-10-02)
+
+What changed: a definition is heard as written (no recased or misspelt words), its whole reading
+must leave open as many objects as WordNet says the sense takes, a word's category is weighed by
+how many of its senses have that part of speech (SenseFrequency:Category), only the seed's own
+readings reduce a definition (an import's predicates say less), a core meaning grounds an act only
+where the seed gives it an act's entry or a relating frame, and rewriting counts a role a reading
+replaces as unworked (Unworked:Dropped), so a definition's own nouns can no longer stand in for the
+user's arguments.
+
+Coverage of the first verb senses of the 1,184 verbs among the 5,000 most common words: 134
+reduced (11.3 percent), 268 not heard whole. Lower than the first pass's loose 34.8 percent, since
+far fewer mishearings bottom out.
+
+Precision, 50 random bottomed-out senses (seed 7), graded by me: 27 right, 15 partial, 8 wrong:
+54 percent strict, 84 percent counting partial (first pass: 38 and 70). Still below PLAN.md
+phase 4's 70 percent strict line.
+
+- Right: joy = Feel(Felicity or Joy); list = Make(a List, of $x); knife = Use(a Knife, on $x);
+  cause = BringAbout(to $x); comment = Make(a Comment, on $x); finger = Feel($x, with the Finger).
+- Partial: capture or kill = Capture (the kill is dropped); coerce = To(Cause(), Do $x through
+  pressure or necessity) ("to" left as a wrapper); drive = Go, with the vehicle as theme.
+- Wrong: smooth = Make(Smooth#Accomplishment or DrumSander); cool or cooler = Cool or Cooler#Icebox;
+  turn blue = Turn#Move; rub = EaseUp#Move ("move over" heard as a compound); white = Of(Elation).
+  The common cause is a word's sense chosen by WordNet's order among the senses of the part of
+  speech it was heard as, with no evidence from the definition itself.
+
+In chat: the harness (pnpm versus:noodle) scores the same with and without the pack (Noodle 36
+right, 47 honest, 11 wrong), so it no longer crowds out right readings. Requests that work only
+through a learned definition: "reiterate the readme" and "restate the readme" (to say, then reading
+it out). The pack is loaded (back in ~/.noodle/packs/) because it is measured not to hurt; its
+strict precision is still below the stop line, so the next work is choosing senses by evidence.
