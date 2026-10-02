@@ -17,6 +17,9 @@ import { STRUCTURAL } from "../structural.js";
 
 /** What a primitive can be given inside its arguments: the structures primitives make, and blocks. */
 const DATA: ReadonlySet<string> = new Set([...STRUCTURAL.primitiveResults.names, "Block", "Args"]);
+/** The time heads of the logical form a primitive can be given (logical-form.md section 3.3), and
+ * the set heads a duration can come in ("an hour" is Some(Hour()), "an hour and ten minutes" And). */
+const TIME: ReadonlySet<string> = new Set(["Now", "At", "After", "Before", "Some", "And"]);
 
 export interface Outcome {
   /** What would be or was said, in order. */
@@ -58,6 +61,8 @@ export class Evaluator {
     readonly said = "",
     /** Something the realizations can say (checked by the caller's Speaker). */
     readonly canSay: (e: Expr) => boolean = () => true,
+    /** An expression in the words the user said it in, where there are some (the caller's). */
+    readonly inWords?: (e: Expr) => Expr,
   ) {}
 
   private out(): Outcome {
@@ -238,6 +243,13 @@ export class Evaluator {
    */
   resolve(e: Expr): Expr {
     return mapExpr(e, (x) => {
+      // A quotation keeps what was said: an act kept to be said later ("remind me to call mom")
+      // is kept in the user's words.
+      // Nothing inside a quotation is resolved: it is what was said.
+      if (isHead(x, "Quote")) {
+        const q = this.inWords && positional(x)[0]?.kind !== "string" ? this.inWords(x) : x;
+        return isHead(q, "Quote") && positional(q)[0]?.kind === "string" ? q : x;
+      }
       if (!isHead(x, "Ref")) return undefined;
       const said = role(x, "said");
       const named = said && [...walk(said)].find((y) => y.kind === "string");
@@ -302,18 +314,38 @@ export class Evaluator {
     // that makes things takes a referent nothing fits yet.
     // A rewrite to remember is expressions by nature, kept as they are, like a quotation.
     // A pure primitive's call among the arguments is data once its own arguments are: it is
-    // worked out first (the value of "17 times 23" is what Compare or a question is given).
-    const unready = (y: Expr, concepts: boolean, makes: boolean): boolean => {
+    // worked out first (the value of "17 times 23" is what Compare or a question is given). Where a
+    // primitive takes a time, a time is data too (logical-form.md 3.3: Now, At, After, Before),
+    // counted in units whose length is known (a Lasts fact).
+    const unready = (y: Expr, concepts: boolean, makes: boolean, time = false): boolean => {
       if (y.kind === "variable") return true;
       if (!isCall(y)) return false;
       if (y.head === "Rewrite" || y.head === "Quote") return false;
       if (y.head === "Ref") return !makes;
       if (y.head === "Gap") return true;
-      if (!concepts && !DATA.has(y.head) && !isThing(this.store, y) && !this.pureCall(y)) return true;
-      return y.args.some((x) => unready(x.value, concepts, makes));
+      const data = DATA.has(y.head) || isThing(this.store, y) || this.pureCall(y) || (time && (TIME.has(y.head) || this.store.facts(y.head, "Lasts").length > 0));
+      if (!concepts && !data) return true;
+      return y.args.some((x) => unready(x.value, concepts, makes, time));
     };
-    if (args.some((x, i) => unready(x, !!p.concepts?.includes(p.params[i]), !!p.makes?.includes(p.params[i])))) return undefined;
-    return { p, args };
+    // An act a primitive keeps for later (Schedule's) is a primitive call; what it is given is
+    // kept as it was said, a quotation in the user's words, to be read when its time comes.
+    const plan = (y: Expr): Expr | undefined => {
+      if (!isCall(y) || !this.primitives.has(y.head)) return undefined;
+      const kept = positional(y).map((x) => (unready(x, false, false) ? (isHead(x, "Quote") ? x : (this.resolve(c("Quote", x)) as Call)) : x));
+      return c(y.head, ...kept);
+    };
+    const ready: Expr[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const name = p.params[i];
+      const x = p.plans?.includes(name)
+        ? plan(positional(a0 as Call)[i])
+        : unready(args[i], !!p.concepts?.includes(name), !!p.makes?.includes(name), !!p.times?.includes(name))
+          ? undefined
+          : args[i];
+      if (x === undefined) return undefined;
+      ready.push(x);
+    }
+    return { p, args: ready };
   }
 
   /** A call to a pure primitive with the arguments it takes, and no others. */
@@ -465,8 +497,8 @@ export class Evaluator {
         ["result", result],
         ...(checked !== undefined ? ([["checked", { kind: "boolean", value: checked, pos: { line: 0, column: 0 } }]] as [string, Expr][]) : []),
       );
-      // Say is the act itself: what it says is its outcome, not a report about saying.
-      if (effects.includes("Speaks")) return { ...this.out(), acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
+      // Say is the act itself: what it says is what the turn says, not a report about saying.
+      if (effects.includes("Speaks")) return { ...this.out(), said: args, acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
       return { ...this.out(), said: [outcome], acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
     } catch (err) {
       if (this.mode === "Doing") this.conversation.events.push({ turn: this.conversation.turnIndex, act, error: String(err) });
@@ -482,8 +514,11 @@ export class Evaluator {
     const prim = this.primitiveCall(p);
     if (prim && prim.p.pure) {
       const r = await this.call(prim.p, prim.args, p);
-      // A yes or no is the answer to the question; anything else is what the act found.
-      return { ...r, said: r.said.map((x) => (isHead(x, "Outcome") && role(x, "result")?.kind === "boolean" ? ({ ...x, args: [{ value: lf }, ...x.args.slice(1)] } as Call) : x)) };
+      // A yes or no is the answer to the question, and so is an answer to a question that names
+      // the kind it asks for ("what day is it" is said as a day); anything else is what the act found.
+      const about = role(lf, "about");
+      const asked = about !== undefined && !isHead(about, "Gap");
+      return { ...r, said: r.said.map((x) => (isHead(x, "Outcome") && (asked || role(x, "result")?.kind === "boolean") ? ({ ...x, args: [{ value: lf }, ...x.args.slice(1)] } as Call) : x)) };
     }
     if (this.mode === "Doing") this.conversation.lastQuestion = lf;
     // Nothing here answers it: the need is knowledge, and Know is the one door to it (runtime.md
@@ -496,9 +531,11 @@ export class Evaluator {
     // explanation is found by the whole question, a description by the thing it is about.
     const about = this.asksExplanation() ? "reason" : "thing";
     const cached = know.cached("answer", this.said);
-    // In Suppose nothing goes out, so a lookup not already answered is not known to reach an answer;
-    // only what the graph holds counts. A question nothing else reaches still wins, and is looked up.
-    if (this.mode === "Supposing") return cached ? { ...this.out(), said: [this.found(lf, cached)], reachedAct: true } : this.out();
+    // In Suppose nothing goes out, and an answer from outside does not count as reaching one: a
+    // reading is chosen by what the graph can do with it, not by whether its words were looked up
+    // before (a question once answered from Wikipedia is read anew once the graph can answer it,
+    // "what time is it"). A question nothing else reaches still wins, and is looked up.
+    if (this.mode === "Supposing") return this.out();
     if (!cached && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
       return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
     try {

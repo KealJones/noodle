@@ -42,10 +42,24 @@ export class Speaker {
     return best?.out;
   }
 
-  /** Needs of the form Fact($x, Claim(...)) are answered from the facts on $x. */
+  /**
+   * Needs of the form Fact($x, Claim(...)) are answered from the facts on $x; WithRoles($x, r=$v)
+   * from $x's own roles, whatever else $x holds (a folder's place, beside its entries).
+   */
   private needs(r: ReadingItem, b: Bindings): Bindings | undefined {
     let cur = b;
     for (const need of r.needs) {
+      if (isCall(need) && need.head === "WithRoles") {
+        const x = instantiate(positional(need)[0], cur);
+        if (!isCall(x)) return undefined;
+        for (const a of need.args.filter((y) => y.name !== undefined)) {
+          const v = role(x, a.name!);
+          const m = v === undefined ? undefined : match(a.value, v, this.store, cur);
+          if (!m) return undefined;
+          cur = m.bindings;
+        }
+        continue;
+      }
       if (!(isCall(need) && need.head === "Fact")) return undefined;
       const [subj, claim] = positional(need).map((x) => instantiate(x, cur));
       if (!isCall(subj) || !isCall(claim)) return undefined;
@@ -156,6 +170,11 @@ export class Speaker {
       }
       case "Fenced":
         return this.fence(e);
+      case "Digits": {
+        // A number written with at least so many digits, zeros in front.
+        const [x, w] = pos;
+        return x?.kind === "number" && w?.kind === "number" ? String(x.value).padStart(w.value, "0") : this.print(x, medium, depth + 1);
+      }
     }
     return this.print(e, medium, depth + 1);
   }

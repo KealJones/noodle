@@ -7,6 +7,9 @@
 // value is minus that count), so a reading that reads every word beats one that leaves one.
 // CandidateSource is 1 too: a token read as said scores above one read as a spelling correction a
 // distance away, which otherwise counted the same as the word itself ("browser" read as "browse").
+// ChecksWouldPass is 0.5: of two readings that read the same words and both act, the one whose
+// dry run was checked and passed (reading a file that is there) beats one that could not be
+// checked (saying its name), by less than a word read.
 
 Pack(name="seed-weights", version="0.1.0", from=Seed("weights"))
 
@@ -26,7 +29,7 @@ Concept(FocusSource(), Weight(0))
 // Stage two (runtime.md section 8.2)
 Concept(ReachedAct(), Weight(1))
 Concept(NeedsMet(), Weight(0))
-Concept(ChecksWouldPass(), Weight(0))
+Concept(ChecksWouldPass(), Weight(0.5))
 Concept(Blocked(), Weight(0))
 Concept(UnknownEffects(), Weight(0))
 Concept(Unworked(), Weight(1))

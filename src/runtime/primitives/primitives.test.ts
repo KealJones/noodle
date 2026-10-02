@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { b, c, isCall, n, positional, role, s } from "../expr.js";
+import { b, c, isCall, key, n, positional, role, s } from "../expr.js";
 import type { Expr } from "../expr.js";
 import type { World } from "../primitive.js";
 import { Store } from "../store.js";
@@ -42,7 +42,7 @@ const blockText = (world: World, e: Expr | undefined) => {
 };
 
 test("the registry holds exactly the experiment's primitives", () => {
-  assert.deepEqual([...PRIMITIVES.keys()].sort(), ["Arithmetic", "Ask", "Compare", "Contains", "Count", "Edit", "Filter", "Now", "Rank", "Read", "Remember", "Remove", "Run", "Say", "Sort", "Store", "Write"]);
+  assert.deepEqual([...PRIMITIVES.keys()].sort(), ["Arithmetic", "Ask", "Compare", "Contains", "Count", "Edit", "Filter", "Now", "Rank", "Read", "Remember", "Remove", "Run", "Say", "Schedule", "Sort", "Store", "Write"]);
 });
 
 test("Read a file keeps its content as a block with a media type", async () => {
@@ -231,8 +231,38 @@ test("Say and Ask hand their expression to the channel and are not pure", async 
   }
 });
 
-test("Now reads the clock only through the world", async () => {
-  assert.deepEqual(await run(worldAt(tmp()), "Now"), c("At", s("2026-01-02T03:04:05.000Z")));
+test("Now reads the clock only through the world, as a moment in the user's time", async () => {
+  const t = new Date(2026, 9, 1, 21, 5);
+  assert.deepEqual(
+    await run(worldAt(tmp(), { now: () => t }), "Now"),
+    c("At", s(t.toISOString()), ["year", n(2026)], ["month", n(10)], ["day", n(1)], ["weekday", n(4)], ["hour", n(21)], ["minute", n(5)]),
+  );
+});
+
+test("Schedule keeps an act for a time it works out, and Read lists the schedule", async () => {
+  const t = new Date(2026, 9, 1, 21, 5);
+  let now = t;
+  const w = worldAt(tmp(), { now: () => now });
+  w.store.load(`Pack(name="units", version="0", from=Seed("test"))
+Concept(Minute(), Lasts(60))
+Concept(Day(), Lasts(86400))`);
+  const act = c("Say", c("Quote", s("stretch")));
+  // "in 10 minutes": that long from now; "tomorrow": a day after now.
+  assert.deepEqual(prim("Schedule").effects([c("Minute", ["modifier", c("Number", s("10"))]), act], w), ["ChangesLocal"]);
+  const r = await run(w, "Schedule", c("Minute", ["modifier", c("Number", s("10"))]), act);
+  assert.equal(role(role(r, "at"), "minute")?.kind === "number" && (role(role(r, "at"), "minute") as { value: number }).value, 15);
+  assert.deepEqual(role(r, "on"), n(0));
+  assert.equal(await prim("Schedule").check!([], r, w), true);
+  const r2 = await run(w, "Schedule", c("After", c("Now"), ["extent", c("Day")]), c("Say", c("Quote", s("call mom"))));
+  assert.deepEqual(role(r2, "on"), n(1));
+  // What it cannot work out as a time, or a time gone by, is not scheduled.
+  assert.throws(() => prim("Schedule").effects([c("Mom"), act], w), /not a time/);
+  assert.throws(() => prim("Schedule").effects([c("Before", c("Now"), ["extent", c("Day")]), act], w), /passed/);
+  const list = await run(w, "Read", c("Schedule"));
+  assert.deepEqual(positional(list as never).map((x) => key(positional(x as never)[0])), [key(act), key(c("Say", c("Quote", s("call mom"))))]);
+  assert.deepEqual(positional(list as never).map((x) => role(x, "due")), [b(false), b(false)]);
+  now = new Date(2026, 9, 1, 21, 20);
+  assert.deepEqual(positional((await run(w, "Read", c("Schedule"))) as never).map((x) => role(x, "due")), [b(true), b(false)]);
 });
 
 test("Count, Filter, Sort and Rank over a set", async () => {

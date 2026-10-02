@@ -38,8 +38,22 @@ export function packedStore(dir = PACKS, path = STORE): Store {
   const store = seededStore(undefined, path);
   if (existsSync(dir)) {
     const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : f.startsWith("wiktionary") ? 2 : 3);
-    for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b)))
-      store.load(readFileSync(join(dir, f), "utf8"));
+    const present = new Set<string>();
+    for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b))) {
+      const text = readFileSync(join(dir, f), "utf8");
+      const name = /Pack\(\s*name\s*=\s*"([^"]*)"/.exec(text)?.[1];
+      if (name) present.add(name);
+      store.load(text);
+    }
+    // What earlier versions kept beside the store (learned weights, taught words) is not a pack
+    // from the directory, and stays.
+    for (const old of ["learned.ncon", "taught.ncon"]) {
+      const p = join(homedir(), ".noodle", old);
+      const name = existsSync(p) ? /Pack\(\s*name\s*=\s*"([^"]*)"/.exec(readFileSync(p, "utf8"))?.[1] : undefined;
+      if (name) present.add(name);
+    }
+    // The packs directory says which packs there are: one whose file was taken away is taken out.
+    for (const name of store.packNames()) if (!name.startsWith("seed-") && !present.has(name)) store.unload(name);
   }
   // What earlier versions kept beside the store (learned weights, taught words) comes in once.
   for (const old of ["learned.ncon", "taught.ncon"]) {

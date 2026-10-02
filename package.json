@@ -1,6 +1,6 @@
 {
   "name": "noodle",
-  "version": "0.24.1",
+  "version": "0.25.0",
   "private": true,
   "type": "module",
   "description": "An assistant that understands and acts without a language model, built as a graph of nested concepts (N-Con).",

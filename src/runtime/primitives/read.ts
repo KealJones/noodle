@@ -11,6 +11,7 @@ import { logCount, readBranches, readLog, readStatus } from "./git.js";
 import { readManPage } from "./manpage.js";
 import { mediaFor, resolveInside } from "./paths.js";
 import { holds, isThing, readThing } from "./hold.js";
+import { readSchedule } from "./schedule.js";
 
 const entryKind = (dir: string, d: fs.Dirent): Expr => {
   let isDir = d.isDirectory();
@@ -50,6 +51,8 @@ export const Read: Primitive = {
           return readBranches(world);
         case "ManPage":
           return readManPage(world, source);
+        case "Schedule":
+          return readSchedule(world);
       }
       throw new Error(`Read does not know how to read ${source.head}`);
     }
@@ -66,7 +69,8 @@ export const Read: Primitive = {
         .readdirSync(abs, { withFileTypes: true })
         .sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0))
         .map((d) => c("Entry", s(d.name), ["kind", entryKind(abs, d)]));
-      return c("Directory", ["path", s(rel)], ...entries);
+      // Where it is on the machine, too: "what directory are we in" asks for that.
+      return c("Directory", ["path", s(rel)], ["location", s(abs)], ...entries);
     }
     const media = mediaFor(rel);
     const block = world.store.addBlock(fs.readFileSync(abs, "utf8"), media, SELF);

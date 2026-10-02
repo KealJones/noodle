@@ -7,7 +7,8 @@
 // Paragraph, Item, Synopsis, Usage, Choice, Group, Flag, Option, Placeholder, Unparsed (Read of a
 // manual page, manpage.ts and synopsis.ts); Ran, Args (Run); Wrote (Write);
 // Edited, Replace, Inserted, Withdrawn (Edit); Name (Sort and Rank); Same (Compare); Addition,
-// Subtraction, Multiplication, Division, Exponentiation, Modulo (Arithmetic's operations). Holding
+// Subtraction, Multiplication, Division, Exponentiation, Modulo (Arithmetic's operations); Scheduled
+// (Schedule, and Read of the schedule); Lasts (a unit of time's length, read by Schedule). Holding
 // in the graph (hold.ts) keeps and returns Have, the core meaning, so what is kept can be asked
 // about in the same words; it is not a structural name.
 // Role is the chart's structural name, used by Sort and Rank to order by a role.
@@ -19,8 +20,9 @@ import { Contains, Read } from "./read.js";
 import { Ask, Run, Say } from "./run.js";
 import { Remember } from "./remember.js";
 import { Remove, Store } from "./hold.js";
+import { Schedule } from "./schedule.js";
 import { Edit, Write } from "./write.js";
 
 export const PRIMITIVES: ReadonlyMap<string, Primitive> = new Map(
-  [Read, Write, Edit, Run, Say, Ask, Count, Filter, Sort, Rank, Now, Contains, Compare, Remember, Arithmetic, Store, Remove].map((p) => [p.name, p]),
+  [Read, Write, Edit, Run, Say, Ask, Count, Filter, Sort, Rank, Now, Contains, Compare, Remember, Arithmetic, Store, Remove, Schedule].map((p) => [p.name, p]),
 );
