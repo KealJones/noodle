@@ -123,12 +123,29 @@ export const Compare: Primitive = {
   },
 };
 
+/**
+ * A moment as structure: At(iso, year=, month=, day=, weekday=, hour=, minute=), in the user's
+ * local time (weekday 1 is Monday, ISO 8601). What is said about it is the seed's wording.
+ */
+export function moment(t: Date): Expr {
+  return c(
+    "At",
+    s(t.toISOString()),
+    ["year", n(t.getFullYear())],
+    ["month", n(t.getMonth() + 1)],
+    ["day", n(t.getDate())],
+    ["weekday", n(((t.getDay() + 6) % 7) + 1)],
+    ["hour", n(t.getHours())],
+    ["minute", n(t.getMinutes())],
+  );
+}
+
 export const Now: Primitive = {
   name: "Now",
   params: [],
   pure: true,
   effects: () => [],
   async run(_args, world) {
-    return c("At", s(world.now().toISOString()));
+    return moment(world.now());
   },
 };

@@ -337,7 +337,9 @@ export class Chart {
     // An entry's wrapper or head replacement applies once its arguments are in.
     if (e.wraps || e.heads) {
       const expr = e.heads && isCall(e.expr) ? { ...e.expr, head: e.heads } : e.wraps ? c(e.wraps, e.expr) : e.expr;
-      out.push(this.make({ ...e, expr, wraps: undefined, heads: undefined, step: "wrap", back: [e] }));
+      // A wrapper puts what the entry built one level down, where arguments still to come now go.
+      const pending = e.wraps && !e.heads ? e.pending.map((p) => ({ ...p, path: [0, ...p.path] })) : e.pending;
+      out.push(this.make({ ...e, expr, pending, wraps: undefined, heads: undefined, step: "wrap", back: [e] }));
       return out;
     }
     // A category concept's own entries (predication: an Act takes its subject on the left).

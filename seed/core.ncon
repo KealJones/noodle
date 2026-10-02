@@ -170,8 +170,20 @@ Concept(Live(), Lemma("live"), Frame(Thing()))                            // is 
 // Time (beyond the structural time heads Now, Past, Future, At, Since, Until, During, Before,
 // After, Told, LastChange)
 
-Concept(Moment(), Lemma("moment"), IsA(Time()))
+Concept(Moment(), Lemma("moment"), Lemma("time"), IsA(Time()))           // a point in time ("what time is it")
 Concept(Duration(), Lemma("for some time"), Frame(Thing()))               // how long it holds
+
+// What times are counted in, on the clock and the calendar. Lasts(n) is a unit's length in
+// seconds (structural: Schedule reads it to work out "in 10 minutes"). Now() gives the present
+// moment with these as its roles (year=, month=, day=, weekday=, hour=, minute=), so what is said
+// about a time is said from them. Weekday(n) is a day's place in the week, Monday first (ISO 8601).
+Concept(Minute(), Lemma("minute"), IsA(Duration()), Lasts(60))
+Concept(Hour(), Lemma("hour"), IsA(Duration()), Lasts(3600))
+Concept(Day(), Lemma("day"), Lemma("date"), IsA(Time()), IsA(Duration()), Lasts(86400))  // a date is a day, as the calendar names it
+Concept(Week(), Lemma("week"), IsA(Duration()), Lasts(604800))
+Concept(Month(), Lemma("month"), IsA(Time()))
+Concept(Year(), Lemma("year"), IsA(Time()))
+Concept(Weekday(), Frame(Number()))
 
 // ---------------------------------------------------------------------------------------------
 // Space
