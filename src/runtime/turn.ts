@@ -3,7 +3,7 @@
 // run with Suppose), the winner evaluated, and what it says realized and printed. Every choice is
 // recorded with its candidates and features.
 
-import { type Call, type Expr, c, isCall, key, positional, rewrite as mapExpr, s } from "./expr.js";
+import { type Call, type Expr, c, isCall, key, positional, rewrite as mapExpr, role, s } from "./expr.js";
 import { Chart, type Cover, type Edge } from "./chart.js";
 import { Conversation, type TurnRecord } from "./conversation.js";
 import { Evaluator, type Outcome } from "./evaluate.js";
@@ -124,6 +124,12 @@ export class Session {
       if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
         said.push(...(unknown.length ? unknown.map((w) => c("NoSense", s(w))) : [c("Unworked", s(segText))]));
+      } else if (reached) {
+        // Where part of the segment did something, a fragment beside it that worked out nothing on
+        // its own is left out of the reply and kept in the reasons log.
+        const kept = segSaid.filter((x) => !(isCall(x) && x.head === "Unworked" && !role(x, "because")));
+        if (kept.length < segSaid.length) record.reasons.push(choice(`fragments left unworked in "${segText}"`, segSaid.filter((x) => !kept.includes(x)).map((x) => ({ label: key(x), features: [], score: 0 })), -1));
+        said.push(...kept);
       } else said.push(...segSaid);
     }
     // A proposal not taken up this turn lapses (runtime.md 11: the last proposal).

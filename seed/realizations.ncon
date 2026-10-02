@@ -63,7 +63,9 @@ Reading(on=BlockedBy(), mode=Speaking(), pattern=BlockedBy($a, $rule, from=$src)
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x),
   becomes=Paragraph("I couldn't work out \"", $x, "\"."))
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=$why),
-  becomes=Paragraph("I couldn't work out \"", $x, "\": ", $why, "."))
+  becomes=Paragraph("I couldn't work out \"", $x, "\". ", $why))
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NeedUnmet(Proposal())),
+  becomes=Paragraph("There's nothing I'm waiting to do."))
 
 // =============================================================================================
 // 3. Offers before a guarded act, with the target shown (design section 13)
@@ -76,6 +78,8 @@ Reading(on=Offer(), mode=Speaking(), pattern=Offer(Run($p, $args)),
   becomes=Document(Paragraph("I can run:"), CodeBlock(Run($p, $args)), Paragraph("Go ahead?")))
 Reading(on=Offer(), mode=Speaking(), pattern=Offer($a, effects=UnknownEffects()),
   becomes=Paragraph("I can ", $a, ", but I don't know everything it changes. Go ahead?"))
+Reading(on=Offer(), mode=Speaking(), pattern=Offer(Run($p, $args), effects=UnknownEffects()),
+  becomes=Paragraph("I can run ", Code(Run($p, $args)), ", but I don't know yet what it changes. Go ahead?"))
 
 // =============================================================================================
 // 4. Echoes of what it heard
