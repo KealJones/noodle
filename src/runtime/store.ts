@@ -147,6 +147,28 @@ export class Store {
    * is that pack: already here with the same text, nothing happens; here with other text, its old
    * items are replaced. Returns the number of items written.
    */
+  /** The packs in the store, by name. */
+  packNames(): string[] {
+    return (this.db.prepare("SELECT name FROM packs").all() as { name: string }[]).map((r) => r.name);
+  }
+
+  /** Takes a pack out: its items, concepts and record go; nothing else is touched. */
+  unload(name: string) {
+    this.db.exec("BEGIN");
+    try {
+      this.q.dropPack.run(name);
+      this.q.dropConcepts.run(name);
+      this.q.dropNamed.run();
+      this.q.dropLemmas.run();
+      this.db.prepare("DELETE FROM packs WHERE name = ?").run(name);
+      this.db.exec("COMMIT");
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    }
+    this.clearCaches();
+  }
+
   load(text: string): number {
     const hash = createHash("sha256").update(text).digest("hex");
     const name = /^\s*(?:\/\/[^\n]*\n\s*)*Pack\(\s*name\s*=\s*"([^"]*)"/.exec(text)?.[1];
@@ -236,10 +258,12 @@ export class Store {
 
   /**
    * Retracts a fact (ncon.md: status Retracted). Nothing is deleted: the item stays in the store,
-   * with its source, and is no longer returned; storing it again brings the claim back.
+   * with its source, and is no longer returned; storing it again brings the claim back. An id
+   * retracts any item (a reminder said).
    */
-  retract(f: FactItem) {
-    this.db.prepare("UPDATE items SET status = 'Retracted', json = ? WHERE id = ?").run(toJson({ ...f, meta: { ...f.meta, status: "Retracted" } }), f.meta.id);
+  retract(f: FactItem | number) {
+    if (typeof f === "number") this.db.prepare("UPDATE items SET status = 'Retracted' WHERE id = ?").run(f);
+    else this.db.prepare("UPDATE items SET status = 'Retracted', json = ? WHERE id = ?").run(toJson({ ...f, meta: { ...f.meta, status: "Retracted" } }), f.meta.id);
     this.clearCaches();
   }
 

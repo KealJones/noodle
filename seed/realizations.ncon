@@ -182,6 +182,16 @@ Reading(on=Be(), mode=Speaking(), pattern=Outcome(Read($x), result=Be($t, $y)), 
   becomes=Paragraph("Your ", $n, " is ", $y, "."))
 Reading(on=Be(), mode=Speaking(), pattern=Outcome(Read($x), result=Be($t, $y)),
   becomes=Paragraph(Be($t, $y), "."))
+// A folder is said as a list of what is in it, folders marked with a slash; asked where it is
+// ("where are we"), its place on the machine.
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r, checked=true), wants=IsA($r, Directory()), becomes=$r)
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question(Read($x), about=$k), result=$r, checked=true), wants=All(IsA($k, Place()), IsA($r, Directory())),
+  needs=WithRoles($r, location=$l), becomes=Paragraph("We're in ", Code($l), "."))
+Reading(on=Directory(), mode=Speaking(), pattern=Directory(path=$p), becomes=Paragraph("There's nothing in ", Code($p), "."))
+Reading(on=Directory(), mode=Speaking(), pattern=Directory($e), becomes=List($e))
+Reading(on=Directory(), mode=Speaking(), pattern=Directory($e, $f), becomes=List($e, $f))
+Reading(on=Entry(), mode=Speaking(), pattern=Entry($n, kind=File()), becomes=Code($n))
+Reading(on=Entry(), mode=Speaking(), pattern=Entry($n, kind=Directory()), becomes=Code(Paragraph($n, "/")))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Count($s), result=$n),
   becomes=Paragraph($n))
 Reading(on=Arithmetic(), mode=Speaking(), pattern=Outcome(Arithmetic($o, $a, $b), result=$r),
@@ -220,6 +230,78 @@ Reading(on=Wikidata(), mode=Speaking(), pattern=Wikidata(), becomes="Wikidata")
 Reading(on=Web(), mode=Speaking(), pattern=Web(), becomes="the web")
 Reading(on=Offer(), mode=Speaking(), pattern=Offer(Know($q)),
   becomes=Paragraph("I don't know that. I can look it up online. Go ahead?"))
+
+// The time and the date (Now gives a moment as numbers; the words are these). A day is said with
+// its weekday and its date, a time of day on the twelve-hour clock.
+Reading(on=Now(), mode=Speaking(), pattern=Outcome(Question(Now(), about=$k), result=At($t, year=$y, month=$mo, day=$d, weekday=$w, hour=$h, minute=$mi)),
+  wants=IsA($k, Day()), becomes=Paragraph("Today is ", Weekday($w), ", ", Month($mo), " ", $d, "."))
+Reading(on=Now(), mode=Speaking(), pattern=Outcome(Question(Now(), about=$k), result=At($t, year=$y, month=$mo, day=$d, weekday=$w, hour=$h, minute=$mi)),
+  becomes=Paragraph("It's ", ClockTime($h, $mi), "."))
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(1), becomes="Monday")
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(2), becomes="Tuesday")
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(3), becomes="Wednesday")
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(4), becomes="Thursday")
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(5), becomes="Friday")
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(6), becomes="Saturday")
+Reading(on=Weekday(), mode=Speaking(), pattern=Weekday(7), becomes="Sunday")
+Reading(on=Month(), mode=Speaking(), pattern=Month(1), becomes="January")
+Reading(on=Month(), mode=Speaking(), pattern=Month(2), becomes="February")
+Reading(on=Month(), mode=Speaking(), pattern=Month(3), becomes="March")
+Reading(on=Month(), mode=Speaking(), pattern=Month(4), becomes="April")
+Reading(on=Month(), mode=Speaking(), pattern=Month(5), becomes="May")
+Reading(on=Month(), mode=Speaking(), pattern=Month(6), becomes="June")
+Reading(on=Month(), mode=Speaking(), pattern=Month(7), becomes="July")
+Reading(on=Month(), mode=Speaking(), pattern=Month(8), becomes="August")
+Reading(on=Month(), mode=Speaking(), pattern=Month(9), becomes="September")
+Reading(on=Month(), mode=Speaking(), pattern=Month(10), becomes="October")
+Reading(on=Month(), mode=Speaking(), pattern=Month(11), becomes="November")
+Reading(on=Month(), mode=Speaking(), pattern=Month(12), becomes="December")
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(0, $m), becomes=Paragraph("12:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(1, $m), becomes=Paragraph("1:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(2, $m), becomes=Paragraph("2:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(3, $m), becomes=Paragraph("3:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(4, $m), becomes=Paragraph("4:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(5, $m), becomes=Paragraph("5:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(6, $m), becomes=Paragraph("6:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(7, $m), becomes=Paragraph("7:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(8, $m), becomes=Paragraph("8:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(9, $m), becomes=Paragraph("9:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(10, $m), becomes=Paragraph("10:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(11, $m), becomes=Paragraph("11:", Digits($m, 2), " AM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(12, $m), becomes=Paragraph("12:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(13, $m), becomes=Paragraph("1:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(14, $m), becomes=Paragraph("2:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(15, $m), becomes=Paragraph("3:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(16, $m), becomes=Paragraph("4:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(17, $m), becomes=Paragraph("5:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(18, $m), becomes=Paragraph("6:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(19, $m), becomes=Paragraph("7:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(20, $m), becomes=Paragraph("8:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(21, $m), becomes=Paragraph("9:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(22, $m), becomes=Paragraph("10:", Digits($m, 2), " PM"))
+Reading(on=ClockTime(), mode=Speaking(), pattern=ClockTime(23, $m), becomes=Paragraph("11:", Digits($m, 2), " PM"))
+// Reminders (Schedule): what will be said, when; said once its time has come; the list of them.
+// When is said from the moment it was worked out to: today, tomorrow, or its date.
+Reading(on=Schedule(), mode=Speaking(), pattern=Outcome(Schedule($t, $a), result=Scheduled(Say(Quote($w)), at=$m, item=$i), checked=true),
+  becomes=Paragraph("I'll remind you ", When($m), " to ", $w, "."))
+Reading(on=Schedule(), mode=Speaking(), pattern=Outcome(Schedule($t, $a), result=Scheduled(Say(Quote($w)), at=$m, on=$d, item=$i), checked=true),
+  becomes=Paragraph("I'll remind you ", When($m, on=$d), " to ", $w, "."))
+Reading(on=Schedule(), mode=Speaking(), pattern=Due(Say(Quote($w))), becomes=Paragraph("Reminder: ", $w, "."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Read($x), result=$r, checked=true), wants=IsA($r, Schedule()), becomes=$r)
+Reading(on=Schedule(), mode=Speaking(), pattern=Schedule(), becomes=Paragraph("There's nothing I'm going to remind you of."))
+Reading(on=Schedule(), mode=Speaking(), pattern=Schedule($a), becomes=List($a))
+Reading(on=Schedule(), mode=Speaking(), pattern=Schedule($a, $b), becomes=List($a, $b))
+Reading(on=Schedule(), mode=Speaking(), pattern=Scheduled(Say(Quote($w)), at=$m), becomes=Paragraph($w, ", ", When($m)))
+Reading(on=Schedule(), mode=Speaking(), pattern=Scheduled(Say(Quote($w)), at=$m, on=$d), becomes=Paragraph($w, ", ", When($m, on=$d)))
+Reading(on=Now(), mode=Speaking(), pattern=When(At($t, year=$y, month=$mo, day=$d, weekday=$w, hour=$h, minute=$mi), on=0),
+  becomes=Paragraph("at ", ClockTime($h, $mi)))
+Reading(on=Now(), mode=Speaking(), pattern=When(At($t, year=$y, month=$mo, day=$d, weekday=$w, hour=$h, minute=$mi), on=1),
+  becomes=Paragraph("tomorrow at ", ClockTime($h, $mi)))
+Reading(on=Now(), mode=Speaking(), pattern=When(At($t, year=$y, month=$mo, day=$d, weekday=$w, hour=$h, minute=$mi)),
+  becomes=Paragraph("on ", Weekday($w), ", ", Month($mo), " ", $d, " at ", ClockTime($h, $mi)))
+
+// A number said with at least so many digits ("9:05").
+Reading(on=Digits(), mode=Speaking(), pattern=Print(Digits($n, $w), medium=$m), becomes=Digits($n, $w))
 
 // Answers to questions and checks of claims.
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Question($p), result=true), becomes=Paragraph("Yes."))

@@ -37,6 +37,8 @@ Reading(on=Interrogative(), pattern=Interrogative($p, about=$x), becomes=Questio
 Reading(on=Interrogative(), pattern=Interrogative(Interrogative($p)), becomes=Interrogative($p))
 Reading(on=Interrogative(), pattern=Question(Question($p)), becomes=Question($p))
 Reading(on=Interrogative(), pattern=Question(Question($p, about=$x)), becomes=Question($p, about=$x))
+// The clause a word that asks takes is asked once, by that word ("what day is it?").
+Reading(on=Interrogative(), pattern=Question(And(Question($p), $q), about=$x), becomes=Question(And($p, $q), about=$x))
 
 // "you should run the tests" is a Directive; "should I use tabs or spaces?" is Advice.
 Reading(on=Should(), pattern=Assert(Should(agent=You(), theme=$a)), becomes=Directive($a))
@@ -288,16 +290,19 @@ Reading(on=Mean(), pattern=Question(Mean($w, Gap()), about=Gap()), becomes=Quest
 Concept(To(), Lemma("to"), Form("too"), Form("2"),
   Category(Relation(), Takes(side=Right(), category=Thing())),
   Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Destination())),
-  Category(Act(), Takes(side=Right(), category=Act())))
+  Category(Act(), Takes(side=Right(), category=Act())),
+  // "remind me to stretch", "ask them to wait": what an act is about can be another act, one
+  // still to come (logical-form.md 3.3: Future).
+  Category(Relation(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Act(), role=Topic()), heads=Future()))
 Concept(From(), Lemma("from"), Form("frm"),
   Category(Relation(), Takes(side=Right(), category=Thing())),
   Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Source())),
   Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Source())))
 Concept(In(), Lemma("in"), Form("inside"), Form("within"),
   Category(Relation(), Takes(side=Right(), category=Thing())),
-  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Location())),
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())),
   Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Noun(), role=Location())),
-  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Time())))
+  Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Location())))
 Concept(Into(), Lemma("into"), Form("in to"),
   Category(Relation(), Takes(side=Right(), category=Thing())),
   Category(Relation(), Takes(side=Right(), category=Thing()), Modifies(side=Left(), category=Act(), role=Destination())))
@@ -564,7 +569,9 @@ Concept(Now(), Lemma("now"), Form("rn"), Form("right now"), Form("nwo"), Categor
   Category(Manner(), Modifies(side=Right(), category=Act())), Category(Thing()))
 Concept(Today(), Lemma("today"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Thing()))
 Concept(Yesterday(), Lemma("yesterday"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Thing()))
-Concept(Tomorrow(), Lemma("tomorrow"), Form("tmrw"), Form("tmr"), Category(Manner(), Modifies(side=Left(), category=Act())), Category(Thing()))
+Concept(Tomorrow(), Lemma("tomorrow"), Form("tmrw"), Form("tmr"), Category(Manner(), Modifies(side=Left(), category=Act(), role=Time())),
+  Category(Manner(), Modifies(side=Right(), category=Act(), role=Time())),
+  Category(Thing()))
 Concept(Later(), Lemma("later"), Form("l8r"), Category(Manner(), Modifies(side=Left(), category=Act())))
 Concept(Soon(), Lemma("soon"), Category(Manner(), Modifies(side=Left(), category=Act())))
 Concept(Ago(), Lemma("ago"), Category(Manner(), Takes(side=Left(), category=Thing()), Modifies(side=Left(), category=Act())))
@@ -601,6 +608,18 @@ Concept(While(), Lemma("while"), Form("whilst"), Category(Manner(), Takes(side=R
 
 Reading(on=Now(), pattern=Now(), becomes=Now())
 Reading(on=Today(), pattern=Today(), becomes=During(Today()))
+// Asking which time or day it is, with nothing to pick one out, asks for the present one: "what's
+// the time", "what is the date", "what time is it" (the "it" a time is asked of), "what day is
+// today" (logical-form.md section 3.3: time=Now() on the proposition).
+Reading(on=The(), pattern=Be(Gap(), Ref(said=The(Moment()), kind=Moment())), becomes=Be(Gap(), Moment(), time=Now()))
+Reading(on=The(), pattern=Be(Gap(), Ref(said=The(Day()), kind=Day())), becomes=Be(Gap(), Day(), time=Now()))
+Reading(on=It(), pattern=And(Be(Gap(), Ref(said=It())), Be(Gap(), Moment())), becomes=Be(Gap(), Moment(), time=Now()))
+Reading(on=It(), pattern=And(Be(Gap(), Ref(said=It())), Be(Gap(), Day())), becomes=Be(Gap(), Day(), time=Now()))
+Reading(on=Today(), pattern=Be(Gap(), During(Today())), becomes=Be(Gap(), Day(), time=Now()))
+Reading(on=Today(), pattern=Be(Day(), Gap(), modifier=During(Today())), becomes=Be(Gap(), Day(), time=Now()))
+// "tomorrow" is a day from now. (A duration as the time of an act, "in 10 minutes", is that long
+// from now: Schedule reads it so.)
+Reading(on=Tomorrow(), pattern=Tomorrow(), becomes=After(Now(), extent=Day()))
 Reading(on=Later(), pattern=Later($a), becomes=WithRoles($a, time=After(Now())))
 Reading(on=Soon(), pattern=Soon($a), becomes=WithRoles($a, time=After(Now())))
 Reading(on=Ago(), pattern=Ago($d), becomes=Before(Now(), extent=$d))

@@ -59,6 +59,10 @@ export interface Primitive {
   concepts?: readonly string[];
   /** Parameters that may be a referent nothing fits yet: the primitive makes the thing (a new list). */
   makes?: readonly string[];
+  /** Parameters that take an act to be done later (a plan), kept as it is: Schedule's act. */
+  plans?: readonly string[];
+  /** Parameters that take a time expression (logical-form.md 3.3): Schedule's when. */
+  times?: readonly string[];
   /** Pure primitives only read; Suppose may run them. */
   pure: boolean;
   /** The effect classes this call may cause, given its arguments. */
