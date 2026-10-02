@@ -12,7 +12,6 @@ import type { Primitive, World } from "./primitive.js";
 import { type Derivation, Rewriter, type Step } from "./rewrite.js";
 import { type ChoicePoint, type Features, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { Speaker } from "./speak.js";
-import { STRUCTURAL_NAMES } from "../structural.js";
 import type { Store } from "./store.js";
 
 export interface TurnOptions {
@@ -99,7 +98,7 @@ export class Session {
         const o = await this.suppose(r, segText);
         const f2: Features = new Map();
         addFeature(f2, "ReachedAct", o.reachedAct ? 1 : 0);
-        addFeature(f2, "Unworked", -(o.unworked + r.lfs.reduce((n, lf) => n + this.unread(lf), 0)));
+        addFeature(f2, "Unworked", -o.unworked);
         addFeature(f2, "Blocked", o.blocked);
         addFeature(f2, "ChecksWouldPass", o.checksPassed);
         r.features = mergeFeatures(r.features, f2);
@@ -169,22 +168,6 @@ export class Session {
       o = { said: [...o.said, ...x.said], acts: [...o.acts, ...x.acts], reachedAct: o.reachedAct || x.reachedAct, unworked: o.unworked + x.unworked, blocked: o.blocked + x.blocked, checksPassed: o.checksPassed + x.checksPassed };
     }
     return o;
-  }
-
-  /**
-   * Expressions left in a logical form that have readings of their own, none of which applied:
-   * a word that should have been read and was not ("yet" left inside a rule). Unworked, by the
-   * definition of runtime.md section 7, counted for stage two.
-   */
-  private unread(lf: Expr): number {
-    let n = 0;
-    const visit = (e: Expr) => {
-      if (!isCall(e) || e.head === "Quote" || e.head === "Mention" || e.head === "Ref" || e.head === "Block") return;
-      if (!STRUCTURAL_NAMES.has(e.head) && this.store.readingsOn(e.head).some((r) => !r.mode)) n++;
-      for (const a of e.args) visit(a.value);
-    };
-    visit(lf);
-    return n;
   }
 
   /** Whether the seed has words for this (a Reply to a social turn, say). */

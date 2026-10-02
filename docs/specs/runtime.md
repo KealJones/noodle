@@ -257,6 +257,9 @@ Evaluating an expression rewrites it until it reaches primitives, which run (des
   is evaluated before it is used.
 - **Bounds**: at most 32 rewrite steps per expression (a stated, tunable budget); a rewrite that
   produces an expression already seen on the same path is a cycle and stops there.
+- **The beam** keeps the best few alternatives at each node, ranked by their features plus
+  `Unworked` (minus the expressions left that have readings of their own, none applied), so an
+  alternative that reads every word is not cut on a tie with one that leaves a word unread.
 - **Unworked is a value**: an expression no reading applies to stays as it is, and the turn records
   why (no sense, no reading, need not met; design section 23). It is never replaced by a guess or a
   default (AGENTS.md rule 10).

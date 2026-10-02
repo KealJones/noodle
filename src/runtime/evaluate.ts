@@ -5,7 +5,7 @@
 // says is handed to Say as structure (Outcome, Offer, Echo, the reasons it is stuck); the words
 // are the seed's.
 
-import { type Call, type Expr, c, isCall, isHead, key, positional, role, s, walk } from "./expr.js";
+import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite as mapExpr, role, s, walk } from "./expr.js";
 import type { Conversation, StandingRule } from "./conversation.js";
 import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
@@ -183,13 +183,30 @@ export class Evaluator {
     return x;
   }
 
-  private primitiveCall(a: Expr): { p: Primitive; args: Expr[] } | undefined {
-    if (!isCall(a)) return undefined;
-    const p = this.primitives.get(a.head);
+  /**
+   * Referents (logical-form.md section 4; design section 16): a referent whose words name
+   * something (a literal) is that; one that only points ("it", "that") is the most salient thing in
+   * play. A referent nothing fits stays a referent, and the act stays unworked.
+   */
+  resolve(e: Expr): Expr {
+    return mapExpr(e, (x) => {
+      if (!isHead(x, "Ref")) return undefined;
+      const said = role(x, "said");
+      const named = said && [...walk(said)].find((y) => y.kind === "string");
+      if (named) return named;
+      const top = [...this.conversation.inPlay.values()].sort((a, b) => b.salience - a.salience)[0];
+      return top ? top.expr : x;
+    });
+  }
+
+  private primitiveCall(a0: Expr): { p: Primitive; args: Expr[] } | undefined {
+    if (!isCall(a0)) return undefined;
+    const p = this.primitives.get(a0.head);
     if (!p) return undefined;
+    const a = this.resolve(a0) as Call;
     const args = positional(a);
     if (args.length !== p.params.length) return undefined;
-    if (args.some((x) => [...walk(x)].some((y) => y.kind === "variable"))) return undefined;
+    if (args.some((x) => [...walk(x)].some((y) => y.kind === "variable" || isHead(y, "Ref") || isHead(y, "Gap")))) return undefined;
     return { p, args };
   }
 
@@ -237,7 +254,11 @@ export class Evaluator {
     try {
       const result = await p.run(args, this.world);
       const checked = p.check ? await p.check(args, result, this.world) : undefined;
-      if (this.mode === "Doing") this.conversation.events.push({ turn: this.conversation.turnIndex, act, result, checked });
+      if (this.mode === "Doing") {
+        this.conversation.events.push({ turn: this.conversation.turnIndex, act, result, checked });
+        // What an act was done to is in play (runtime.md 11): a later "it" can point at it.
+        for (const x of args) if (x.kind === "string") this.conversation.inPlay.set(key(x), { expr: x, salience: 1 });
+      }
       const outcome = c(
         "Outcome",
         act,
