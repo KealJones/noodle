@@ -47,7 +47,8 @@ export class Conversation {
   readonly turns: TurnRecord[] = [];
   readonly rules: StandingRule[] = [];
   readonly events: Event[] = [];
-  readonly inPlay = new Map<string, { expr: Expr; salience: number }>();
+  /** What is in play, and for a literal, the kind of thing an act found it to be (a file). */
+  readonly inPlay = new Map<string, { expr: Expr; salience: number; kind?: string }>();
   proposal?: Proposal;
   /** The turn a proposal was last permitted in. */
   permittedTurn?: number;

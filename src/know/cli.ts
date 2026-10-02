@@ -51,9 +51,13 @@ if (source === "wordnet" && path) {
   writeFileSync(join(PACKS, "wiktionary.ncon"), r.text);
   console.log(`wiktionary: ${r.forms} forms for ${r.words} words -> ${join(PACKS, "wiktionary.ncon")}`);
 } else if (source === "tool" && path) {
-  // A tool's own documentation, read from the local man pages: no download.
+  // A tool's own documentation, read from the local man pages: no download. Its summaries are
+  // understood over the words the other packs give, without any tool's readings (a command is not
+  // understood through itself, nor through another tool's word for it).
   const world = { root: process.cwd(), store, now: () => new Date(), say() {}, ask() {} };
-  const r = await learnTool(path, PRIMITIVES.get("Read")!, world, store);
+  const words = packedStore(PACKS);
+  for (const name of words.packNames()) if (name.startsWith("tool-")) words.unload(name);
+  const r = await learnTool(path, PRIMITIVES.get("Read")!, world, store, words);
   writeFileSync(join(PACKS, `tool-${path}.ncon`), r.text);
   console.log(`tool-${path}: ${r.commands.length} commands learned, ${r.skipped.length} pages skipped -> ${join(PACKS, `tool-${path}.ncon`)}`);
 } else if (source === "definitions") {

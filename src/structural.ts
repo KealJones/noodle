@@ -66,7 +66,7 @@ export const STRUCTURAL = {
     names: [
       "Near", "Doable",
       "WordsUsed", "CandidateSource", "WantedKind", "ShapeFit", "Neighbour", "SenseFrequency",
-      "Evidence", "Match", "Trust", "Coverage", "FocusSource",
+      "Evidence", "Match", "Unmatched", "Trust", "Coverage", "FocusFit", "FocusSource",
       "ReachedAct", "NeedsMet", "ChecksWouldPass", "Blocked", "UnknownEffects", "Unworked",
       "Feature", "Weight",
       // The kind a number literal is of when a want is scored (the seed's shape for digits).

@@ -39,7 +39,10 @@ pnpm run import verbnet ~/.noodle/sources/verbnet/verbnet3.4
   order picks the most common words for stage 0's coverage measure (`pnpm import definitions`,
   docs/stage0.md); `SenseFrequency` uses WordNet's own sense order as a rank.
 - **gitglossary(7) and the git man pages** need no download: they are read from the local `man`
-  pages by `Read(ManPage(...))` (phase 4).
+  pages by `Read(ManPage(...))` (phase 4). `pnpm run import tool <program>` also reads the tool's
+  overview pages' terms (one-word glossary terms no other pack has a noun for become its nouns),
+  and understands each summary over the other packs' words (import WordNet and VerbNet first) to
+  decide whether the command only shows something (design section 15).
 
 ## What the importers do, and do not
 

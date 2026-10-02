@@ -107,6 +107,8 @@ export class Speaker {
     if (depth > MAX_DEPTH) return "";
     if (doc.kind === "string") return this.escape(doc.value, medium);
     if (doc.kind === "number") return String(doc.value);
+    // A variable left in what is said stands for anything (a rule over any arguments: "git ...").
+    if (isVar(doc)) return "...";
     if (doc.kind === "boolean") return String(doc.value);
     if (!isCall(doc)) return "";
     const p = c("Print", doc, ["medium", c(medium)]);
@@ -182,6 +184,7 @@ export class Speaker {
   private plain(e: Expr | undefined): string {
     if (!e) return "";
     if (e.kind === "string") return e.value;
+    if (isVar(e)) return "...";
     if (isCall(e)) return e.head;
     return String((e as { value?: unknown }).value ?? "");
   }

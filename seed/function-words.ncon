@@ -48,8 +48,8 @@ Reading(on=Should(), pattern=Assert(Should(agent=We(), theme=$a)), becomes=Direc
 Reading(on=Should(), pattern=Should(agent=$x, theme=$a), becomes=Good(Do(agent=$x, theme=$a)))
 
 // Asking the addressee whether they can or will is asking them to.
-Reading(on=Can(), pattern=Question(Can(agent=You(), theme=$a)), becomes=Directive($a))
-Reading(on=Could(), pattern=Question(Could(agent=You(), theme=$a)), becomes=Directive($a))
+Reading(on=Can(), pattern=Question(Can(agent=You(), theme=$a)), becomes=Directive(WithRoles($a, agent=Addressee())))
+Reading(on=Could(), pattern=Question(Could(agent=You(), theme=$a)), becomes=Directive(WithRoles($a, agent=Addressee())))
 Reading(on=Will(), pattern=Question(Will(agent=You(), theme=$a)), becomes=Directive($a))
 Reading(on=Would(), pattern=Question(Would(agent=You(), theme=$a)), becomes=Directive($a))
 
@@ -478,6 +478,7 @@ Concept(Have(), Form("has", Present()), Form("had", Past()), Form("having", Geru
 Concept(Do(), Form("does", Present()), Form("did", Past()), Form("done", PastParticiple()), Form("doing", Gerund()), Form("doe"),
   IsA(Auxiliary()),
   Category(Act(), Takes(side=Right(), category=Act())),
+  Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())),
   Category(Clause(), Takes(side=Right(), category=Thing(), role=Agent()), Takes(side=Right(), category=Act()), wraps=Interrogative()))
 Concept(Can(), Form("cna"), Form("cn"), IsA(Auxiliary()),
   Category(Act(), Takes(side=Right(), category=Act(), role=Theme())),

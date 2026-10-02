@@ -61,13 +61,23 @@ export interface Primitive {
   makes?: readonly string[];
   /** Parameters that take an act to be done later (a plan), kept as it is: Schedule's act. */
   plans?: readonly string[];
+  /** Parameters that name what the act is done with, not what it is done to (Run's program). */
+  instruments?: readonly string[];
   /** Parameters that take a time expression (logical-form.md 3.3): Schedule's when. */
   times?: readonly string[];
   /** Pure primitives only read; Suppose may run them. */
   pure: boolean;
   /** The effect classes this call may cause, given its arguments. */
   effects(args: readonly Expr[], world: World): EffectClass[];
-  run(args: readonly Expr[], world: World): Promise<Expr>;
+  /**
+   * Whether this primitive can hold a call to these effects while it runs. A reading may claim
+   * narrower effects than its primitive's (a command its documentation says only shows
+   * something); a claim from an untrusted source is never taken on its word (design section 20),
+   * but one the primitive can hold is not taken on its word either: it is made true.
+   */
+  holds?(effects: readonly EffectClass[], world: World): boolean;
+  /** Runs the call; with held, held to those effects (only where holds said it can be). */
+  run(args: readonly Expr[], world: World, held?: readonly EffectClass[]): Promise<Expr>;
   /** The effect check: after running, did it do what it declared? Observes, never trusts. */
   check?(args: readonly Expr[], result: Expr, world: World): Promise<boolean>;
   /** An expression that would undo this call, if there is one. */

@@ -43,7 +43,7 @@ may run them.
 | `Read(source)` | yes | none (Reads) | a block or structure came back | none | **yes** |
 | `Write(target, content)` | no | ChangesLocal, or Deletes if it replaces content not saved elsewhere | the target has the content | restore the old block | **yes** |
 | `Edit(target, change)` | no | ChangesLocal | the target has the change | reverse the change | **yes** |
-| `Run(program, args)` | no | from the program's learned effects; Unknown if none | exit status and expected output | where the program's documentation gives one | **yes** |
+| `Run(program, args)` | no (pure when held to reading) | Unknown, unless the readings that led to it claim `Reads` and it can be held to reading: run confined so that it can neither write a file nor reach the network (design section 15) | exit status and expected output | where the program's documentation gives one | **yes** |
 | `Schedule(when, act)` | no | ChangesLocal | the schedule holds it | cancel | yes: `when` is a time expression (`Now`, `At`, `After(t, extent=d)`, `Before`, or a duration, that long from now; durations count units with a `Lasts` fact), `act` a primitive call kept in the user's words; items are facts on `Schedule`, `Read(Schedule())` lists them, and what falls due is done at the start of the next turn |
 | `Say(expr)` | no | Speaks | none | none | **yes** |
 | `Ask(question)` | no | Speaks | none | none | **yes** |

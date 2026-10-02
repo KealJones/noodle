@@ -132,7 +132,7 @@ export function importWordNet(xml: string, store: Store, opts: { version: string
 }
 
 /** The Category facts the seed's part-of-speech readings give a part of speech. */
-function categoriesFor(store: Store, pos: string): Expr[] {
+export function categoriesFor(store: Store, pos: string): Expr[] {
   const out: Expr[] = [];
   for (const r of store.readingsOn(pos)) {
     const m = r.becomes && match(r.pattern, c("PartOfSpeech", c(pos)), store);

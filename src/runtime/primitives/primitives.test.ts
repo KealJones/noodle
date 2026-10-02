@@ -218,6 +218,21 @@ test("Run reports a failing exit, starts in the root, and honours the program gr
   await assert.rejects(run(worldAt(root), "Run", s("no-such-program-here"), c("Args")), /could not start/);
 });
 
+test("Run held to reading reads, and cannot write or reach the network", { skip: process.platform !== "darwin" && "no confinement here" }, async () => {
+  const root = tmp();
+  const w = worldAt(root);
+  const Run = prim("Run");
+  assert.equal(Run.holds!(["Reads"], w), true);
+  assert.equal(Run.holds!(["ChangesLocal"], w), false);
+  fs.writeFileSync(path.join(root, "a.txt"), "hi\n");
+  const read = await Run.run([s("cat"), c("Args", s("a.txt"))], w, ["Reads"]);
+  assert.equal(blockText(w, role(read, "output")), "hi\n");
+  const write = await Run.run([s("touch"), c("Args", s("b.txt"))], w, ["Reads"]);
+  assert.notDeepEqual(role(write, "exit"), n(0));
+  assert.equal(fs.existsSync(path.join(root, "b.txt")), false);
+  await assert.rejects(Run.run([s("touch"), c("Args", s("b.txt"))], w, ["ChangesLocal"]), /cannot be held/);
+});
+
 test("Say and Ask hand their expression to the channel and are not pure", async () => {
   const w = worldAt(tmp());
   const doc = c("Reply", s("hi"));
