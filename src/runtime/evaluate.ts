@@ -277,7 +277,9 @@ export class Evaluator {
     const said = role(ref, "said");
     const cands: { expr: Expr; salience: number; source: string }[] = [];
     for (const v of this.conversation.inPlay.values()) cands.push({ expr: v.expr, salience: v.salience, source: "CurrentConversation" });
-    for (const t of things(this.store)) if (!cands.some((x) => key(x.expr) === key(t))) cands.push({ expr: t, salience: 0, source: "UserFacts" });
+    // The user's things are the speaker's: "your name" (of the addressee) is none of them.
+    const of = role(ref, "of");
+    if (!of || isHead(of, "Speaker")) for (const t of things(this.store)) if (!cands.some((x) => key(x.expr) === key(t))) cands.push({ expr: t, salience: 0, source: "UserFacts" });
     this.weights ??= new Weights(this.store);
     let best: { expr: Expr; score: number; salience: number } | undefined;
     for (const cand of cands) {

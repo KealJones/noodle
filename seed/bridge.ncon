@@ -71,6 +71,9 @@ Reading(on=Say(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)),
 // which of the two is meant is the score's, by whether the thing can be read.
 Reading(on=Read(), pattern=Cause(result=See(experiencer=Speaker(), stimulus=$x)), becomes=Read($x))
 Reading(on=Read(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Read($x))
+// Asking to be told something is asking what it is ("tell me your name": what is your name).
+Reading(on=Question(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Question(Be(Gap(), $x), about=Gap()))
+Reading(on=Question(), pattern=Directive(Question($q, about=$a)), becomes=Question($q, about=$a))
 
 // The assistant saying something: Say.
 Reading(on=Say(), pattern=Say(agent=Addressee(), theme=$x), becomes=Say($x), effects=Speaks())
