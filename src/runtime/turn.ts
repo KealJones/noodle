@@ -134,7 +134,9 @@ export class Session {
       }
       // Honest when stuck (design section 23): a segment nothing worked for says why once, and
       // the most useful why is a word it has no sense for.
-      if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
+      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && role(x, "because") && isCall(role(x, "because")) && (role(x, "because") as Call).head === "NeedUnmet");
+      if (!reached && specific.length) said.push(...specific);
+      else if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
         said.push(unknown.length ? c("NoSense", pairs(unknown.map((w) => s(w)))) : c("Unworked", s(segText)));
       } else if (reached) {
@@ -165,6 +167,13 @@ export class Session {
     if (choices.length) this.last = choices[choices.length - 1];
 
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
+    // The same thing is said once.
+    const once = new Set<string>();
+    for (let i = said.length - 1; i >= 0; i--) {
+      const k = key(said[i]);
+      if (once.has(k)) said.splice(i, 1);
+      else once.add(k);
+    }
     // Words it has no sense for, across segments, are said once.
     const unknownSaid = said.filter((x) => isCall(x) && x.head === "NoSense");
     if (unknownSaid.length > 1) {
