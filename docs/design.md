@@ -307,6 +307,9 @@ and the base is hand-written, small, counted and frozen:
 
 Every learned meaning must **bottom out** in the seed within a bounded number of expansion steps.
 A definition that cannot is kept pending, and its unknown words go on the to-do list.
+(Built at stage 0: `pnpm import definitions`, measured in `docs/stage0.md`. A noun inside a
+definition counts as grounded when its kinds reach a word the seed has; that is reported apart from
+reduction to core meanings, since almost no noun's own definition reduces.)
 
 **Two different base cases, measured separately:**
 

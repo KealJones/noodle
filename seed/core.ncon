@@ -166,6 +166,15 @@ Concept(Use(), Lemma("use"), Frame(agent=Someone(), theme=Thing(), purpose=Act()
 Concept(Wait(), Lemma("wait"), Frame(agent=Someone(), time=Time()))       // do nothing until
 Concept(Live(), Lemma("live"), Frame(Thing()))                            // is alive, is running
 
+// How "cause" and "make" take what they bring about (stage 0, seed/CHANGES.md). Definitions are
+// written in these two constructions more than in any other ("cause to remember", "make
+// visible"), and no import gives them: VerbNet has no "NP V NP to VP" frame for "cause" and no
+// "NP V NP ADJP" frame for "make". Without them no definition built on them is heard whole.
+Fact(Cause(), Category(Act(), Takes(side=Right(), category=Thing(), role=Patient()), Takes(side=Right(), category=Act(), role=Result(), head=To())))
+Reading(on=Cause(), pattern=Cause(patient=$p, result=$a), becomes=Cause(result=WithRoles($a, agent=$p)))
+Fact(Make(), Category(Act(), Takes(side=Right(), category=Thing(), role=Patient()), Takes(side=Right(), category=Property(), role=Result())))
+Reading(on=Make(), pattern=Make(patient=$p, result=$v), becomes=Cause(result=Become(Be($p, $v))))
+
 // ---------------------------------------------------------------------------------------------
 // Time (beyond the structural time heads Now, Past, Future, At, Since, Until, During, Before,
 // After, Told, LastChange)
