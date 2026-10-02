@@ -11,6 +11,8 @@ import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
 import type { Mode, Step } from "./rewrite.js";
 import type { Store } from "./store.js";
+import { type Features, Weights, addFeature, scoreOf } from "./score.js";
+import { isThing, things } from "./primitives/hold.js";
 import { STRUCTURAL } from "../structural.js";
 
 /** What a primitive can be given inside its arguments: the structures primitives make, and blocks. */
@@ -145,7 +147,12 @@ export class Evaluator {
       if (this.canSay(reply)) return { ...this.out(), said: [reply], reachedAct: true };
       return this.stuck(a, c("NoReading", a));
     }
-    return this.call(prim.p, prim.args, a);
+    const o = await this.call(prim.p, prim.args, a);
+    // Told to make something hold (logical-form.md 3.1), a check that finds it does not hold has
+    // not done what was asked: nothing made it hold.
+    const r = prim.p.pure ? o.said.map((x) => role(x, "result")).find((x) => x?.kind === "boolean") : undefined;
+    if (r?.kind === "boolean" && !r.value) return { ...o, said: [], reachedAct: false, unworked: o.unworked + 1 };
+    return o;
   }
 
   private async sequence(steps: Expr[]): Promise<Outcome> {
@@ -225,8 +232,9 @@ export class Evaluator {
 
   /**
    * Referents (logical-form.md section 4; design section 16): a referent whose words name
-   * something (a literal) is that; one that only points ("it", "that") is the most salient thing in
-   * play. A referent nothing fits stays a referent, and the act stays unworked.
+   * something (a literal) is that; otherwise it is the best of its candidates (referent). A
+   * referent nothing fits stays a referent: the act stays unworked, unless its primitive makes the
+   * thing (a list the user starts by adding to it).
    */
   resolve(e: Expr): Expr {
     return mapExpr(e, (x) => {
@@ -234,9 +242,42 @@ export class Evaluator {
       const said = role(x, "said");
       const named = said && [...walk(said)].find((y) => y.kind === "string");
       if (named) return named;
-      const top = [...this.conversation.inPlay.values()].sort((a, b) => b.salience - a.salience)[0];
-      return top ? top.expr : x;
+      return this.referent(x) ?? x;
     });
+  }
+
+  private weights?: Weights;
+
+  /**
+   * A referent's candidates (design sections 14b and 16): what is in play, and the user's things in
+   * the graph, kept across sessions. Each is scored: by kind (WantedKind, minus how far up the
+   * candidate's kinds, as a noun, the kind it was said as is; a thing that is not of that kind is not a
+   * candidate, and a literal in play, whose kind the graph does not know, counts as far), by the words it was
+   * said with (Match:Said, "my shopping list" again), and by where it came from, with its salience
+   * (FocusSource). Ties go to the more salient, then the more recent.
+   */
+  private referent(ref: Call): Expr | undefined {
+    const kind = role(ref, "kind");
+    const said = role(ref, "said");
+    const cands: { expr: Expr; salience: number; source: string }[] = [];
+    for (const v of this.conversation.inPlay.values()) cands.push({ expr: v.expr, salience: v.salience, source: "CurrentConversation" });
+    for (const t of things(this.store)) if (!cands.some((x) => key(x.expr) === key(t))) cands.push({ expr: t, salience: 0, source: "UserFacts" });
+    this.weights ??= new Weights(this.store);
+    let best: { expr: Expr; score: number; salience: number } | undefined;
+    for (const cand of cands) {
+      const f: Features = new Map();
+      if (isCall(kind)) {
+        // What "the list" points at is a list: the referent's kind is one of the candidate's kinds.
+        const d = isCall(cand.expr) ? this.store.kinds(cand.expr.head, "Noun").get(kind.head) : undefined;
+        if (d === undefined && isCall(cand.expr)) continue;
+        addFeature(f, "WantedKind", -Math.min(d ?? 4, 4));
+      }
+      if (said && isCall(cand.expr) && this.store.facts(cand.expr.head, "Said").some((x) => key(positional(x.claim as Call)[0]) === key(said))) addFeature(f, "Match:Said", 1);
+      addFeature(f, `FocusSource:${cand.source}`, cand.salience);
+      const score = scoreOf(f, this.weights.get) + (f.get("Match:Said") ?? 0) * 1e-6;
+      if (!best || score > best.score || (score === best.score && cand.salience > best.salience)) best = { expr: cand.expr, score, salience: cand.salience };
+    }
+    return best?.expr;
   }
 
   private primitiveCall(a0: Expr): { p: Primitive; args: Expr[] } | undefined {
@@ -256,14 +297,22 @@ export class Evaluator {
     const args = positional(a);
     if (args.length !== p.params.length) return undefined;
     // A primitive is given data: no variable, gap or referent left, and no concept that is still a
-    // word (an unresolved "file" is not something a primitive can be given).
+    // word (an unresolved "file" is not something a primitive can be given). A thing in the graph
+    // is data. A parameter that takes concepts takes words as they are ("milk" on a list), and one
+    // that makes things takes a referent nothing fits yet.
     // A rewrite to remember is expressions by nature, kept as they are, like a quotation.
     // A pure primitive's call among the arguments is data once its own arguments are: it is
     // worked out first (the value of "17 times 23" is what Compare or a question is given).
-    const unready = (y: Expr): boolean =>
-      y.kind === "variable" ||
-      (isCall(y) && (y.head === "Rewrite" || y.head === "Quote" ? false : (!DATA.has(y.head) && !this.pureCall(y)) || y.args.some((a) => unready(a.value))));
-    if (args.some(unready)) return undefined;
+    const unready = (y: Expr, concepts: boolean, makes: boolean): boolean => {
+      if (y.kind === "variable") return true;
+      if (!isCall(y)) return false;
+      if (y.head === "Rewrite" || y.head === "Quote") return false;
+      if (y.head === "Ref") return !makes;
+      if (y.head === "Gap") return true;
+      if (!concepts && !DATA.has(y.head) && !isThing(this.store, y) && !this.pureCall(y)) return true;
+      return y.args.some((x) => unready(x.value, concepts, makes));
+    };
+    if (args.some((x, i) => unready(x, !!p.concepts?.includes(p.params[i]), !!p.makes?.includes(p.params[i])))) return undefined;
     return { p, args };
   }
 
@@ -319,7 +368,10 @@ export class Evaluator {
   /** A word whose own readings make a prohibition, a restriction or a condition. */
   private limits(head: string): boolean {
     if (head === "Not" || head === "Only" || head === "If" || head === "Constraint") return true;
-    return this.store.readingsOn(head).some((r) => !r.mode && r.becomes !== undefined && [...walk(r.becomes)].some((y) => isCall(y) && (y.head === "Not" || y.head === "Only" || y.head === "Constraint" || y.head === "If")));
+    // A Not in what an act results in (a verb's result=, "remove": no longer there) is a change it
+    // makes, not a limit on what may run.
+    const limiting = (e: Expr): boolean => isCall(e) && (e.head === "Not" || e.head === "Only" || e.head === "Constraint" || e.head === "If" || e.args.some((a) => a.name !== "result" && limiting(a.value)));
+    return this.store.readingsOn(head).some((r) => !r.mode && r.becomes !== undefined && limiting(r.becomes));
   }
 
   /**
@@ -402,8 +454,10 @@ export class Evaluator {
       const checked = p.check ? await p.check(args, result, this.world) : undefined;
       if (this.mode === "Doing") {
         this.conversation.events.push({ turn: this.conversation.turnIndex, act, result, checked });
-        // What an act was done to is in play (runtime.md 11): a later "it" can point at it.
+        // What an act was done to is in play (runtime.md 11): a later "it" can point at it. A thing
+        // in the graph it was done to, or made, is in play too ("add eggs to it").
         for (const x of args) if (x.kind === "string") this.conversation.inPlay.set(key(x), { expr: x, salience: 1 });
+        for (const x of [...args, result].flatMap((y) => [...walk(y)])) if (isThing(this.store, x)) this.conversation.inPlay.set(key(x), { expr: x, salience: 1 });
       }
       const outcome = c(
         "Outcome",
@@ -493,9 +547,14 @@ export class Evaluator {
 
   private async assert(p: Expr): Promise<Outcome> {
     if (isHead(p, "Aside")) return this.out();
-    // A claim is checked if a pure primitive can decide it; otherwise it is not something to run.
+    // A claim is checked if a pure primitive can decide it.
     const holds = await this.decide(p);
     if (holds !== undefined) return { ...this.out(), said: [c("Outcome", c("Assert", p), ["result", { kind: "boolean", value: holds, pos: { line: 0, column: 0 } }])], reachedAct: true };
+    // Otherwise, a claim about the user or their things is remembered (logical-form.md section 2);
+    // Remember says whether it is one.
+    const keep = c("Remember", p);
+    const prim = this.primitiveCall(keep);
+    if (prim) return this.call(prim.p, prim.args, keep);
     return this.stuck(p);
   }
 }

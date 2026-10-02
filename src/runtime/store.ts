@@ -82,6 +82,7 @@ export class Store {
     lemmas: new Map<string, LemmaHit[]>(),
     blocks: new Map<string, BlockItem | null>(),
     has: new Map<string, boolean>(),
+    kinds: new Map<string, Map<string, number>>(),
   };
   private lemmaList?: string[];
 
@@ -210,6 +211,7 @@ export class Store {
     if (item.kind === "fact") {
       this.cache.bySubject.delete(item.subject);
       this.cache.has.delete(item.subject);
+      this.cache.kinds.clear();
       if (isCall(item.claim)) {
         this.cache.byHead.delete(item.claim.head);
         for (const h of heads(item.claim)) this.cache.byNamed.delete(h);
@@ -230,6 +232,15 @@ export class Store {
   /** Adds one fact, at runtime (a learned fact, a state, a correction). */
   addFact(subject: string, claim: Expr, from: Expr, extra: Partial<Omit<Meta, "id" | "from">> = {}): FactItem {
     return this.add<FactItem>({ kind: "fact", subject, claim, meta: { id: 0, from, status: extra.status ?? "Active", weight: extra.weight, pack: extra.pack, at: extra.at } });
+  }
+
+  /**
+   * Retracts a fact (ncon.md: status Retracted). Nothing is deleted: the item stays in the store,
+   * with its source, and is no longer returned; storing it again brings the claim back.
+   */
+  retract(f: FactItem) {
+    this.db.prepare("UPDATE items SET status = 'Retracted', json = ? WHERE id = ?").run(toJson({ ...f, meta: { ...f.meta, status: "Retracted" } }), f.meta.id);
+    this.clearCaches();
   }
 
   /** Adds one reading at runtime (a rewrite the user taught, design section 17). */
@@ -360,22 +371,61 @@ export class Store {
     return this.db.prepare("SELECT name, version, hash FROM packs").all() as { name: string; version: string; hash: string }[];
   }
 
-  /** The kinds of a concept by IsA, transitively, with their distance (ncon.md section 3.1). */
-  kinds(concept: string): Map<string, number> {
+  /**
+   * The kinds of a concept by IsA, transitively, with their distance (ncon.md section 3.1). A word
+   * is what its senses are, so a word's kinds are its senses' kinds; and a broader sense is a kind
+   * of each word it is a sense of ("shopping list" is a list: its sense's broader sense is a sense
+   * of "list"). Sense and SenseOf cost nothing; only IsA is a step. A word's own senses do not lead
+   * to their other words (synonyms are not kinds), and a word reached that way does not lead to
+   * its other senses (other meanings of it, not kinds of this one). Given a chart category, only
+   * senses whose part of speech is read as that category are followed (a thing is what its noun
+   * senses are, not what "list" means as a verb).
+   */
+  kinds(concept: string, category?: string): Map<string, number> {
+    const memoKey = category ? `${concept}|${category}` : concept;
+    const memo = this.cache.kinds.get(memoKey);
+    if (memo) return memo;
+    const ofCategory = (sense: string) =>
+      !category ||
+      this.facts(sense, "PartOfSpeech").some((f) => {
+        const pos = positional(f.claim as Call)[0];
+        return isCall(pos) && this.readingsOn(pos.head).some((r) => isHead(r.becomes, "Category") && isHead(positional(r.becomes)[0], category));
+      });
     const out = new Map<string, number>([[concept, 0]]);
+    // How a concept was reached: as a sense of a word, as a word of a broader sense, or by IsA.
+    const how = new Map<string, "sense" | "word" | "isa">([[concept, "isa"]]);
     let frontier = [concept];
-    for (let d = 1; frontier.length && d < 16; d++) {
+    const reach = (head: string, d: number, next: string[], by: "sense" | "word" | "isa") => {
+      if (out.has(head)) return;
+      out.set(head, d);
+      how.set(head, by);
+      next.push(head);
+    };
+    for (let d = 0; frontier.length && d < 16; d++) {
+      // The steps that cost nothing first, within this distance.
+      for (let i = 0; i < frontier.length; i++) {
+        const x = frontier[i];
+        const by = how.get(x);
+        if (by !== "word")
+          for (const f of this.facts(x, "Sense")) {
+            const k = positional(f.claim as Call)[0];
+            if (isCall(k) && ofCategory(k.head)) reach(k.head, d, frontier, "sense");
+          }
+        if (by === "isa" && x !== concept)
+          for (const f of this.facts(x, "SenseOf")) {
+            const k = positional(f.claim as Call)[0];
+            if (isCall(k)) reach(k.head, d, frontier, "word");
+          }
+      }
       const next: string[] = [];
       for (const x of frontier)
         for (const f of this.facts(x, "IsA")) {
           const k = positional(f.claim as Call)[0];
-          if (isCall(k) && !out.has(k.head)) {
-            out.set(k.head, d);
-            next.push(k.head);
-          }
+          if (isCall(k)) reach(k.head, d + 1, next, "isa");
         }
       frontier = next;
     }
+    this.cache.kinds.set(memoKey, out);
     return out;
   }
 

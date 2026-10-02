@@ -3,7 +3,7 @@
 // more than one candidate is a choice point; the alternatives are kept in a beam and scored. Opaque
 // nodes are not rewritten. An expression no reading applies to stays as it is: unworked is a value.
 
-import { type Call, type Expr, isCall, isVar, key, positional, role } from "./expr.js";
+import { type Call, type Expr, isCall, isHead, isVar, key, positional, role } from "./expr.js";
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { type ReadingItem, type Store, readingKey } from "./store.js";
@@ -67,10 +67,15 @@ export class Rewriter {
     const f: Features = new Map();
     for (const w of r.wants) {
       if (!isCall(w)) continue;
-      const [x, k] = positional(w).map((a) => (isVar(a) ? b.get(a.text) : a));
+      const [x0, k] = positional(w).map((a) => (isVar(a) ? b.get(a.text) : a));
+      // A referent is of the kind it was said as (logical-form.md section 4).
+      const x = isHead(x0, "Ref") && isCall(role(x0, "kind")) ? role(x0, "kind") : x0;
       if (w.head === "IsA" && isCall(x) && isCall(k)) {
-        const d = this.store.kindDistance(x.head, k.head);
-        addFeature(f, "WantedKind", d === undefined ? -4 : -d);
+        // Something that is a K meets a want for a K, however narrow a K it is (a shopping list is
+        // a list). Otherwise, the distance between the two kinds; beyond four steps (kinds meeting
+        // only near the top of WordNet), as unrelated as none.
+        const d = this.store.kinds(x.head).has(k.head) ? 0 : this.store.kindDistance(x.head, k.head);
+        addFeature(f, "WantedKind", -Math.min(d ?? 4, 4));
       }
     }
     return f;

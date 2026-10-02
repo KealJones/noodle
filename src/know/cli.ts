@@ -18,7 +18,7 @@ import { importWiktionary } from "./wiktionary.js";
 import { packedStore } from "../assistant/index.js";
 import { importWordNet } from "./wordnet.js";
 
-export const PACKS = join(homedir(), ".noodle", "packs");
+export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "packs");
 
 const [source, path, version] = process.argv.slice(2);
 const read = (p: string) => {

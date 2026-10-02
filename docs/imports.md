@@ -23,16 +23,16 @@ git clone --depth 1 https://github.com/cu-clear/verbnet
 Download the WordNet asset from the release page into `~/.noodle/sources/`, then:
 
 ```bash
-pnpm import wordnet ~/.noodle/sources/english-wordnet-2025.xml.gz 2025
+pnpm run import wordnet ~/.noodle/sources/english-wordnet-2025.xml.gz 2025
 ```
 
 ```bash
-pnpm import verbnet ~/.noodle/sources/verbnet/verbnet3.4
+pnpm run import verbnet ~/.noodle/sources/verbnet/verbnet3.4
 ```
 
 ## Not yet
 
-- **Wiktionary forms** are imported (`pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz`,
+- **Wiktionary forms** are imported (`pnpm run import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz`,
   from the 523 MB gzipped Kaikki extract); its idioms and definitions are not yet.
 - **wordfreq** is downloaded (`~/.noodle/sources/wordfreq-large_en.msgpack.gz`) but not imported:
   sense frequency needs counts per sense, which neither it nor WordNet's release has, so
