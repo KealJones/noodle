@@ -261,7 +261,8 @@ export class Evaluator {
     const prim = this.primitiveCall(p);
     if (prim && prim.p.pure) {
       const r = await this.call(prim.p, prim.args, p);
-      return { ...r, said: r.said.map((x) => (isHead(x, "Outcome") ? ({ ...x, args: [{ value: lf }, ...x.args.slice(1)] } as Call) : x)) };
+      // A yes or no is the answer to the question; anything else is what the act found.
+      return { ...r, said: r.said.map((x) => (isHead(x, "Outcome") && role(x, "result")?.kind === "boolean" ? ({ ...x, args: [{ value: lf }, ...x.args.slice(1)] } as Call) : x)) };
     }
     if (this.mode === "Doing") this.conversation.lastQuestion = lf;
     return this.stuck(lf, c("NoSource", p));

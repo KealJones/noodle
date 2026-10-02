@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -38,4 +38,14 @@ test("don't push yet is a constraint until told, echoed, and blocks a later push
 test("a word it has no sense for is said, not guessed", async () => {
   const s = session();
   assert.equal((await s.turn("frobnicate the zorp")).text.split("\n\n")[0], "I don't know what `frobnicate` means here.");
+});
+
+test("asking what is in a file reads it and shows its content", async () => {
+  const root = mkdtempSync(join(tmpdir(), "noodle-turn-"));
+  writeFileSync(join(root, "README.md"), "# Hello\n");
+  const s = createSession(seededStore(), root);
+  for (const ask of ["what is in README.md?", "whats in readme.md"]) {
+    const r = await s.turn(ask);
+    assert.equal(r.text, "`README.md`:\n\n```\n# Hello\n```", ask);
+  }
 });

@@ -75,6 +75,10 @@ Reading(on=Read(), pattern=Cause(result=Become(Know(experiencer=Addressee(), the
 Reading(on=Read(), pattern=See(experiencer=Addressee(), stimulus=$x), becomes=Read($x))
 Reading(on=Read(), pattern=Try(theme=See(experiencer=Addressee(), stimulus=$x)), becomes=Read($x))
 
+// Asking what is in a holder is looking in it: Read it ("what's in the fridge", "what is in X").
+Reading(on=Read(), pattern=Question(BeIn(Gap(), $h), about=Gap()), becomes=Question(Read($h), about=Gap()))
+Reading(on=Read(), pattern=Question(And(BeIn(Gap(), $h), $k), about=Gap()), becomes=Question(Read($h), about=Gap()))
+
 // The assistant asking: Ask.
 Reading(on=Ask(), pattern=Cause(result=Become(Know(experiencer=Addressee(), theme=$x))), wants=IsA($x, Prop()),
   becomes=Ask($x), effects=Speaks())

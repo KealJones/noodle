@@ -165,7 +165,7 @@ Concept(You(), Lemma("you"), Form("u"), Form("ya"), Form("yall"), Form("y'all"),
   Category(Thing()))
 Concept(Yourself(), Lemma("yourself"), Category(Thing()))
 Concept(We(), Lemma("we"), Form("us"), Form("weve"), Form("we've"), Form("well"), Form("we'll"), Category(Thing()))
-Concept(It(), Lemma("it"), Form("itt"), Form("its"), Form("it's"), Category(Thing()))
+Concept(It(), Lemma("it"), Form("itt"), Category(Thing()))
 Concept(Itself(), Lemma("itself"), Category(Thing()))
 Concept(They(), Lemma("they"), Form("them"), Form("theyre"), Form("they're"), Category(Thing()))
 Concept(He(), Lemma("he"), Form("him"), Category(Thing()))
@@ -201,7 +201,7 @@ Reading(on=Nothing(), pattern=Be(attribute=$p, agent=Nothing()), becomes=Not(Som
 Reading(on=Nobody(), pattern=Be(attribute=$p, agent=Nobody()), becomes=Not(Some(Someone(), where=WithRoles($p, theme=$it))))
 
 // Words that ask take the clause with their gap (runtime.md section 4.2, step 6).
-Concept(What(), Lemma("what"), Form("wat"), Form("wut"), Form("whats"), Form("what's"),
+Concept(What(), Lemma("what"), Form("wat"), Form("wut"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
   Category(Clause(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())))
 Concept(Which(), Lemma("which"),
@@ -210,7 +210,7 @@ Concept(Which(), Lemma("which"),
 Concept(Who(), Lemma("who"), Form("whom"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
   Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
-Concept(Where(), Lemma("where"), Form("wheres"), Form("where's"),
+Concept(Where(), Lemma("where"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Relation())))
 Concept(When(), Lemma("when"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Relation())),
@@ -233,6 +233,35 @@ Reading(on=Why(), pattern=Why(topic=$p), becomes=Question(Because($p, reason=Gap
 Reading(on=How(), pattern=How(topic=$p), becomes=Question(And($p, Be(Gap(), Way($p))), about=Gap()))
 Reading(on=How(), pattern=How(Many(), topic=$p), becomes=Question(And($p, Be(Gap(), Number($p))), about=Gap()))
 Reading(on=Whether(), pattern=Whether($p), becomes=Question($p))
+
+// Contractions of "is": "what's in X", "it's broken", "that's wrong". Each is the two words.
+Concept(WhatIs(), Lemma("what's"), Form("whats"), Form("wats"), Form("wuts"),
+  Category(Clause(), Takes(side=Right(), category=Relation(), role=Location())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())))
+Concept(WhereIs(), Lemma("where's"), Form("wheres"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(WhoIs(), Lemma("who's"), Form("whos"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(ItIs(), Lemma("it's"), Form("its"), Form("itss"),
+  Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())),
+  Category(Clause(), Takes(side=Right(), category=Relation(), role=Location())))
+Concept(ThatIs(), Lemma("that's"), Form("thats"), Form("thts"),
+  Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(ThereIs(), Lemma("there's"), Form("theres"), Form("there is"), Form("there are"),
+  Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
+
+Reading(on=WhatIs(), pattern=WhatIs(location=$r), becomes=What(topic=Be(agent=Gap(), location=$r)))
+Reading(on=WhatIs(), pattern=WhatIs(theme=$x), becomes=Question(Be(Gap(), $x), about=Gap()))
+Reading(on=WhatIs(), pattern=WhatIs(attribute=$p), becomes=What(topic=Be(agent=Gap(), attribute=$p)))
+Reading(on=WhereIs(), pattern=WhereIs(theme=$x), becomes=Question(BeIn($x, Gap()), about=Gap()))
+Reading(on=WhoIs(), pattern=WhoIs(theme=$x), becomes=Question(And(Be(Gap(), $x), Be(Gap(), Someone())), about=Gap()))
+Reading(on=ItIs(), pattern=ItIs(attribute=$p), becomes=Be(agent=It(), attribute=$p))
+Reading(on=ItIs(), pattern=ItIs(theme=$x), becomes=Be(agent=It(), theme=$x))
+Reading(on=ItIs(), pattern=ItIs(location=$r), becomes=Be(agent=It(), location=$r))
+Reading(on=ThatIs(), pattern=ThatIs(attribute=$p), becomes=Be(agent=That(), attribute=$p))
+Reading(on=ThatIs(), pattern=ThatIs(theme=$x), becomes=Be(agent=That(), theme=$x))
+Reading(on=ThereIs(), pattern=ThereIs(theme=$x), becomes=Exist($x))
 
 // "what does X mean", "what is X": the word is the topic, not an instruction (logical-form.md 5).
 Reading(on=Mean(), pattern=Question(Mean($w, Gap()), about=Gap()), becomes=Question(Mean(Mention($w), Gap()), about=Gap()))
