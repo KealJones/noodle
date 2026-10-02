@@ -55,7 +55,8 @@ export function validate(file: NconFile): void {
     const seen = new Set<string>();
     for (const a of form.args) {
       if (a.name === undefined) continue;
-      const isMeta = META.has(a.name);
+      // A Block's id is its content hash (ncon.md section 6), not the store's item number.
+      const isMeta = META.has(a.name) && !(form.head === "Block" && a.name === "id");
       if (isMeta && !spec.meta && !(form.head === "Pack" && a.name === "from"))
         fail(`${form.head} does not take "${a.name}"`, a.value);
       if (!isMeta && !spec.named.includes(a.name)) fail(`${form.head} does not take "${a.name}"`, a.value);
