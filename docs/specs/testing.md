@@ -181,8 +181,12 @@ tool calls, standing in for the event record).
      Code transcripts only, so Codex prompts have none.
   The hook is `scripts/capture.mjs` (tests: `pnpm test:capture`), registered as a `UserPromptSubmit`
   hook in both assistants. It writes `~/.noodle/experiment/fixtures/<id>/` (`meta.json`,
-  `turns.jsonl`, `untracked.tar.gz`) and one line per prompt to `captures.jsonl`, and takes about
-  0.3 seconds. Pins are refs in the user's own repositories (never pushed by a plain push); bundling
+  `turns.jsonl`, `untracked.tar.gz`) and one line per prompt (time, folder, session id, the
+  prompt) to the month's index, `capture/YYYY-MM.jsonl` (prompts before 2026-10-02 are in the older
+  `captures.jsonl`), and takes about 0.3 seconds. It never uses the network. `pnpm capture:install`
+  prints the settings entry; `pnpm label` is the blind labeller (section 6.3): it shows unlabelled
+  typed prompts in batches with the assistant's last turn before them, never runs Noodle, and
+  appends gold lines (section 5.1, `id` and `fixture` are the capture id) to `gold.jsonl`. Pins are refs in the user's own repositories (never pushed by a plain push); bundling
   a fixture for the sandbox happens later, only for the prompts that are labelled.
 - **The sandbox** restores a fixture into a temporary directory with `HOME` set inside it,
   `GIT_CONFIG_NOSYSTEM=1`, a fixed author, committer and date, and the remote as a local path, so
