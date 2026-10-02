@@ -94,6 +94,8 @@ export const STRUCTURAL = {
       "Offer", "Echo", "Outcome", "Reply", "Target", "Checked", "Output", "Stopped",
       "Print", "Medium", "Printed", "Escaped", "Escapes", "Fenced", "Repeated", "Uppercase", "Capitalized",
       "Block", "Min", "Pad",
+      // Run's argument list, which a command line is realized from.
+      "Args",
     ],
   },
   primitives: {
