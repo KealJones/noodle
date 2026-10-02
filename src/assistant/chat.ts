@@ -17,7 +17,7 @@ for await (const line of rl) {
     if (why)
       for (const r of record.reasons) {
         console.log(`  ${r.what}`);
-        r.candidates.slice(0, 4).forEach((cand, i) => console.log(`    ${i === r.winner ? "*" : " "} ${cand.score.toFixed(2)} ${cand.label}`));
+        r.candidates.slice(0, Number(process.env.NOODLE_WHY ?? 4)).forEach((cand, i) => console.log(`    ${i === r.winner ? "*" : " "} ${cand.score.toFixed(2)} ${cand.label}`));
       }
   }
   if (!closed) rl.prompt();
