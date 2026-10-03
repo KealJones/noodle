@@ -35,7 +35,7 @@ Concept(FocusFit(), Weight(0.25))
 Fact(Feature(), Weight("Match:Uncovered", 1))
 Fact(Feature(), Weight("Match:Unexplained", 1))
 Fact(Feature(), Weight("Match:Distance", 0.25))
-Concept(Match(), Threshold(-0.9))
+Concept(Match(), Threshold(-0.5))
 
 // A reading the user gave (trust level 1) is what they said they mean (runtime.md 8.1: Trust):
 // it outweighs the guesses (a sense, a frame) that would read the same words, and the steps of

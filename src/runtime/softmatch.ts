@@ -258,11 +258,12 @@ export function describedActs(store: Store, structural: ReadonlySet<string>, act
   // A concept weighs what it tells things apart by: the log of how few of the graph's readings
   // name it (its inverse document frequency there), so the scaffolding of change that every
   // reduction has ("cause to become") weighs little. Structure (a primitive, a connective) weighs
-  // nothing; a value said (a number, a name) weighs one, as an argument, not as what is asked.
+  // nothing; a value said (a number, a name) weighs as much as the rarest concept: a match that
+  // leaves it out drops what the user said.
   const { readings, df } = store.headCounts();
   const weigh: Weigh = (e) => {
     if (isVar(e)) return 0;
-    if (!isCall(e)) return 1;
+    if (!isCall(e)) return Math.log(readings + 1);
     if (structural.has(e.head)) return 0;
     return Math.log((readings + 1) / ((df.get(e.head) ?? 0) + 1));
   };

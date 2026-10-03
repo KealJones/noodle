@@ -245,6 +245,13 @@ roles.
   request fills the reading's required roles (a Run template's arguments).
 - **Threshold**: a match whose score is below a threshold (set on the development set, frozen with
   the system) is not a candidate. Above it, the match's features enter the stage-one score.
+- **As built** (`softmatch.ts`, wired in `rewrite.ts`): both sides are taken at their gist (no
+  agent, a referent as its kind, no quantifier, not the words said); a node counts as its concept's
+  inverse document frequency over the store's readings (structure 0, a value said as the rarest
+  concept); the features are costs, `Match:Uncovered`, `Match:Unexplained`, `Match:Distance`, with
+  seed weights 1, 1 and 0.25 and the threshold `Threshold(-0.9)` on Match (seed weights, not yet
+  set on a development set). Candidates are the best four, for a directive's act or each step of a
+  plan, against Describes facts and the user's readings that come to an act.
 
 The alignment is exact search for trees under 30 nodes (requests and descriptions are small) and
 beam search above that.

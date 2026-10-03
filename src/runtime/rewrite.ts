@@ -251,10 +251,9 @@ export class Rewriter {
     for (const w of r.wants) {
       if (!isCall(w)) continue;
       const [x0, k] = positional(w).map((a) => (isVar(a) ? b.get(a.text) : a));
-      // A referent that only points ("it") says no kind. A reading the user taught wanted what
-      // "it" pointed at when they taught it (what a step printed), found only when it is
-      // evaluated, so for theirs the want is neither met nor missed here.
-      if (isHead(x0, "Ref") && !role(x0, "kind") && !role(x0, "of") && this.trust(r.meta.from) === 1) continue;
+      // A referent that only points ("it"), in a plan, points at what the step before printed
+      // (Output, worked out when it has run): a want for that is met by it.
+      if (isHead(x0, "Ref") && !role(x0, "kind") && !role(x0, "of") && isHead(k, "Output")) continue;
       // A referent is of the kind it was said as (logical-form.md section 4).
       // A number said as digits is of the kind its shape is (the seed's Numeral, a number).
       const x = isHead(x0, "Ref") && isCall(role(x0, "kind")) ? role(x0, "kind") : x0?.kind === "number" ? c("Numeral") : x0;
