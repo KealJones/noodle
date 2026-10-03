@@ -1,12 +1,12 @@
 {
   "name": "noodle",
-  "version": "0.37.1",
+  "version": "0.37.3",
   "private": true,
   "type": "module",
   "description": "An assistant that understands and acts without a language model, built as a graph of nested concepts (N-Con).",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node --test 'dist/**/*.test.js' scripts/freeze.test.mjs scripts/decide.test.mjs",
+    "test": "pnpm build && node --test 'dist/**/*.test.js' scripts/freeze.test.mjs scripts/decide.test.mjs scripts/train.test.mjs scripts/baselines.test.mjs",
     "test:editor": "pnpm build && node --test editors/vscode-ncon/*.test.js",
     "test:capture": "node --test scripts/capture.test.mjs scripts/label.test.mjs",
     "capture:install": "node scripts/capture-install.mjs",
@@ -22,7 +22,9 @@
     "score:acts": "pnpm build && node scripts/acts.mjs",
     "killtest": "pnpm build && node scripts/killtest.mjs",
     "versus": "pnpm build && node scripts/versus.mjs",
-    "versus:noodle": "pnpm build && node scripts/versus.mjs --reuse-napkin"
+    "versus:noodle": "pnpm build && node scripts/versus.mjs --reuse-napkin",
+    "pilot": "pnpm build && node scripts/pilot.mjs",
+    "train": "pnpm build && node scripts/train.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
