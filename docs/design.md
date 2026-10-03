@@ -586,6 +586,20 @@ match is **scored, not exact**:
 
 Week 1 tests exactly this, by hand, before a parser exists (section 29).
 
+- **Built**: what the match aligns against is every act the store says something
+  does: each documented command's summary understood (Describes on its sense, with the reading
+  that runs it) and every reading the user taught. A node weighs its concept's inverse document
+  frequency over the graph's readings (scaffolding every reduction has, "cause to become",
+  weighs little; structure nothing; a value said as much as the rarest concept, so a match that
+  drops it fails). The features are costs (Match:Uncovered, Match:Unexplained, Match:Distance),
+  weighed one by one in the seed's weights, with the threshold a fact on Match. A plan (And,
+  Then) is matched step by step. The best four above the threshold are candidates for a
+  directive's act.
+- **Confidence** (asking, below): the top reading's probability is the softmax of the final scores
+  over the readings that do something different, each counted once at its best. Below the
+  config's `askBelow` (0.5 by default, uncalibrated for now) the act is offered whatever its
+  effects allow ("I can run `git log`. Go ahead?"); a no brings the others, numbered (section 17).
+
 Every decision can be explained by which features fired.
 
 ## 10. Acting, expanding, and the primitives
@@ -925,7 +939,26 @@ proposed, and counted.
 A correction never creates a primitive, a seed entry or a bridge entry. The bet's "nothing written
 by hand" is about hand-written structure; learned structure is expected, and is counted apart.
 
-**Picks teach the same way.**
+**Picks teach the same way.** The loop (try, offer, learn), built as one behaviour for anything not
+known with confidence: a reading chosen without confidence is offered; a no to an offer, a
+correction with more than one alternative, or two readings too close say the other readings as a
+numbered list (readings said the same are one choice). A number picks one: the perceptron moves
+toward it, the documentation that led to it is confirmed (the user saw the very command), and what
+the request meant (its reduction at its gist: no agent, a referent matched whatever words named it)
+is kept as a reading from the user, values said made variables, so the same request said another
+way or of another value goes straight there, through the exact match or the scored one. Instead of
+a number the user may give the command in backticks; it is kept for what was meant. A step of a
+request nothing does says so and waits for its command the same way; once given, the request is
+read again. A reading the user gave carries the Trust feature (level 1), once per derivation.
+
+**Teaching procedures.** "kill 8080 means find the process on port 8080 and kill it" is echoed and
+confirmed as a taught rewrite; what was said is kept as heard (a Rewrite is not rewritten when it is
+taught, only where it is used), and a value said on both sides is a slot (a number slot wants a
+number). Its meaning is a plan; in a plan, what a command step printed is what the next step's
+"it" is: Output(that step's act), worked out once it has run, given to a command as one argument
+per line printed, said as `$(...)`. A command given for "kill it" without what it is done to takes
+it as its argument (as a documented command line takes what its act is done to), wanting what a
+step printed.
 
 **Lessons the call-outs taught**, most frequent first: don't stop mid-task once told to keep going;
 verify before claiming done (section 15); when told "still broken", drop the last hypothesis; act on

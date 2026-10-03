@@ -536,6 +536,9 @@ export class Session {
     const left = this.actsKey(without);
     // Readings said the same are one choice: the user cannot tell them apart, so neither can the question.
     const shown = new Set<string>();
+    // What was left out is not offered again, however it was reached.
+    const acts = without.flatMap((x) => (isHead(x, "Sequence") ? positional(x) : [x]));
+    if (acts.length) shown.add(this.speaker.say(this.inWords(c("Choice", n(1), acts.length === 1 ? acts[0] : c("Sequence", ...acts)), words, []), this.medium));
     for (const r of [...readings].sort((a, b2) => b2.score - a.score)) {
       const k = this.actsKey(this.actsOf(r));
       if (!k || k === left || out.some((o) => this.actsKey(this.actsOf(o)) === k || (differ && !differ(o, r)))) continue;
