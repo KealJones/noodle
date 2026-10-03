@@ -23,3 +23,10 @@
   live, which is its training, done in real time), then again with learning off but the learned
   graph kept; track speed in both runs. No pre-loading a corpus: it is built to figure things out
   live, knowing just enough to solve the problem and say so.
+- **Teaching procedures together** (next, after CLI learning lands). Keal: "when I say kill 8080,
+  find what's running on port 8080 and kill it". (1) Taught phrases with slots ("kill <port>"),
+  echoed and confirmed. (2) Taught steps that chain: one step's output (a pid) is the next step's
+  input. (3) Asking when a step has no known command ("How do I find the process on a port?"),
+  keeping the answer as a learned command for that step, reusable anywhere; or learning the step
+  from a man page. Everything from=User, trust 1; acts that change things are still offered until
+  granted.
