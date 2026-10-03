@@ -57,7 +57,9 @@ interface TNode {
   kids: TNode[];
 }
 
-const NODE = /^( *)(.*?) \((block|head|body|elem|text|comment)\) \*?\d+:\d+\.?(.*)$/;
+// A node's line: its name, its kind, then (for an mdoc list or display) its arguments, then its
+// position ("Bl (block) -tag -width [ [indent] ] *71:2").
+const NODE = /^( *)(.*?) \((block|head|body|elem|text|comment)\)(?: (?![*\d]).*?)? \*?\d+:\d+\.?(.*)$/;
 
 /** mandoc's tree: one node per line, nested by indentation, text lines at the leaves. */
 function parseTree(out: string): { root: TNode; section: string | undefined } {
@@ -166,11 +168,22 @@ type Tok =
 
 const child = (node: TNode, kind: string) => node.kids.find((k) => k.kind === kind);
 
-const headText = (node: TNode) =>
-  (child(node, "head")?.kids ?? [])
-    .filter((k) => k.kind === "text")
-    .map((k) => fillText(k.name))
-    .filter(Boolean);
+// The text under a node, in order, at any depth (an mdoc item's head is macros: Fl, Ar).
+const textUnder = (node: TNode): string[] => node.kids.flatMap((k) => (k.kind === "text" ? [fillText(k.name)] : textUnder(k))).filter(Boolean);
+
+const headText = (node: TNode) => textUnder(child(node, "head") ?? { kind: "head", name: "", indent: 0, nofill: false, kids: [] });
+
+/**
+ * mdoc pages (BSD's, most of macOS's own tools) write a flag as `Fl x` and print it as `-x`: the
+ * dash is put back on the text, so what follows reads them as man(7) pages are read.
+ */
+function mdocFlags(node: TNode) {
+  for (const k of node.kids) mdocFlags(k);
+  if (node.name !== "Fl") return;
+  const t = node.kids.find((k) => k.kind === "text");
+  if (t) t.name = t.name.startsWith("-") ? t.name : `-${t.name}`;
+  else node.kids.push({ kind: "text", name: "-", indent: node.indent + 4, nofill: false, kids: [] });
+}
 
 /** A body's children as a flat run of text, breaks and indented or tagged groups. */
 function toks(nodes: TNode[], holder: number): Tok[] {
@@ -189,7 +202,12 @@ function toks(nodes: TNode[], holder: number): Tok[] {
           out.push({ t: "rs", kids: inner });
           break;
         case "SS":
+        case "Ss":
           out.push({ t: "ss", title: headText(node).join(" "), kids: inner });
+          break;
+        case "It":
+          // An mdoc list item: its head is the term (a flag and its argument), its body what it does.
+          out.push({ t: "tagged", term: headText(node).join(" "), kids: inner });
           break;
         case "TP":
         case "IP": {
@@ -331,17 +349,25 @@ export function readManPage(world: World, source: Call): Expr {
     ? run(world, "mandoc", ["-T", "tree"], gunzipSync(fs.readFileSync(page)))
     : run(world, "mandoc", ["-T", "tree", page]);
   const { root, section } = parseTree(tree);
+  mdocFlags(root);
   const build = new Builder(world);
 
   const head: [string, Expr][] = [["name", s(name)]];
   if (section !== undefined) head.push(["section", /^\d+$/.test(section) ? n(Number(section)) : s(section)]);
   const sections: Expr[] = [];
   for (const node of root.kids) {
-    if (node.kind !== "block" || node.name !== "SH") continue;
+    if (node.kind !== "block" || (node.name !== "SH" && node.name !== "Sh")) continue;
     const title = headText(node).join(" ");
     const body = child(node, "body");
     const tokens = body ? toks(body.kids, body.indent) : [];
-    if (title === "NAME") {
+    // An mdoc NAME says the names with Nm and the summary with Nd.
+    const nd = title === "NAME" ? body?.kids.find((k) => k.name === "Nd") : undefined;
+    if (nd) {
+      const summary = textUnder(child(nd, "body") ?? nd).join(" ");
+      const command = (body?.kids.find((k) => k.name === "Nm") ? textUnder(body.kids.find((k) => k.name === "Nm")!) : [])[0];
+      if (summary) head.push(["summary", build.block(summary)]);
+      if (command) head.push(["command", s(command)]);
+    } else if (title === "NAME") {
       const raw = tokens
         .filter((t) => t.t === "text")
         .map((t) => (t as { raw: string }).raw.trim())
