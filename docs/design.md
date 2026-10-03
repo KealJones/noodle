@@ -960,6 +960,29 @@ per line printed, said as `$(...)`. A command given for "kill it" without what i
 it as its argument (as a documented command line takes what its act is done to), wanting what a
 step printed.
 
+**ChatGPT as a tutor for choices.** Where a choice has no clear evidence path (the readings tie,
+or the top reading's probability is below `askBelow`), ChatGPT is asked before the user, through
+Know (`Know.ask`, gptb's server first; trust level 4): the request, the conversation's last turns,
+and the readings numbered and said as the numbered choice says them (never N-Con), asking it to
+start with exactly three lines, in order: `choice: N` (or `none`), `suggest: <the exact command in
+backticks, or none>` (for when no option is right but it knows the command), and `because: <one
+sentence>`. A reply that does not start so is ignored; prose after them is kept only as content.
+A suggestion is a candidate as one the user typed would be, at trust 4: it joins the numbered
+choice, marked as ChatGPT's suggestion, and is never run or offered on its own; picked, it is
+kept as the command the user gave for the request. Its pick is a weak training signal: the perceptron's step toward it, at `tutorRate` (a
+fraction of a correction's step, 0.25 by default) and without the extra steps a correction takes,
+kept apart from the user's weights as from `ChatGPT(Tutor())`, through the replay gate, and never
+on a feature the user taught (the user's weight is used where both exist). Where every option only
+reads or answers, its pick is taken for the turn and the reply says so ("ChatGPT thought you
+meant: ..."); otherwise it only orders the numbered choice, its pick first and marked, and nothing
+runs or is offered beyond what the loop offers. Its because is heard by the same pipeline as a
+page's opening into proposals, kept as `Proposes(about, claim)` on `Tutor`, Pending, where nothing
+that reads the concept's facts finds them; they become facts on what they are about when they
+prove out (the user picks what it picked, or its weight change passes the replay gate) and are
+shown in `--why`. `"tutor": false` in the config turns it off, and with it every weight it taught;
+`pnpm tutor:report` counts what it taught and scores versus with its learning and without. The
+scored experiment runs with it off: the freeze records `tutor: "off"` and refuses a weight from it.
+
 **Lessons the call-outs taught**, most frequent first: don't stop mid-task once told to keep going;
 verify before claiming done (section 15); when told "still broken", drop the last hypothesis; act on
 exactly what the user named; check the real source when a claim is contradicted; take a term to

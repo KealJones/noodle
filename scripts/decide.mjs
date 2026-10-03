@@ -379,7 +379,7 @@ export async function scoreAll({ sys, items, baselines, root, createSession, inM
       for (const arm of ARM_NAMES) {
         const trained = arm.startsWith("A+ trained");
         const { store, weights } = sys.arm(trained ? "A+ trained" : arm, inMemory);
-        const s = createSession(store, box.root, {}, undefined, { weights, confirmed: arm.endsWith("confirmed") ? sys.confirmations() : [] });
+        const s = createSession(store, box.root, { tutor: false }, undefined, { weights, confirmed: arm.endsWith("confirmed") ? sys.confirmations() : [] });
         try {
           // Asking is disabled in A and A+ zero-shot, which have no calibration (design section 29).
           const r = await s.turn(g.text, { dry: true, ask: trained });
@@ -488,7 +488,7 @@ async function main() {
       const { store, weights } = sys.arm(arm);
       const right = { real: [], paraphrase: [] };
       for (const x of nn) {
-        const s = createSession(store, empty, {}, undefined, { weights, confirmed: [] });
+        const s = createSession(store, empty, { tutor: false }, undefined, { weights, confirmed: [] });
         const acts = await s.turn(x.text, { dry: true, ask: false }).then((r) => r.acts.map(sysAct)).catch(() => []);
         right[x.set].push(sameLabels(x.acts, acts));
       }

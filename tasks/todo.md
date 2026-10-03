@@ -55,4 +55,7 @@
   (from=ChatGPT, trust 4, through the replay gate, never overriding the user); the because is heard
   by Noodle's own pipeline into proposed facts, Pending until they prove out or Keal confirms. It
   never picks an effectful act for the user. Everything it teaches is tagged so it can be switched
-  off and its share measured; the scored experiment runs with it off.
+  off and its share measured; the scored experiment runs with it off. Built (design section 17,
+  src/runtime/tutor.ts, `pnpm tutor:report`). Left: a numbered option lists a Run inside a
+  referent's kind as an act ("run `git show`run `git stash`"), so ChatGPT is shown, and picks,
+  options that would not run what they say; Keal confirming a proposal by hand has no path yet.

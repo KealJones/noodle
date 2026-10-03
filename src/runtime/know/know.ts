@@ -138,9 +138,10 @@ export class Know {
   /**
    * ChatGPT's answer to a question (the last source, trust level 4): kept as content from it, and
    * understood into facts like any page, about what the question is about. What it says is a
-   * proposal at most: it never grants or sets a rule (design section 20).
+   * proposal at most: it never grants or sets a rule (design section 20). With understand false,
+   * the reply is kept as content only, for the asker to hear (the tutor hears its own part of it).
    */
-  async ask(question: string, topic?: string): Promise<Knowledge | undefined> {
+  async ask(question: string, topic?: string, opts: { understand?: boolean } = {}): Promise<Knowledge | undefined> {
     const have = this.cached("ask", question);
     if (have || this.opts.offline || !this.opts.chatgpt) return have;
     // A source that did not answer is not asked again for a while: each try waits on it (gptb
@@ -153,7 +154,7 @@ export class Know {
     }
     const found: Found = { text, title: topic ?? question, url: "", source: "ChatGPT", media: "text/markdown" };
     const k = this.keep("ask", question, found);
-    await this.understand(found).catch(() => undefined);
+    if (opts.understand !== false) await this.understand(found).catch(() => undefined);
     return k;
   }
 

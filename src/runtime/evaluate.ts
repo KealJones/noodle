@@ -557,6 +557,17 @@ export class Evaluator {
     return effects.length && p.holds(effects, this.world) ? effects : undefined;
   }
 
+  /** Whether an act only reads: pure, held to reading, or its primitive says it only reads. */
+  onlyReads(act: Expr): boolean {
+    const p = isCall(act) ? this.primitives.get(act.head) : undefined;
+    if (!p || this.pureFor(p, act)) return true;
+    try {
+      return p.effects(positional(act as Call), this.world).every((e) => e === "Reads");
+    } catch {
+      return false;
+    }
+  }
+
   /** Whether this call only reads: its primitive is pure, or it is held to reading. */
   private pureFor(p: Primitive, act: Expr): boolean {
     return p.pure || (this.held(p, act)?.every((e) => e === "Reads") ?? false);

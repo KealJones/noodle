@@ -57,6 +57,13 @@ test("without the pilot, n is not set", () => {
   assert.equal(invented(null).m.preregistered, null);
 });
 
+test("the freeze records the tutor off and refuses a weight the tutor taught", () => {
+  assert.equal(invented().m.tutor, "off");
+  const root = mkdtempSync(join(tmpdir(), "freeze-"));
+  const tutored = `${WEIGHTS}\nFact(Feature(), Weight("WordsUsed:Other", 0.3), from=ChatGPT(Tutor()))\n`;
+  assert.throws(() => freeze({ id: "t2", root, commit: "x", repo, seedDir: join(repo, "seed"), packsDir: root, weightsText: tutored, confirmed: [], design, pilot: null }), /the tutor taught/);
+});
+
 test("the frozen system refuses to start when anything differs from its manifest", () => {
   const { root, m } = invented();
   const dir = join(root, "frozen", "t1");

@@ -41,6 +41,11 @@ const NAPKIN_CLI = join(homedir(), "Git", "Personal", "napkin", "packages", "con
 const NAPKIN_GRAPH = join(homedir(), ".napkin", "store.ncon");
 const only = process.argv.slice(2).find((a) => !a.startsWith("-"));
 const skipNapkin = process.argv.includes("--noodle-only");
+// ChatGPT as a tutor (design section 17): --tutor=off (not asked, and what it taught not used),
+// --tutor=learned (what it taught used, not asked), --tutor=on (both); the config's otherwise.
+const TUTOR_MODE = process.argv.find((a) => a.startsWith("--tutor="))?.slice("--tutor=".length);
+// --no-save: the report is printed only, and docs/versus.md is left as it is.
+const save = !process.argv.includes("--no-save");
 
 // ---------------------------------------------------------------------------------------------
 // Dates the time prompts are judged against, from the clock at the run.
@@ -226,7 +231,9 @@ async function noodle() {
   return {
     name: "Noodle",
     session(root) {
-      const s = createSession(store, root, { ...config, know: config.know ?? true, learn: false });
+      const tutor = TUTOR_MODE === undefined ? config.tutor : TUTOR_MODE !== "off";
+      const s = createSession(store, root, { ...config, know: config.know ?? true, learn: false, tutor });
+      if (TUTOR_MODE === "learned") s.tutor = undefined;
       return async (p) => (await s.turn(p)).text;
     },
     done: () => rmSync(dir, { recursive: true, force: true }),
@@ -363,7 +370,7 @@ for (const title of new Set(rows.map((r) => r.title))) {
   for (const r of rows.filter((x) => x.title === title)) md.push(`| ${r.n} | ${cell(r.item.p)} | ${names.map((x) => `${cell(r.replies[x])} | ${r.verdicts[x]}`).join(" | ")} |`);
 }
 const text = md.join("\n") + "\n";
-if (!only) writeFileSync(join(ROOT, "docs", "versus.md"), text);
-if (!only && systems.some((x) => x.name === "Napkin" && !x.cached))
+if (!only && save) writeFileSync(join(ROOT, "docs", "versus.md"), text);
+if (!only && save && systems.some((x) => x.name === "Napkin" && !x.cached))
   writeFileSync(NAPKIN_CACHE, JSON.stringify(Object.fromEntries(rows.map((r) => [r.n, { prompt: r.item.p, reply: r.replies.Napkin, verdict: r.verdicts.Napkin }])), null, 1) + "\n");
 console.log(text);

@@ -12,9 +12,10 @@ import { Evaluator, type Outcome } from "./evaluate.js";
 import { hear, segmentations, type Hearing } from "./hear.js";
 import type { Primitive, World } from "./primitive.js";
 import { type Derivation, Rewriter, type Step } from "./rewrite.js";
-import { type ChoicePoint, type Features, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
+import { type ChoicePoint, type Features, type LearnedBy, TUTOR, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { Speaker } from "./speak.js";
 import type { Store } from "./store.js";
+import { parseTutor, tutorPrompt } from "./tutor.js";
 
 export interface TurnOptions {
   /** Readings per segment taken to stage two (runtime.md 8.2; default 3, here a little wider). */
@@ -34,6 +35,8 @@ interface Reading {
   features: Features;
   score: number;
   cover: Cover;
+  /** A command ChatGPT suggested, as written: not a reading of the request, offered only in the numbered choice. */
+  suggested?: string;
 }
 
 /**
@@ -64,6 +67,19 @@ interface LastChoice {
   /** The user turn it was made in, and what was said in it. */
   turn: number;
   text: string;
+  /** What ChatGPT, asked as a tutor, picked for it, if it was asked. */
+  tutor?: Tutored;
+}
+
+/** What the tutor said for a choice (design section 17): its pick among the options, and why. */
+interface Tutored {
+  options: Reading[];
+  pick?: Reading;
+  /** The command it suggested where none of the options was right: a candidate at trust 4, offered only in the numbered choice. */
+  suggestion?: Reading;
+  because: string;
+  /** The facts its because was heard into, Pending until they prove out. */
+  facts: number[];
 }
 
 /**
@@ -88,7 +104,14 @@ export class Session {
   readonly conversation = new Conversation();
   private last?: LastChoice;
   /** Called after learning changes the weights, so the channel can keep them (no file access here). */
-  onLearn?: (weights: Weights, changed: string[]) => void;
+  onLearn?: (weights: Weights, changed: string[], by: LearnedBy) => void;
+  /**
+   * ChatGPT as a tutor for choices (design section 17): asked, through Know, which reading was
+   * meant where nothing else says. Absent, it is not asked (the config's "tutor": false).
+   */
+  tutor?: (question: string) => Promise<string | undefined>;
+  /** How far a tutor's pick moves the weights, as a fraction of a correction's step (a config value). */
+  tutorRate = 0.25;
   /** Learning a program a request names that the graph does not know (design section 25). */
   tools?: ToolLearner;
   /** A request waiting for a program to be learned from its help, which was offered. */
@@ -217,14 +240,25 @@ export class Session {
     let anything = !!learning?.offered || !!typed;
     const choices: LastChoice[] = [];
     const acts: Expr[] = [];
+    // A request read again once a suggestion picked from the numbered choice is taught.
+    let pickedRerun: string | undefined;
     for (const seg of chosen) {
       const segText = textOf(text, hearing, seg.a, seg.b2);
       const top = await this.readings(seg.covers, seg.chart, rewriter, segText, conv);
       if (!top.length) continue;
-      const win = top[0];
+      let win = top[0];
       // A number, said when a numbered choice is waiting, picks one of them (the loop).
       const number = waiting?.options.length && chosen.length === 1 ? top.map((r) => (r.lfs.length === 1 ? r.lfs[0] : undefined)).find((x) => x?.kind === "number") : undefined;
       if (waiting && number?.kind === "number" && Number.isInteger(number.value) && number.value >= 1 && number.value <= waiting.options.length) {
+        // ChatGPT's suggestion, picked: the user gave that command, as if typed in backticks.
+        const suggested = waiting.options[number.value - 1].suggested;
+        if (suggested !== undefined) {
+          const t = await this.typed(`\`${suggested}\``, waiting, conv);
+          said.push(...(t?.said ?? [c("Unworked", s(suggested))]));
+          pickedRerun = t?.rerun;
+          anything = true;
+          continue;
+        }
         const picked = await this.pick(waiting, number.value - 1, record, conv);
         said.push(...picked.said);
         acts.push(...picked.acts);
@@ -262,24 +296,36 @@ export class Session {
       // Where the top reading's act would be offered anyway, the offer is the question: a no to it
       // brings the others, numbered.
       const offered = options.length > 1 && (await this.suppose(win, segText, conv)).said.some((x) => isHead(x, "Offer"));
-      if (opts.ask !== false && options.length > 1 && !offered) {
-        record.reasons.push(choice(`reading of "${segText}" (too close)`, options.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
+      const tie = opts.ask !== false && options.length > 1 && !offered;
+      // How sure the winner is (design section 9): its probability among the readings that do
+      // something different. Below the stated level its act is offered, whatever its effects allow.
+      let sure = actsOf(win).length ? this.confidence(top, differ) : 1;
+      // Where nothing says which reading was meant (a tie, or a winner below the level), ChatGPT is
+      // asked as a tutor before the user is (design section 17). Its pick is taken for this turn
+      // only where every option only reads or answers; otherwise it only orders the choice.
+      const tutored = !opts.dry && this.tutor && (tie || sure < this.askBelow) ? await this.consult(text, segText, tie ? options : this.alternatives(top, [], w, differ), w, conv, record) : undefined;
+      const took = tutored?.pick && tutored.options.every((r) => this.onlyReads(r, conv)) ? tutored.pick : undefined;
+      if (tie && !took) {
+        const listed = this.tutorFirst(options, tutored);
+        record.reasons.push(choice(`reading of "${segText}" (too close)`, listed.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
         for (const [k, x] of w) words.set(k, x);
-        said.push(this.choicesOf(options));
-        if (!opts.dry) this.waiting = { turn: record.index, text, options, from: { segText, readings: top, winner: win, words: w, turn: record.index, text } };
+        said.push(this.choicesOf(listed, tutored));
+        if (!opts.dry) this.waiting = { turn: record.index, text, options: listed, from: { segText, readings: top, winner: win, words: w, turn: record.index, text, tutor: tutored } };
         anything = true;
         continue;
+      }
+      if (took) {
+        win = took;
+        sure = 1;
+        said.push(c("Tutored", c("ChatGPT"), this.choiceAct(took)));
       }
       record.reasons.push(choice(`reading of "${segText}"`, top.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 0));
       record.heard.push(...win.cover.edges.map((e) => e.expr));
       record.lf.push(...win.lfs);
       for (const e of win.cover.edges) collectWords(e, text, hearing, words);
       allSteps.push(...win.steps);
-      choices.push({ segText, readings: top, winner: win, words, turn: record.index, text });
+      choices.push({ segText, readings: top, winner: win, words, turn: record.index, text, tutor: tutored });
       const ev = new Evaluator(this.store, this.primitives, this.world, conv, opts.dry ? "Supposing" : "Doing", win.steps, segText, (x) => this.canSay(x), (x) => this.inWords(x, words, win.steps, true));
-      // How sure the winner is (design section 9): its probability among the readings that do
-      // something different. Below the stated level its act is offered, whatever its effects allow.
-      const sure = actsOf(win).length ? this.confidence(top, differ) : 1;
       if (sure < this.askBelow) {
         ev.offerAll = true;
         record.reasons.push(choice(`not sure of "${segText}" (${sure.toFixed(2)} below ${this.askBelow}): offered`, [], -1));
@@ -313,7 +359,7 @@ export class Session {
     }
     // A program's help read on the user's yes is learned, and the request that named it read again.
     // So is a request whose step the user just gave the command for.
-    const rerun = opts.dry ? undefined : ((await this.learnFromHelp(conv, said)) ?? typed?.rerun);
+    const rerun = opts.dry ? undefined : ((await this.learnFromHelp(conv, said)) ?? typed?.rerun ?? pickedRerun);
     // What Focus pulled in, and why, is part of the turn's reasons (runtime.md 8.3 and 11b).
     record.reasons.push(...conv.focus.log);
     // A proposal not taken up this turn lapses (runtime.md 11: the last proposal).
@@ -329,10 +375,10 @@ export class Session {
     // loop). The no itself is said only where there is nothing else to offer.
     const declined = conv.declined;
     if (!opts.dry && declined?.turn === record.index + 1 && this.last && this.last.turn === declined.offered - 1) {
-      const options = this.alternatives(this.last.readings, [declined.act], this.last.words);
+      const options = this.tutorFirst(this.alternatives(this.last.readings, [declined.act], this.last.words), this.last.tutor);
       if (options.length) {
         said.length = 0;
-        said.push(this.choicesOf(options));
+        said.push(this.choicesOf(options, this.last.tutor));
         for (const [k, w] of this.last.words) words.set(k, w);
         this.waiting = { turn: record.index, text: this.last.text, options, from: this.last };
         // What was chosen last is still what a number is picked against.
@@ -487,10 +533,10 @@ export class Session {
     if (!alt) return undefined;
     // More than one other thing it could have meant: they are offered, numbered, and the one
     // picked is learned from (the loop), rather than the next one guessed.
-    const options = this.alternatives(last.readings, this.actsOf(last.winner), last.words);
+    const options = this.tutorFirst(this.alternatives(last.readings, this.actsOf(last.winner), last.words), last.tutor);
     if (options.length > 1) {
       this.waiting = { turn: record.index, text: last.text, options, from: last };
-      return { said: [this.choicesOf(options)], steps: [] };
+      return { said: [this.choicesOf(options, last.tutor)], steps: [] };
     }
     await this.learnWeights(alt, last.winner, record);
     record.reasons.push(choice(`correction of "${last.segText}"`, [last.winner, alt].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 1));
@@ -506,13 +552,90 @@ export class Session {
    * The latent-variable perceptron's step (runtime.md 15) toward the reading the user chose and away
    * from the one that was, capped, kept only if the replay gate passes.
    */
-  private async learnWeights(good: Reading, bad: Reading, record: TurnRecord) {
+  private async learnWeights(good: Reading, bad: Reading, record: TurnRecord, by: LearnedBy = "user"): Promise<boolean> {
     const snapshot = this.gate ? this.weights.clone() : undefined;
-    const before = this.weights.update(good.features, bad.features);
+    // A tutor's pick is a weak signal: a fraction of a correction's step, kept apart from the user's.
+    const before = by === "tutor" ? this.weights.update(good.features, bad.features, this.tutorRate, this.tutorRate, "tutor") : this.weights.update(good.features, bad.features);
     const kept = !this.gate || !snapshot || (await this.gate(new Set(before.keys()), this.weights, snapshot));
-    if (kept) this.onLearn?.(this.weights, [...before.keys()]);
-    else this.weights.revert(before);
-    record.reasons.push(choice(kept ? "weights updated" : "weights update vetoed by the replay gate", [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
+    if (kept) this.onLearn?.(this.weights, [...before.keys()], by);
+    else this.weights.revert(before, by);
+    const what = kept ? `weights updated${by === "tutor" ? " (from ChatGPT's pick, weakly)" : ""}` : "weights update vetoed by the replay gate";
+    record.reasons.push(choice(what, [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
+    return kept;
+  }
+
+  /**
+   * ChatGPT as a tutor (design section 17): asked which of the options was meant, with the request,
+   * the conversation's last turns and the options said in plain words, never in N-Con. Its pick
+   * moves the weights weakly (from ChatGPT, through the replay gate, never a weight the user
+   * taught); its because is heard into proposals. A reply that does not parse is ignored.
+   */
+  private async consult(text: string, segText: string, options: Reading[], words: Map<string, string>, conv: Conversation, record: TurnRecord): Promise<Tutored | undefined> {
+    if (!this.tutor || options.length < 2) return undefined;
+    const said = options.map((r, i) => this.speaker.say(this.inWords(c("Choice", n(i + 1), this.choiceAct(r)), words, r.steps), this.medium));
+    const turns = conv.turns.slice(0, -1).map((t) => ({ who: t.who, text: t.text }));
+    const reply = parseTutor(await this.tutor(tutorPrompt(text, turns, said)).catch(() => undefined), options.length);
+    if (!reply) {
+      record.reasons.push(choice(`ChatGPT, asked about "${segText}", gave no answer in the asked shape`, [], -1));
+      return undefined;
+    }
+    const pick = reply.choice ? options[reply.choice - 1] : undefined;
+    record.reasons.push(choice(`ChatGPT's pick for "${segText}": ${reply.choice ?? "none"}, because ${reply.because}`, options.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), pick ? options.indexOf(pick) : -1));
+    // A command it suggested is a candidate as one the user typed would be, at its trust: it joins
+    // the numbered choice and nothing else (never run or offered on its own).
+    const argv = reply.suggest ? commandLine(reply.suggest) : [];
+    const suggestion: Reading | undefined = argv.length ? { lfs: [c("Run", s(argv[0]), c("Args", ...argv.slice(1).map((a) => s(a))))], steps: [], features: new Map(), score: -Infinity, cover: options[0].cover, suggested: reply.suggest } : undefined;
+    if (suggestion) record.reasons.push(choice(`ChatGPT suggested \`${reply.suggest}\` for "${segText}"`, [], -1));
+    const t: Tutored = { options, pick, suggestion, because: reply.because, facts: pick ? this.propose(pick, reply.because, conv, record) : [] };
+    if (pick) {
+      const against = pick === options[0] ? options[1] : options[0];
+      // What the replay gate passed has proved out (design section 20): the proposals are confirmed.
+      if ((await this.learnWeights(pick, against, record, "tutor")) && this.gate) this.confirmTutor(t, record, "the replay gate passed");
+    }
+    return t;
+  }
+
+  /**
+   * The tutor's because, heard by the same pipeline as a page's opening, into proposed facts on
+   * what the picked reading means. Until they prove out they are kept as proposals, Pending, from
+   * ChatGPT as a tutor (Proposes(about, claim) on Tutor), where nothing that reads the concept's
+   * facts finds them.
+   */
+  private propose(pick: Reading, because: string, conv: Conversation, record: TurnRecord): number[] {
+    const learner = this.world.know?.learner;
+    const about = this.meaningOf(pick, conv)?.head ?? this.actsOf(pick)[0]?.head;
+    if (!learner || !about) return [];
+    const have = new Set([...this.store.facts(about).map((f) => key(f.claim)), ...this.store.facts("Tutor", "Proposes").map((f) => key(positional(f.claim as Call)[1]))]);
+    const added = learner.claims(because).filter((x) => !have.has(key(x))).map((x) => this.store.addFact("Tutor", c("Proposes", c(about), x), TUTOR, { status: "Pending" }));
+    if (added.length) record.reasons.push(choice("proposed from ChatGPT's because (pending)", added.map((f) => ({ label: key(f.claim), features: [], score: 0 })), -1));
+    return added.map((f) => f.meta.id);
+  }
+
+  /** The tutor's proposals, proved out: each claim made a fact on what it is about (from ChatGPT), the proposal kept as confirmed. */
+  private confirmTutor(t: Tutored, record: TurnRecord, why: string) {
+    const confirmed: string[] = [];
+    for (const id of t.facts) {
+      const p = this.store.item(id);
+      const [about, claim] = p?.kind === "fact" ? positional(p.claim as Call) : [];
+      if (!isCall(about) || !claim) continue;
+      this.store.addFact(about.head, claim, TUTOR);
+      this.store.restore(id);
+      confirmed.push(`${about.head}: ${key(claim)}`);
+    }
+    if (confirmed.length) record.reasons.push(choice(`ChatGPT's proposals confirmed (${why})`, confirmed.map((label) => ({ label, features: [], score: 0 })), -1));
+    t.facts = [];
+  }
+
+  /** The tutor's pick first in a numbered choice, where it is one of them, and its suggestion last. */
+  private tutorFirst(options: Reading[], t: Tutored | undefined): Reading[] {
+    const ordered = t?.pick && options.includes(t.pick) ? [t.pick, ...options.filter((r) => r !== t.pick)] : options;
+    return t?.suggestion ? [...ordered.slice(0, CHOICES - 1), t.suggestion] : ordered;
+  }
+
+  /** Whether a reading only reads or answers: each of its acts is pure, held to reading, or only reads. */
+  private onlyReads(r: Reading, conv: Conversation): boolean {
+    const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Supposing", r.steps);
+    return this.actsOf(r).every((x) => ev.onlyReads(x));
   }
 
   /** The acts a reading does: its calls to primitives that are not pure, where it reached an act. */
@@ -591,8 +714,10 @@ export class Session {
   }
 
   /** A numbered choice, said: Choices(Sequence(Choice(1, act), Sequence(Choice(2, act), ...))). */
-  private choicesOf(options: Reading[]): Expr {
-    const items = options.map((r, i) => c("Choice", n(i + 1), this.choiceAct(r)));
+  private choicesOf(options: Reading[], t?: Tutored): Expr {
+    // The tutor's pick is marked as its (Choice(n, act, by=ChatGPT())), and its suggestion as one (suggested=ChatGPT()).
+    const mark = (r: Reading): [string, Expr][] => (r === t?.pick ? [["by", c("ChatGPT")]] : r.suggested !== undefined ? [["suggested", c("ChatGPT")]] : []);
+    const items = options.map((r, i) => c("Choice", n(i + 1), this.choiceAct(r), ...mark(r)));
     const nest = (xs: Expr[]): Expr => (xs.length === 1 ? xs[0] : c("Sequence", xs[0], nest(xs.slice(1))));
     return c("Choices", nest(items));
   }
@@ -622,6 +747,8 @@ export class Session {
     const from = w.from;
     const against = from && from.winner !== option ? from.winner : w.options.find((o) => o !== option);
     if (against) await this.learnWeights(option, against, record);
+    // The user picked what the tutor picked: its proposals have proved out.
+    if (from?.tutor && from.tutor.pick === option) this.confirmTutor(from.tutor, record, "the user picked the same");
     record.reasons.push(choice(`picked ${i + 1} for "${from?.segText ?? w.text}"`, w.options.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), i));
     const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", option.steps, from?.segText ?? w.text, (x) => this.canSay(x));
     for (const act of this.actsOf(option)) {
