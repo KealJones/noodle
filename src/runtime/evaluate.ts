@@ -563,30 +563,73 @@ export class Evaluator {
   // -------------------------------------------------------------------------------------------
   // Rules and guards
 
-  /**
-   * What an act was rewritten from, back to what was heard: whole-expression steps, and steps that
-   * rewrote a part of it (the act as it was before that part changed), so a reading that made the
-   * act is found even when something inside the act was rewritten after it (a referent resolved,
-   * a role read). Rules and the trust of the readings that led to an act are checked over all of it.
-   */
+  /** What an act was rewritten from, back to what was heard (whole-expression steps): rules match these. */
   private ancestry(a: Expr): Expr[] {
     const out: Expr[] = [a];
     const seen = new Set([key(a)]);
-    const push = (x: Expr) => {
-      const k = key(x);
-      if (seen.has(k) || out.length > 200) return;
-      seen.add(k);
-      out.push(x);
-    };
     for (let i = 0; i < out.length; i++)
-      for (const st of this.steps) {
-        const after = key(st.after);
-        if (after === key(out[i])) push(st.before);
-        else if (isCall(out[i]) && [...walk(out[i])].some((y) => y !== out[i] && key(y) === after))
-          push(mapExpr(out[i], (y) => (key(y) === after ? st.before : undefined)));
-      }
+      for (const st of this.stepsMaking(key(out[i])))
+        if (!seen.has(key(st.before))) {
+          seen.add(key(st.before));
+          out.push(st.before);
+        }
     return out;
   }
+
+  /**
+   * Every step that contributed to an act: the steps that made it or any part of it, and the steps
+   * that made what those started from, and so on. A reading that made the act is found even when a
+   * part of the act was rewritten after it (a referent resolved, a role read), so the trust of the
+   * readings that led to an act is checked over all of them.
+   */
+  private contributing(ancestry: Expr[]): Step[] {
+    // What was made from the act's parts is followed back, and so is the act as it was before
+    // each part was rewritten (the whole a reading made, before an argument inside it changed),
+    // bounded so a long request cannot multiply them.
+    const out = new Set<Step>();
+    const done = new Set<string>();
+    const wholes = new Set<string>();
+    const stack = [...ancestry];
+    while (stack.length && done.size < 5000) {
+      const e = stack.pop()!;
+      for (const y of walk(e)) {
+        const k = key(y);
+        if (done.has(k)) continue;
+        done.add(k);
+        for (const st of this.stepsMaking(k)) {
+          if (!out.has(st)) {
+            out.add(st);
+            stack.push(st.before);
+          }
+          if (y !== e && wholes.size < 300) {
+            const before = mapExpr(e, (z) => (key(z) === k ? st.before : undefined));
+            const bk = key(before);
+            if (!wholes.has(bk)) {
+              wholes.add(bk);
+              stack.push(before);
+            }
+          }
+        }
+      }
+    }
+    return [...out];
+  }
+
+  /** Steps by what they made, indexed once. */
+  private stepsMaking(k: string): Step[] {
+    if (!this.byAfter) {
+      this.byAfter = new Map();
+      for (const st of this.steps) {
+        const sk = key(st.after);
+        const list = this.byAfter.get(sk);
+        if (list) list.push(st);
+        else this.byAfter.set(sk, [st]);
+      }
+    }
+    return this.byAfter.get(k) ?? [];
+  }
+
+  private byAfter?: Map<string, Step[]>;
 
   private ruleMatches(r: StandingRule, a: Expr, ancestry = this.ancestry(a)): boolean {
     const [x] = positional(r.rule as Call);
@@ -617,10 +660,9 @@ export class Evaluator {
    * under a grant.
    */
   private untrustedReadings(ancestry: Expr[]): string[] {
-    const keys = new Set(ancestry.map(key));
     const out: string[] = [];
-    for (const st of this.steps) if (keys.has(key(st.after)) && this.trustLevel(st.from) >= 3 && !this.world.confirmed?.has(st.key)) out.push(st.key);
-    return out;
+    for (const st of this.contributing(ancestry)) if (this.trustLevel(st.from) >= 3 && !this.world.confirmed?.has(st.key)) out.push(st.key);
+    return [...new Set(out)];
   }
 
   /** A source's trust level, from the TrustLevel facts on source concepts (the trust table). */
