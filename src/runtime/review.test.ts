@@ -90,3 +90,21 @@ test("two chats that start alike do not share a session", async () => {
   await say([{ role: "user", content: "zap" }, { role: "assistant", content: offer }, { role: "user", content: "yes" }]);
   assert.ok(existsSync(join(root, "zapped")));
 });
+
+// Found 2026-10-03: a documentation reading whose pattern binds an argument lost its untrusted
+// mark once that argument was rewritten after it, so under a grant it ran unoffered.
+test("a reading from documentation stays untrusted when a part of its act is rewritten after it", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-doc2", version="0", from=ToolDoc("tool2"))
+Concept(Frob(), Lemma("frob"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Reading(on=Frob(), pattern=Frob(theme=$x), becomes=Run("touch", Args($x)), effects=UnknownEffects())
+`);
+  store.load(`Pack(name="test-words2", version="0", from=Seed("test"))
+Concept(Gadget(), Lemma("gadget"), Category(Thing()))
+Reading(on=Gadget(), pattern=Gadget(), becomes="frobbed")
+`);
+  const root = mkdtempSync(join(tmpdir(), "noodle-review-"));
+  const s = createSession(store, root, { grants: ["UnknownEffects"] });
+  assert.match((await s.turn("frob gadget")).text, /Go ahead\?/);
+  assert.ok(!existsSync(join(root, "frobbed")));
+});
