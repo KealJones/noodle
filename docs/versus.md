@@ -1,6 +1,6 @@
 # Noodle beside Napkin
 
-Run 2026-10-03 21:45 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-03 23:13 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 2:45 PM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 4:15 PM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Saturday, October 3. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | From Wikipedia, [Date palm](https://en.wikipedia.org/wiki/Date_palm):<br><br>Phoenix dactylifera, commonly known as the date palm, is a flowering-plant species in the palm family Arecaceae, native to the region from the Gulf States and Iraq to Pakistan and India. It is cultivated for its edible sweet fruit called dates. The species is widely cultivated across northern Africa, the Middle East, Aust ... | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -90,11 +90,11 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 34 | start a grocery list | I couldn't work out "start a grocery list". | HONEST | I don't know how to start yet. | HONEST |
+| 34 | start a grocery list | I couldn't work out "start a grocery list".<br><br>I understood one of its steps, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I don't know how to start yet. | HONEST |
 | 35 | add eggs and milk to it | I couldn't work out "add eggs and milk to it". | HONEST | Added eggs and milk to your start. | RIGHT |
 | 36 | also add bread | I couldn't work out "also add bread". | HONEST | I don't know how to add yet. | HONEST |
 | 37 | what's on my grocery list? | You haven't told me that. | HONEST | I don't know yet. | HONEST |
-| 38 | take milk off the list | I couldn't work out "take milk off the list". | HONEST | I don't know how to milk yet. | HONEST |
+| 38 | take milk off the list | I couldn't work out "take milk off the list".<br><br>I understood add milk to I, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I don't know how to milk yet. | HONEST |
 | 39 | remember that my sister's birthday is june 4 | I couldn't work out "remember that my sister's birthday is june 4". | HONEST | That makes 4. | WRONG |
 | 40 | when is my sister's birthday? | I couldn't work out "when is my sister's birthday?". | HONEST | I don't know your sister's birthday yet. | HONEST |
 | 41 | my name is sam | Got it: your name is sam. | RIGHT | I see. | WRONG |
@@ -128,12 +128,12 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-Vg64R5`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 57 | what branch am i on | From the manual page `git-branch`:<br><br>List, create, or delete branches | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration: Committing changes](https://en.wikipedia.org/wiki/Continuous_integration#Committing_changes):<br><br>When making a code change, a developer creates a branch that is a copy of the current codebase. As other changes are committed to the repository, this copy diverges from the latest version.<br><br>The longer development continues on a branch without merging  ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 364e9f016b20b177de07c62aa251226384165f2b<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 14:46:27 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit cb9aa591d26b219f57cdca92299a70a34613640d<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 16:16:04 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I can run `git commit`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
 | 61 | yes go ahead | `git commit` failed (exit 1):<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
-| 62 | is the working tree clean now? | Do you mean run ` git clean  `, or run `git clean`? | RIGHT | I don't know yet. | HONEST |
+| 62 | is the working tree clean now? | Did you mean one of these?<br><br>1. run `git clean the working tree`<br><br>2. run `git clean`<br><br>Say its number, or give me the right command in backticks. | RIGHT | I don't know yet. | HONEST |
 | 63 | create a branch called feature-login | I don't know what `feature-login` means here. | HONEST | I worked that out, but I don't know how to say it yet: BudgetExceeded(kind="steps", limit=4000) | HONEST |
 | 64 | push it | I can run `git push`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
 
@@ -142,15 +142,15 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 65 | don't run any git commands without asking me first | Got it: I won't run `git ...` until you say so.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
-| 66 | show me the git status | Do you mean run `git status`, or run `git status`? | RIGHT | I don't know how to status yet. | HONEST |
-| 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short". | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
+| 66 | show me the git status | Did you mean one of these?<br><br>1. run `git status`, then run `git status`<br><br>2. run `git status`run `git status`run `git status`<br><br>Say its number, or give me the right command in backticks. | RIGHT | I don't know how to status yet. | HONEST |
+| 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short".<br><br>I understood one of its steps, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
 | 68 | stop | Stopped. | RIGHT | I worked that out, but I don't know how to say it yet: Stop() | HONEST |
 
 ## multi-step
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 69 | read notes.txt and tell me how many lines it has | I couldn't work out "read notes.txt and tell me how many lines it has". | HONEST | I don't know how to note yet. | HONEST |
+| 69 | read notes.txt and tell me how many lines it has | I couldn't work out "read notes.txt and tell me how many lines it has".<br><br>I understood one of its steps, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I don't know how to note yet. | HONEST |
 | 70 | make a file called a.txt, then another called b.txt | I don't know these words yet: a.txt and b.txt. | HONEST | I don't know how to called yet. | HONEST |
 | 71 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
 | 72 | list the files and then show me package.json | `package.json`:<br><br>```<br>{<br>  "name": "shop",<br>  "version": "1.0.0"<br>}<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
@@ -162,7 +162,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 74 | waht is teh capitol of france | I couldn't work out "waht is teh capitol of france". | HONEST | Paris. | RIGHT |
 | 75 | hwo many days in a leap yeer | I couldn't work out "hwo many days in a leap yeer". | HONEST | I don't know that yet. | HONEST |
-| 76 | pls show me whats in teh readme | I couldn't work out "pls show me whats in teh readme". I understood run `git show me`, but I don't know how to do it.<br><br>`README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I don't know how to what yet. | HONEST |
+| 76 | pls show me whats in teh readme | I couldn't work out "pls show me whats in teh readme".<br><br>I understood run `git show me`, but I don't know how to do it yet. Give me its command in backticks and I'll remember it.<br><br>`README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I don't know how to what yet. | HONEST |
 | 77 | whats 9 tims 9 | 9 times 9 is 81. | RIGHT | I don't know yet. | HONEST |
 | 78 | remmber my fav color is green | I couldn't work out "remmber my fav color is green". | HONEST | I don't know how to is yet. | HONEST |
 | 79 | wats my fav color | You haven't told me that. | HONEST | I see. | WRONG |
@@ -173,7 +173,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 82 | i pushed the code yesterday | Do you mean add I to code, or add yesterday to code? | RIGHT | I'm sorry to hear that. | RIGHT |
+| 82 | i pushed the code yesterday | Added yesterday to code. | RIGHT | I'm sorry to hear that. | RIGHT |
 | 83 | my friend deleted his whole repo lol | Ha. | RIGHT | I see. | RIGHT |
 | 84 | what does git commit do? | From the manual page `git-commit`:<br><br>Record changes to the repository | RIGHT | I don't know commit git yet. | HONEST |
 | 85 | the word delete has six letters | I couldn't work out "the word delete has six letters". | HONEST | I don't know what letters is yet. Tell me (like "letters is ...") and I'll remember. | HONEST |
