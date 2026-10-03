@@ -2,7 +2,7 @@
 // and the same development side of the split as scripts/acts.mjs (never the holdout in
 // ~/.noodle/experiment/split.json), with the same knowledge Noodle has where a baseline can use it
 // (the commands learned from the man pages, the WordNet pack).
-//   node scripts/baseline.mjs [--json]
+//   node scripts/baseline.mjs [--json [--items]]
 //
 // - name: every learned command whose name appears in the prompt as words, in order.
 // - bm25: BM25 from the prompt to each command's man page; the top command, or nothing under a
@@ -19,29 +19,22 @@
 // (files, branches, refs against a fixture), which the exploratory labels do not have (their
 // targets are prose); they run on the experiment's gold (testing.md section 5.1) once it exists.
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
+import { devLabels, fold } from "./devset.mjs";
 
 const dist = join(import.meta.dirname, "..", "dist");
 const { packedStore } = await import(join(dist, "assistant", "index.js"));
 const { isCall, positional } = await import(join(dist, "runtime", "expr.js"));
 
-const jsonl = (p) => readFileSync(p, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
-const all = jsonl(join(homedir(), ".napkin", "corpus", "all.jsonl"));
-const holdout = new Set(JSON.parse(readFileSync(join(homedir(), ".noodle", "experiment", "split.json"), "utf8")).holdout);
-const labels = jsonl(join(homedir(), ".napkin", "corpus", "tests", "labels.jsonl")).filter(
-  (l) => typeof l.i === "number" && !holdout.has(l.i) && l.verdict !== "drop" && (l.class === "acts" || l.class === "none") && all[l.i]?.text && all[l.i].text.split(/\s+/).length <= 150 && !all[l.i].text.trimStart().startsWith("<heartbeat>"),
-);
+const labels = devLabels({ maxWords: 150 }).filter((l) => !l.tooLong);
 const key = (a) => `${a.program ?? ""} ${a.sub ?? ""}`.trim();
 const items = labels.map((l) => ({
   i: l.i,
   cls: l.class,
-  text: all[l.i].text,
+  text: l.text,
   want: [...new Set((l.acts ?? []).map(key).filter(Boolean))],
   namesCommand: l.namesCommand,
-  fold: createHash("sha256").update(`${all[l.i].where ?? ""}|${String(all[l.i].at ?? "").slice(0, 10)}`).digest().readUInt32BE(0) % 5,
+  fold: fold(l.row),
 }));
 
 // The learned commands: every reading from a tool's documentation that becomes Run.
@@ -281,20 +274,23 @@ function score(preds) {
   };
 }
 
+const preds = {
+  name: items.map((it) => ({ got: nameMatch(it) })),
+  bm25: bm25Baseline(false),
+  "bm25 (always top)": bm25Baseline(false, true),
+  "bm25+wn": bm25Baseline(true),
+  "bm25+wn (always top)": bm25Baseline(true, true),
+  knn: knnBaseline(),
+  classifier: classifierBaseline({}),
+  "classifier+man": classifierBaseline({ man: true }),
+  "classifier+man+wn": classifierBaseline({ man: true, wn: true }),
+};
 const report = {
   labelled: items.length,
   manPages: `${pagesFound}/${pages.length}`,
-  baselines: {
-    name: score(items.map((it) => ({ got: nameMatch(it) }))),
-    bm25: score(bm25Baseline(false)),
-    "bm25 (always top)": score(bm25Baseline(false, true)),
-    "bm25+wn": score(bm25Baseline(true)),
-    "bm25+wn (always top)": score(bm25Baseline(true, true)),
-    knn: score(knnBaseline()),
-    classifier: score(classifierBaseline({})),
-    "classifier+man": score(classifierBaseline({ man: true })),
-    "classifier+man+wn": score(classifierBaseline({ man: true, wn: true })),
-  },
+  baselines: Object.fromEntries(Object.entries(preds).map(([name, p]) => [name, score(p)])),
+  // Per item, what each baseline chose (for the pilot's paired comparisons): ids, never prompts.
+  ...(process.argv.includes("--items") ? { items: items.map((it, k) => ({ i: it.i, got: Object.fromEntries(Object.entries(preds).map(([name, p]) => [name, p[k].got])) })) } : {}),
 };
 const fmt = ({ n, of }) => `${of ? ((100 * n) / of).toFixed(1) : "0.0"}% (${n}/${of})`;
 if (process.argv.includes("--json")) console.log(JSON.stringify(report));
