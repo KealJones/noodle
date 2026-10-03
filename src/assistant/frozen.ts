@@ -66,6 +66,8 @@ export interface Manifest {
   turn: typeof DEFAULT_TURN;
   seed: { part: string; file: string; hash: string; entries: number }[];
   packs: PackEntry[];
+  /** ChatGPT as a tutor (design section 17): off in the scored experiment, and nothing it taught is frozen. */
+  tutor?: "off";
   weights: { file: "weights.ncon"; hash: string; count: number; from: string };
   confirmations: { file: "confirmed.json"; hash: string; count: number };
   gold: { format: string; version: number };
@@ -132,7 +134,7 @@ export function seedHashes(dir = SEED_DIR): { part: string; file: string; hash: 
 
 /** The learned weights in a pack's text, as a Weights over the seed weights. */
 export function weightsFrom(store: Store, text?: string): Weights {
-  const w = new Weights(store);
+  const w = new Weights(store, false);
   w.learned.clear();
   if (text) {
     const s = new Store();

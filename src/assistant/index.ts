@@ -20,7 +20,8 @@ import { ReplayGate } from "./replay.js";
 import { Know } from "../runtime/know/know.js";
 import { learnTool } from "../know/tooldocs.js";
 import { FrozenSystem } from "./frozen.js";
-import type { Weights } from "../runtime/score.js";
+import { TUTOR, Weights } from "../runtime/score.js";
+import { tutorThrough } from "../runtime/tutor.js";
 
 export interface AssistantOptions {
   /** The workspace every primitive is confined to. */
@@ -133,6 +134,15 @@ export interface Config {
    * asked first when it is up (7778), or false to ask only through the program.
    */
   chatgptPort?: number | false;
+  /**
+   * ChatGPT as a tutor for choices (design section 17): asked which reading was meant where
+   * nothing else says, before the user is. On where ChatGPT is asked at all; false turns it off,
+   * and with it everything it taught (its weights are not used). The scored experiment runs with
+   * it off.
+   */
+  tutor?: boolean;
+  /** How far a tutor's pick moves the weights, as a fraction of a correction's step (0.25). */
+  tutorRate?: number;
 }
 
 /**
@@ -173,7 +183,7 @@ export interface SessionArm {
 
 export function createSession(store: Store, root: string, config: Config = {}, onSay?: (doc: unknown) => void, arm: SessionArm = {}): Session {
   // A frozen system learns nothing: what it is, is what was frozen.
-  if (FROZEN) config = { ...config, learn: false, replay: false };
+  if (FROZEN) config = { ...config, learn: false, replay: false, tutor: false };
   const world: World = {
     root,
     store,
@@ -202,8 +212,11 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     const claim: Call = { kind: "call", head: "Confirmed", args: [{ value: { kind: "string", value: k, pos: { line: 0, column: 0 } } }], pos: { line: 0, column: 0 } };
     store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
   };
-  const session = new Session(store, PRIMITIVES, world, undefined, arm.weights);
+  const session = new Session(store, PRIMITIVES, world, undefined, arm.weights ?? new Weights(store, config.tutor !== false));
   if (config.askBelow !== undefined) session.askBelow = config.askBelow;
+  // The tutor, where ChatGPT is asked at all and the config does not turn it off.
+  if (config.tutor !== false && world.know?.opts.chatgpt) session.tutor = tutorThrough(world.know);
+  if (config.tutorRate !== undefined) session.tutorRate = config.tutorRate;
   // A program a request names that the graph does not know is learned from its documentation
   // (design section 25), understood over the words the store has, and loaded. Where the channel
   // keeps what it learns, the tool's pack is kept with the others, so it is there after a restart.
@@ -226,9 +239,9 @@ export function createSession(store: Store, root: string, config: Config = {}, o
   }
   // What a correction teaches the score is kept in the store, as facts from the correction.
   if (config.learn)
-    session.onLearn = (w, changed) => {
+    session.onLearn = (w, changed, by) => {
       for (const name of changed)
-        store.addFact("Feature", { kind: "call", head: "Weight", args: [{ value: { kind: "string", value: name, pos: P0 } }, { value: { kind: "number", value: w.get(name), pos: P0 } }], pos: P0 }, { kind: "call", head: "Correction", args: [], pos: P0 });
+        store.addFact("Feature", { kind: "call", head: "Weight", args: [{ value: { kind: "string", value: name, pos: P0 } }, { value: { kind: "number", value: w.get(name), pos: P0 } }], pos: P0 }, by === "tutor" ? TUTOR : { kind: "call", head: "Correction", args: [], pos: P0 });
     };
   return session;
 }
