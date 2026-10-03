@@ -137,6 +137,16 @@ export class Learner {
     return plain.split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0] ?? plain;
   }
 
+  /**
+   * What a sentence claims, heard as a page's opening is: each clause of its best readings, once.
+   * Nothing is kept; the caller says what it is about and how sure it is (the tutor's because).
+   */
+  claims(text: string): Expr[] {
+    const out = new Map<string, Expr>();
+    for (const r of this.readings(this.opening(text))) r.exprs.forEach((e, i) => r.categories[i] === "Clause" && out.set(key(e), e));
+    return [...out.values()];
+  }
+
   /** Understand what was found, and the claims on its entity: facts on its topic. */
   learn(f: Found, claims: Claim[] = []): Learned {
     const topic = this.topic(f);

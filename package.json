@@ -23,6 +23,7 @@
     "killtest": "pnpm build && node scripts/killtest.mjs",
     "versus": "pnpm build && node scripts/versus.mjs",
     "versus:noodle": "pnpm build && node scripts/versus.mjs --reuse-napkin",
+    "tutor:report": "pnpm build && node scripts/tutor-report.mjs",
     "pilot": "pnpm build && node scripts/pilot.mjs",
     "train": "pnpm build && node scripts/train.mjs"
   },

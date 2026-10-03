@@ -108,8 +108,8 @@ export const STRUCTURAL = {
     names: ["NoSense", "NoReading", "NeedUnmet", "NoSource", "NoPermission", "TooClose", "BlockedBy", "NoInverse"],
   },
   loop: {
-    why: "try, offer, learn (design section 17): the numbered choice the turn says and a number picks from, and what a typed command taught",
-    names: ["Choices", "Choice", "Taught", "Slots"],
+    why: "try, offer, learn (design section 17): the numbered choice the turn says and a number picks from, what a typed command taught, and ChatGPT asked as a tutor for a choice and what it picked",
+    names: ["Choices", "Choice", "Taught", "Slots", "Tutor", "Tutored", "Proposes", "Suggested"],
   },
   speaking: {
     why: "seed draft: what Say is handed to realize, and the printing step of design section 25b",
