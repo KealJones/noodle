@@ -105,12 +105,16 @@ export interface Config {
   chatgpt?: boolean | string[];
   /** How long ChatGPT may take to answer, in milliseconds (120000). */
   chatgptTimeoutMs?: number;
+  /**
+   * The port of gptb's local server (`gptb serve`, an OpenAI-compatible endpoint on 127.0.0.1),
+   * asked first when it is up (7778), or false to ask only through the program.
+   */
+  chatgptPort?: number | false;
 }
 
 /**
- * ChatGPT, asked through Run of the configured program with the question as its last argument;
- * where that cannot reach the browser (another gptb holds it), through gptb's local server. Its
- * reply is its output.
+ * ChatGPT: through gptb's local server first (`gptb serve`), when it is up; otherwise through Run of
+ * the configured program with the question as its last argument, whose output is the reply.
  */
 function chatgptAsker(config: Config, world: World): ((question: string) => Promise<string | undefined>) | undefined {
   if (config.chatgpt === false || !config.know || config.know === "offline") return undefined;
@@ -120,13 +124,16 @@ function chatgptAsker(config: Config, world: World): ((question: string) => Prom
   const timeoutMs = config.chatgptTimeoutMs ?? 120000;
   const run = PRIMITIVES.get("Run")!;
   const str = (x: string): Expr => ({ kind: "string", value: x, pos: P0 });
+  const port = config.chatgptPort ?? 7778;
   return async (question) => {
+    const served = port === false ? undefined : await chatgptServer(question, port, timeoutMs).catch(() => undefined);
+    if (served?.trim()) return served;
     const ran = await run.run([str(program), { kind: "call", head: "Args", args: [...args, question].map((x) => ({ value: str(x) })), pos: P0 }], { ...world, timeoutMs }).catch(() => undefined);
     const exit = ran && isCall(ran) ? ran.args.find((a) => a.name === "exit")?.value : undefined;
     const out = ran && isCall(ran) ? ran.args.find((a) => a.name === "output")?.value : undefined;
     const id = isCall(out) ? out.args[0]?.value : undefined;
     const text = exit?.kind === "number" && exit.value === 0 && id?.kind === "string" ? world.store.block(id.value)?.body : undefined;
-    return text?.trim() ? text : chatgptServer(question, 7778, timeoutMs);
+    return text?.trim() ? text : undefined;
   };
 }
 
