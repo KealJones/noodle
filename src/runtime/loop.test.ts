@@ -28,21 +28,19 @@ test("a procedure taught with a slot learns each step's command, chains them, an
   assert.match((await s.turn("zap 42 means blip 42 and bloop it")).text, /^So when you say "zap 42", you mean "blip 42 and bloop it"\?/);
   assert.match((await s.turn("yes")).text, /in place of 42/);
   // Nothing does the first step yet: it says so, and asks for the command.
-  assert.match((await s.turn("zap 7")).text, /give me the command for it in backticks/);
+  assert.match((await s.turn("zap 7")).text, /Give me its command in backticks/);
   // Given, it is kept for the step (7 is the slot), and the request is read again: now the
   // second step is the one nothing does.
   const first = (await s.turn("`printf %s 7`")).text;
   assert.match(first, /Got it: for that I'll run `printf %s 7`/);
-  assert.match(first, /give me the command for it in backticks/);
+  assert.match(first, /Give me its command in backticks/);
   // The second step is given its command without what it is done to: it is given what the first printed.
+  // Run (its effects granted here): the first step's output is the second's argument.
   const both = (await s.turn("`echo`")).text;
-  assert.match(both, /run `printf %s 7`\n- run `echo \$\(printf %s 7\)`/);
-  // Run, the first step's output is the second's argument.
-  assert.match((await s.turn("yes")).text, /echo 7`?[^]*\n7\n/);
-  // A new session over the same store: another value, straight to the plan, nothing asked.
+  assert.match(both, /printf %s 7\n```\n\n```\n7\n```\n\n```\necho 7\n```\n\n```\n7\n/);
+  // A new session over the same store: another value, straight through, nothing asked.
   const t = createSession(store, dir, config);
-  const again = (await t.turn("zap 9")).text;
-  assert.match(again, /run `printf %s 9`\n- run `echo \$\(printf %s 9\)`/);
+  assert.match((await t.turn("zap 9")).text, /printf %s 9[^]*echo 9\n```\n\n```\n9\n/);
 });
 
 test("a no to an offer brings the other readings, numbered; a pick is learned as what the request means", async () => {

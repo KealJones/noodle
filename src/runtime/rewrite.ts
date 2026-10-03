@@ -109,7 +109,11 @@ export class Rewriter {
       // What was said in a role the result fills with something of its own is lost: unworked
       // (runtime.md 6.1), so a reading that keeps every argument beats one that replaces one.
       const dropped = isCall(made) ? m.extra.filter((x) => made.args.some((a) => a.name === x.name && key(a.value) !== key(x.value))).length : 0;
-      if (dropped) addFeature(f, "Unworked:Dropped", -dropped);
+      // So is what the pattern took in a variable its result does not use (a frame whose meaning
+      // leaves out its theme: "take milk" as only "cause to be together").
+      const used = new Set([...walk(r.becomes!)].filter(isVar).map((x) => x.text));
+      const unused = [...m.bindings].filter(([name, x]) => name !== "_" && !used.has(name) && !isVar(x) && !(isCall(x) && STRUCTURAL_NAMES.has(x.head))).length;
+      if (dropped + unused) addFeature(f, "Unworked:Dropped", -(dropped + unused));
       out.push({ r, b: m.bindings, result, features: f.size ? f : undefined });
     };
     for (const r of this.store.readingsFor(e.head)) consider(r, e);
@@ -160,8 +164,15 @@ export class Rewriter {
     const have = this.softMemo.get(k);
     if (have) return have;
     const index = describedActs(this.store, STRUCTURAL_NAMES, isAct);
+    const heads = contentHeads(this.store, x, STRUCTURAL_NAMES);
+    // An act alone ("delete") does not say which of the things that do it is meant: its exact
+    // readings may, a scored match does not.
+    if (heads.size < 2) {
+      this.softMemo.set(k, []);
+      return [];
+    }
     const pool = new Set<Described>();
-    for (const h of contentHeads(this.store, x, STRUCTURAL_NAMES)) for (const d of index.byHead.get(h) ?? []) pool.add(d);
+    for (const h of heads) for (const d of index.byHead.get(h) ?? []) pool.add(d);
     const threshold = this.threshold();
     const scored: { d: Described; f: Features; s: number; result: Expr }[] = [];
     for (const d of pool) {
