@@ -82,6 +82,62 @@ if (source === "wordnet" && path) {
   const r = await learnTool(path, PRIMITIVES.get("Read")!, world, store, words);
   writeFileSync(join(PACKS, `tool-${path}.ncon`), r.text);
   console.log(`tool-${path}: ${r.commands.length} commands learned, ${r.skipped.length} pages skipped -> ${join(PACKS, `tool-${path}.ncon`)}`);
+} else if (source === "tools") {
+  // Every program on the PATH that has a manual page, each learned as `import tool` learns one,
+  // into its own pack (so each can be taken out on its own). Manual pages only: learning from a
+  // program's --help runs it, which is asked for, one program at a time, in the chat. Programs
+  // with a pack already are skipped, so a run can be stopped and started again. `pnpm import
+  // tools [count]` learns at most count programs.
+  const world = { root: process.cwd(), store, now: () => new Date(), say() {}, ask() {} };
+  const words = packedStore(PACKS);
+  for (const name of words.packNames()) if (name.startsWith("tool-")) words.unload(name);
+  const read = PRIMITIVES.get("Read")!;
+  const programs = new Set<string>();
+  for (const dir of (process.env.PATH ?? "").split(":").filter(Boolean)) {
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const f of entries) if (/^[A-Za-z0-9_][\w.+-]*$/.test(f)) programs.add(f);
+  }
+  const have = new Set(readdirSync(PACKS).filter((f) => f.startsWith("tool-")).map((f) => f.slice(5, -5)));
+  const limit = path ? Number(path) : Infinity;
+  const t0 = Date.now();
+  let learned = 0;
+  let bytes = 0;
+  let commands = 0;
+  const failed: string[] = [];
+  for (const name of [...programs].sort()) {
+    if (learned >= limit) break;
+    if (have.has(name)) continue;
+    let found;
+    try {
+      found = await read.run([{ kind: "call", head: "Program", args: [{ value: { kind: "string", value: name, pos: { line: 0, column: 0 } } }], pos: { line: 0, column: 0 } }], world);
+    } catch {
+      continue;
+    }
+    const manual = found.kind === "call" ? found.args.find((a) => a.name === "manual")?.value : undefined;
+    if (!(manual?.kind === "boolean" && manual.value)) continue;
+    const t1 = Date.now();
+    try {
+      const r = await learnTool(name, read, world, store, words, "manual");
+      if (!r.commands.length) {
+        failed.push(name);
+        continue;
+      }
+      writeFileSync(join(PACKS, `tool-${name}.ncon`), r.text);
+      learned++;
+      commands += r.commands.length;
+      bytes += Buffer.byteLength(r.text);
+      console.error(`  tool-${name}: ${r.commands.length} commands, ${Math.round(Buffer.byteLength(r.text) / 1024)} KB, ${Date.now() - t1} ms (${learned} learned, ${Math.round((Date.now() - t0) / 1000)} s)`);
+    } catch (err) {
+      failed.push(name);
+      console.error(`  ${name}: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
+    }
+  }
+  console.log(`tools: ${learned} programs learned from their manual pages (${commands} commands, ${(bytes / 1024 / 1024).toFixed(1)} MB of packs) in ${Math.round((Date.now() - t0) / 1000)} s; ${failed.length} with a page nothing could be learned from -> ${PACKS}`);
 } else if (source === "openapi" && path && version) {
   // An HTTP API's published description (OpenAPI 3), its operations' summaries understood over
   // the words the other packs give. How the API is spoken to is the user's to say here: the

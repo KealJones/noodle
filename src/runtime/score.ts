@@ -39,7 +39,7 @@ export class Weights {
   get = (name: string): number => {
     const l = this.learned.get(name);
     if (l !== undefined) return l;
-    return this.template.get(name.split(":")[0]) ?? 0;
+    return this.template.get(name) ?? this.template.get(name.split(":")[0]) ?? 0;
   };
 
   /** Learned weights as N-Con facts on Feature concepts, for keeping across sessions. */
@@ -53,7 +53,10 @@ export class Weights {
   loadLearned(store: Store) {
     for (const f of store.facts("Feature", "Weight")) {
       const [name, w] = positional(f.claim as never);
-      if (name?.kind === "string" && w?.kind === "number") this.learned.set(name.value, w.value);
+      if (name?.kind !== "string" || w?.kind !== "number") continue;
+      // A feature's starting weight from the seed is where it starts, not something learned.
+      if (isCall(f.meta.from) && f.meta.from.head === "Seed") this.template.set(name.value, w.value);
+      else this.learned.set(name.value, w.value);
     }
   }
 
@@ -85,7 +88,7 @@ export class Weights {
     w.get = (name: string) => {
       const l = w.learned.get(name);
       if (l !== undefined) return l;
-      return this.template.get(name.split(":")[0]) ?? 0;
+      return this.template.get(name) ?? this.template.get(name.split(":")[0]) ?? 0;
     };
     return w;
   }

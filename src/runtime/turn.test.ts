@@ -97,7 +97,14 @@ Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("first")), effects=Unk
 Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("second")), effects=UnknownEffects())
 `);
   const s = createSession(store, mkdtempSync(join(tmpdir(), "noodle-turn-")), { grants: ["UnknownEffects"] });
-  assert.match((await s.turn("zap")).text, /^Do you mean run `echo (first|second)`, or run `echo (first|second)`\?$/);
+  const asked = (await s.turn("zap")).text;
+  assert.match(asked, /^Did you mean one of these\?\n\n1\. run `echo (first|second)`\n\n2\. run `echo (first|second)`\n\nSay its number/);
+  // A number picks one; it is done (granted here), and kept: the same ask goes straight there.
+  const second = asked.indexOf("echo second") < asked.indexOf("echo first") ? "1" : "2";
+  assert.match((await s.turn(second)).text, /second/);
+  const again = (await s.turn("zap")).text;
+  assert.match(again, /echo second/);
+  assert.doesNotMatch(again, /first|Did you mean/);
 });
 
 test("a correction flips the last choice to the next reading that acts, and the weights remember", async () => {

@@ -1,0 +1,76 @@
+// Try, offer, learn (design section 17): the scored match over what commands say they do, the
+// numbered choice after a no, a command given in backticks for a step nothing could do, taught
+// procedures with a slot whose steps feed each other, and all of it kept for the next session.
+// Invented words and harmless programs (printf, echo) only.
+
+import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "node:test";
+import { createSession } from "../assistant/index.js";
+import { seededStore } from "./seed.js";
+
+const root = () => mkdtempSync(join(tmpdir(), "noodle-loop-"));
+
+const words = `Pack(name="test-loop", version="0", from=Seed("test"))
+Concept(Zap(), Lemma("zap"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Blip(), Lemma("blip"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Bloop(), Lemma("bloop"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+`;
+
+test("a procedure taught with a slot learns each step's command, chains them, and goes straight through next time", async () => {
+  const store = seededStore();
+  store.load(words);
+  const dir = root();
+  const config = { grants: ["UnknownEffects" as const] };
+  const s = createSession(store, dir, config);
+  assert.match((await s.turn("zap 42 means blip 42 and bloop it")).text, /^So when you say "zap 42", you mean "blip 42 and bloop it"\?/);
+  assert.match((await s.turn("yes")).text, /in place of 42/);
+  // Nothing does the first step yet: it says so, and asks for the command.
+  assert.match((await s.turn("zap 7")).text, /give me the command for it in backticks/);
+  // Given, it is kept for the step (7 is the slot), and the request is read again: now the
+  // second step is the one nothing does.
+  const first = (await s.turn("`printf %s 7`")).text;
+  assert.match(first, /Got it: for that I'll run `printf %s 7`/);
+  assert.match(first, /give me the command for it in backticks/);
+  // The second step is given its command without what it is done to: it is given what the first printed.
+  const both = (await s.turn("`echo`")).text;
+  assert.match(both, /run `printf %s 7`\n- run `echo \$\(printf %s 7\)`/);
+  // Run, the first step's output is the second's argument.
+  assert.match((await s.turn("yes")).text, /echo 7`?[^]*\n7\n/);
+  // A new session over the same store: another value, straight to the plan, nothing asked.
+  const t = createSession(store, dir, config);
+  const again = (await t.turn("zap 9")).text;
+  assert.match(again, /run `printf %s 9`\n- run `echo \$\(printf %s 9\)`/);
+});
+
+test("a no to an offer brings the other readings, numbered; a pick is learned as what the request means", async () => {
+  const store = seededStore();
+  store.load(`${words}
+Reading(on=Zap(), pattern=Zap(theme=$x), becomes=Run("echo", Args("one", $x)), effects=UnknownEffects(), from=ToolDoc("test", "NAME"))
+Reading(on=Zap(), pattern=Zap(theme=$x), wants=IsA($x, Moment()), becomes=Run("echo", Args("two", $x)), effects=UnknownEffects(), from=ToolDoc("test", "NAME"))
+`);
+  const dir = root();
+  const s = createSession(store, dir, {});
+  assert.match((await s.turn("zap 5")).text, /I can run `echo one 5`/);
+  const list = (await s.turn("no")).text;
+  assert.match(list, /Did you mean one of these\?\n\n1\. run `echo two 5`/);
+  // Picked, it is offered (its effects are unknown), and kept from the user: the same request
+  // with another value is that act from now on.
+  assert.match((await s.turn("1")).text, /I can run `echo two 5`/);
+  const t = createSession(store, dir, {});
+  assert.match((await t.turn("zap 6")).text, /I can run `echo two 6`/);
+});
+
+test("a request no reading reaches is matched to what a command's summary says it does", async () => {
+  const store = seededStore();
+  store.load(`${words}
+Concept(Zorch(), Lemma("zorch"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Frob(), Lemma("frob"), Category(Noun()))
+Concept(Frob#Cmd(), SenseOf(Zap()), Describes(Frob#Cmd(), Zorch(agent=Addressee(), theme=Some(Frob()))), from=ToolDoc("frobtool", "NAME"))
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("frobs")), effects=UnknownEffects(), from=ToolDoc("frobtool", "NAME"))
+`);
+  const s = createSession(store, root(), {});
+  assert.match((await s.turn("zorch the frob")).text, /I can run `echo frobs`/);
+});

@@ -5,21 +5,32 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { c, isHead, n, positional, role, s } from "../expr.js";
 import type { Expr } from "../expr.js";
-import type { Primitive } from "../primitive.js";
-import { blockRef, SELF, str } from "./args.js";
+import type { Primitive, World } from "../primitive.js";
+import { blockRef, contentOf, SELF, str } from "./args.js";
 import { resolveInside } from "./paths.js";
 
 // One argument may be made of pieces, Joined(...), written together: a path with what fills its
-// placeholders ("repos/", 12, "/reviews"), a field and its value ("body=", "fixed").
-function argv(args: Expr | undefined): string[] {
+// placeholders ("repos/", 12, "/reviews"), a field and its value ("body=", "fixed"). What an
+// earlier command printed (its output, a block) is given as one argument per line it printed: the
+// pids a lookup found are what the next command is given.
+function argv(args: Expr | undefined, world: World): string[] {
   if (!isHead(args, "Args")) throw new Error("Run's arguments are Args(...)");
   const one = (a: Expr): string => {
     if (a.kind === "string") return a.value;
     if (a.kind === "number") return String(a.value);
     if (isHead(a, "Joined")) return positional(a).map(one).join("");
-    throw new Error("each of Run's arguments is a string or a number");
+    throw new Error("each of Run's arguments is a string, a number, or what a command printed");
   };
-  return positional(args).map(one);
+  return positional(args).flatMap((a) =>
+    isHead(a, "Block")
+      ? positional(a).length
+        ? contentOf(a, world)
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean)
+        : []
+      : [one(a)],
+  );
 }
 
 /**
@@ -52,7 +63,7 @@ export const Run: Primitive = {
   holds: (effects) => effects.length > 0 && effects.every((e) => e === "Reads") && canConfine(),
   async run([program, args], world, held) {
     const name = str(program, "Run's program");
-    const list = argv(args);
+    const list = argv(args, world);
     if (world.programs && !world.programs.has(name)) throw new Error(`${name} is not a program Run may start`);
     const confined = held !== undefined && Run.holds!(held, world);
     if (held !== undefined && !confined) throw new Error(`${name} cannot be held to ${held.join(" and ")} here`);

@@ -66,6 +66,8 @@ export class Conversation {
   /** What is in play, and for a literal, the kind of thing an act found it to be (a file). */
   readonly inPlay = new Map<string, { expr: Expr; salience: number; kind?: string }>();
   proposal?: Proposal;
+  /** The last proposal the user said no to: what it was, the turn it was offered in, and the turn of the no. */
+  declined?: { act: Expr; offered: number; turn: number };
   /** The turn a proposal was last permitted in. */
   permittedTurn?: number;
   lastQuestion?: Expr;
@@ -80,6 +82,7 @@ export class Conversation {
     c.events.push(...this.events);
     for (const [k, v] of this.inPlay) c.inPlay.set(k, { ...v });
     c.proposal = this.proposal && { ...this.proposal };
+    c.declined = this.declined;
     c.permittedTurn = this.permittedTurn;
     c.lastQuestion = this.lastQuestion;
     return c;

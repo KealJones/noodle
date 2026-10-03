@@ -39,6 +39,8 @@ Reading(on=Run(), mode=Speaking(), pattern=CommandLine($p, Args()), becomes=$p)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
 Reading(on=Run(), mode=Speaking(), pattern=Joined($a), becomes=$a)
+// What an earlier command printed, given to the next, said the way a shell would write it.
+Reading(on=Run(), mode=Speaking(), pattern=Output(Run($p, $args)), becomes=Paragraph("$(", CommandLine($p, $args), ")"))
 Reading(on=Run(), mode=Speaking(), pattern=Joined($a, $b), becomes=Paragraph($a, Joined($b)))
 
 // Putting into and taking out of a holder.
@@ -69,7 +71,7 @@ Reading(on=NoSense(), mode=Speaking(), pattern=NoSense(And($a, $b)),
 Reading(on=NoSense(), mode=Speaking(), pattern=NoSense($w, in=$x),
   becomes=Paragraph("I don't know what ", Code($w), " means in ", $x, "."))
 Reading(on=NoReading(), mode=Speaking(), pattern=NoReading($x),
-  becomes=Paragraph("I understood ", $x, ", but I don't know how to do it."))
+  becomes=Paragraph("I understood ", Either($x, "one of its steps"), ", but I don't know how to do it yet. If you give me the command for it in backticks, I'll remember it."))
 Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet($n),
   becomes=Paragraph("I can't do that yet: I need to know ", $n, "."))
 Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet($n, for=$a),
@@ -80,6 +82,13 @@ Reading(on=NoPermission(), mode=Speaking(), pattern=NoPermission($a),
   becomes=Paragraph("I'm not allowed to ", $a, " without you saying so."))
 Reading(on=TooClose(), mode=Speaking(), pattern=TooClose($a, $b),
   becomes=Paragraph("Do you mean ", $a, ", or ", $b, "?"))
+// The loop (try, offer, learn): what else it could mean, numbered, so a number picks one.
+Reading(on=Choices(), mode=Speaking(), pattern=Choices($x),
+  becomes=Document(Paragraph("Did you mean one of these?"), Choice($x), Paragraph("Say its number, or give me the right command in backticks.")))
+Reading(on=Choice(), mode=Speaking(), pattern=Choice(Sequence($a, $b)), becomes=Document(Choice($a), Choice($b)))
+Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, $a), becomes=Paragraph($n, ". ", $a))
+Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, Sequence($a, $b)), becomes=Paragraph($n, ". ", $a, ", then ", $b))
+Reading(on=Taught(), mode=Speaking(), pattern=Taught($a), becomes=Paragraph("Got it: for that I'll ", $a, " from now on."))
 Reading(on=BlockedBy(), mode=Speaking(), pattern=BlockedBy($a, $rule, from=$src),
   becomes=Paragraph("I didn't ", $a, ": ", $rule, " (", $src, ")."))
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x),
@@ -120,6 +129,8 @@ Reading(on=Offer(), mode=Speaking(), pattern=Offer(Remember(Rewrite($w, $d))),
   becomes=Paragraph("So when you say \"", $w, "\", you mean \"", $d, "\"? I'll remember it if so."))
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Remember(Rewrite($w, $d)), result=$r, checked=true),
   becomes=Paragraph("Got it: \"", $w, "\" means \"", $d, "\"."))
+Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Remember(Rewrite($w, $d)), result=Remembered($r, slots=$s), checked=true),
+  becomes=Paragraph("Got it: \"", $w, "\" means \"", $d, "\", and the same for any other value in place of ", $s, "."))
 // A fact about the user kept: said back, as what it now says of their things.
 Reading(on=Outcome(), mode=Speaking(), pattern=Outcome(Remember($p), result=Remembered($f, $c), checked=true),
   becomes=Paragraph("Got it: ", $c, "."))

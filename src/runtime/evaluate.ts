@@ -14,6 +14,7 @@ import type { Store } from "./store.js";
 import { type Features, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { isThing, things } from "./primitives/hold.js";
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
+import { type Lesson, lessonsOf } from "./lesson.js";
 
 /** What a primitive can be given inside its arguments: the structures primitives make, and blocks. */
 const DATA: ReadonlySet<string> = new Set([...STRUCTURAL.primitiveResults.names, "Block", "Args"]);
@@ -60,6 +61,8 @@ const SUPPOSE_CALLS = 20;
 
 export class Evaluator {
   private calls = 0;
+  /** Offer every act that is not pure, whatever its effects allow: its reading was chosen without confidence. */
+  offerAll = false;
   /** Checks that passed for pure calls worked out inside other acts' arguments. */
   private innerChecks = 0;
 
@@ -142,7 +145,11 @@ export class Evaluator {
     if (isHead(target, "Ref") && isHead(role(target, "kind"), "Proposal")) {
       const prop = this.conversation.proposal;
       if (!prop) return { ...this.out(), unworked: 1 };
-      if (this.mode === "Doing") this.conversation.proposal = undefined;
+      if (this.mode === "Doing") {
+        this.conversation.proposal = undefined;
+        // Kept, so the turn can offer what else it could have meant (the try, offer, learn loop).
+        this.conversation.declined = { act: prop.act, offered: prop.turn, turn: this.conversation.turnIndex };
+      }
       return { ...this.out(), said: [c("Echo", c("Constraint", c("Not", prop.act)))], reachedAct: true };
     }
     const until = role(lf, "until");
@@ -185,14 +192,26 @@ export class Evaluator {
 
   private async sequence(steps: Expr[]): Promise<Outcome> {
     let o = this.out();
-    for (const st of steps) {
+    let ran: Expr | undefined;
+    for (const st0 of steps) {
+      // What a command step printed is what the next step points at ("find the process on port
+      // 8080 and kill it": it is the pid the first step printed): Output(the step's act), a
+      // structure worked out when the step has run, never text pasted into the next command.
+      const st = ran ? mapExpr(st0, (x) => (this.pointer(x) ? c("Output", ran!) : undefined)) : st0;
       const r = await this.directive(st);
       o = this.merge(o, r);
       // A failed step or a block stops the plan (runtime.md 10.2). A step that is offered is not
       // run, so later steps are offered with it, as one proposal: the user says yes to the plan.
       if (r.unworked || r.blocked) break;
+      const last = r.acts.at(-1);
+      ran = isHead(last, "Run") ? last : undefined;
     }
     return o;
+  }
+
+  /** A referent that only points ("it"): no kind, and no name said. */
+  private pointer(x: Expr): boolean {
+    return isHead(x, "Ref") && !role(x, "kind") && ![...walk(role(x, "said") ?? x)].some((y) => y.kind === "string");
   }
 
   private async conditional(lf: Call): Promise<Outcome> {
@@ -264,38 +283,48 @@ export class Evaluator {
    * effects whoever's reading led to it).
    */
   private async rememberCommand(act: Expr, ancestry: Expr[]): Promise<void> {
-    const remember = this.primitives.get("Remember");
-    const args = isHead(act, "Run") ? positional(act)[1] : undefined;
-    // What the user said that the command came from: the expression just before it.
-    const said = ancestry.slice(1).find((x) => isCall(x) && !this.primitives.has(x.head) && !STRUCTURAL_NAMES.has(x.head));
-    if (this.mode !== "Doing" || !remember || !isCall(said) || !isHead(args, "Args")) return;
-    const bare: Call = { ...said, args: said.args.filter((a) => a.name !== "agent") };
-    const vars = new Map<string, Expr>();
-    for (const a of positional(args))
-      if ((a.kind === "number" || a.kind === "string") && !vars.has(key(a)) && [...walk(bare)].some((y) => key(y) === key(a))) vars.set(key(a), v(`a${vars.size + 1}`));
-    const sub = (e: Expr) => mapExpr(e, (x) => vars.get(key(x)));
-    const run: Call = { ...(act as Call), args: (act as Call).args.filter((a) => a.name === undefined) };
-    const becomes = sub(run);
-    const keep = async (pattern: Expr, wants?: Expr) => {
-      if (!isCall(pattern) || this.store.readingsOn(pattern.head).some((r) => key(r.pattern) === key(pattern) && r.becomes !== undefined && key(r.becomes) === key(becomes))) return;
-      try {
-        await remember.run([c("Rewrite", pattern, becomes, ...(wants ? ([["wants", wants]] as [string, Expr][]) : []))], this.world);
-      } catch {
-        // Not something to keep; the command still ran.
-      }
-    };
-    await keep(sub(bare));
-    for (const [k, x] of vars) {
-      // The thing the value was said with ("pr 1748": the pr), taken out for the value alone.
-      const holder = [...walk(bare)].find((y) => y !== bare && isCall(y) && y.args.some((a) => key(a.value) === k));
-      if (!holder) continue;
-      const alone = mapExpr(bare, (y) => (key(y) === key(holder) ? x : undefined));
-      // The kind it wants is the role it filled there, a kind of its own ("pr 1748": a number).
-      const filled = isCall(holder) ? holder.args.find((a) => key(a.value) === k)?.name : undefined;
-      const kind = filled ? filled[0].toUpperCase() + filled.slice(1) : undefined;
-      await keep(sub(alone), kind && this.store.has(kind) ? c("IsA", x, c(kind)) : undefined);
-    }
+    const said = this.saidOf(ancestry);
+    if (this.mode !== "Doing" || !said || !isHead(act, "Run")) return;
+    await this.teach(said, { ...act, args: act.args.filter((a) => a.name === undefined) });
   }
+
+  /** What the user said an act came from: the expression just before it that is neither a primitive call nor structure. */
+  saidOf(ancestry: Expr[]): Call | undefined {
+    const said = ancestry.slice(1).find((x) => isCall(x) && !this.primitives.has(x.head) && !STRUCTURAL_NAMES.has(x.head));
+    return isCall(said) ? said : undefined;
+  }
+
+  /**
+   * Keeps what the user taught: readings from what they said to the act (lesson.ts), through
+   * Remember, the path everything the user teaches takes. A reading already there is not kept
+   * twice. Returns the main lesson, where one was kept or was there.
+   */
+  async teach(said: Call, act: Expr, wants?: Expr): Promise<Lesson | undefined> {
+    const remember = this.primitives.get("Remember");
+    if (this.mode !== "Doing" || !remember) return undefined;
+    // The kind a role names, where the graph has it ("pr 1748": the role number wants a Number).
+    const kind = (r: string) => {
+      const k = r[0].toUpperCase() + r.slice(1);
+      return this.store.has(k) ? k : undefined;
+    };
+    let main: Lesson | undefined;
+    for (const l0 of lessonsOf(said, act, kind)) {
+      const l = wants && !l0.wants ? { ...l0, wants } : l0;
+      const there = this.store.readingsOn(l.pattern.head).some((r) => key(r.pattern) === key(l.pattern) && r.becomes !== undefined && key(r.becomes) === key(l.becomes));
+      if (there) {
+        main ??= l;
+        continue;
+      }
+      try {
+        await remember.run([c("Rewrite", l.pattern, l.becomes, ...(l.wants ? ([["wants", l.wants]] as [string, Expr][]) : []))], this.world);
+        main ??= l;
+      } catch {
+        // Not something to keep (a function word, a primitive): the act still stands.
+      }
+    }
+    return main;
+  }
+
 
   /**
    * Undo (built-ins.md section 2; design section 26b): the last act of this conversation that
@@ -476,7 +505,7 @@ export class Evaluator {
     const unready = (y: Expr, concepts: boolean, makes: boolean, time = false): boolean => {
       if (y.kind === "variable") return true;
       if (!isCall(y)) return false;
-      if (y.head === "Rewrite" || y.head === "Quote") return false;
+      if (y.head === "Rewrite" || y.head === "Quote" || y.head === "Output") return false;
       if (y.head === "Ref") return !makes;
       if (y.head === "Gap") return true;
       const data = DATA.has(y.head) || isThing(this.store, y) || this.pureCall(y) || (time && (TIME.has(y.head) || this.store.facts(y.head, "Lasts").length > 0));
@@ -535,6 +564,13 @@ export class Evaluator {
 
   /** An argument with the pure primitive calls inside it worked out, innermost first. */
   private async value(x: Expr): Promise<Expr> {
+    // What a step printed, once it has run: its output as content (a block), or nothing said.
+    if (isCall(x) && x.head === "Output") {
+      const act = positional(x)[0];
+      const ev = act && [...this.conversation.events].reverse().find((e) => key(e.act) === key(act) && e.result);
+      if (!ev) return x;
+      return role(ev.result, "output") ?? c("Block");
+    }
     if (!isCall(x) || x.head === "Rewrite" || x.head === "Quote") return x;
     const args = await Promise.all(x.args.map(async (a) => ({ ...a, value: await this.value(a.value) })));
     const y: Call = { ...x, args };
@@ -569,7 +605,7 @@ export class Evaluator {
    * act is found even when something inside the act was rewritten after it (a referent resolved,
    * a role read). Rules and the trust of the readings that led to an act are checked over all of it.
    */
-  private ancestry(a: Expr): Expr[] {
+  ancestry(a: Expr): Expr[] {
     const out: Expr[] = [a];
     const seen = new Set([key(a)]);
     const push = (x: Expr) => {
@@ -616,7 +652,7 @@ export class Evaluator {
    * 13) that led to these expressions and are not yet confirmed. Their acts are offered even
    * under a grant.
    */
-  private untrustedReadings(ancestry: Expr[]): string[] {
+  untrustedReadings(ancestry: Expr[]): string[] {
     const keys = new Set(ancestry.map(key));
     const out: string[] = [];
     for (const st of this.steps) if (keys.has(key(st.after)) && this.trustLevel(st.from) >= 3 && !this.world.confirmed?.has(st.key)) out.push(st.key);
@@ -653,7 +689,8 @@ export class Evaluator {
     // An effectful act a reading from documentation or the web led to is a proposal until the
     // user confirms it, whatever the config grants (runtime.md 13).
     const untrusted = !pure && this.untrustedReadings(this.ancestry(act)).length > 0;
-    const guarded = untrusted ? effects.filter((e) => e !== "Reads" && e !== "Speaks") : effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
+    // A reading chosen without confidence is offered, whatever its effects allow (design section 9).
+    const guarded = this.offerAll && !p.pure ? effects : untrusted ? effects.filter((e) => e !== "Reads" && e !== "Speaks") : effects.filter((e) => GUARDED.has(e) && !this.world.grants?.has(e));
     // A rewrite the user teaches applies after it is echoed and confirmed (design sections 19 and
     // 20): a misheard rule must not quietly become behaviour.
     const taught = p.name === "Remember" && isHead(args[0], "Rewrite");

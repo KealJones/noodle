@@ -8,6 +8,7 @@ import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite, role
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../../structural.js";
 import type { Primitive, World } from "../primitive.js";
 import { isThing, thingOf } from "./hold.js";
+import { lessonsOf } from "../lesson.js";
 
 const USER: Expr = c("User");
 
@@ -112,16 +113,22 @@ export const Remember: Primitive = {
       return c("Remembered", item);
     }
     if (isHead(item, "Rewrite")) {
-      const [from0, to] = positional(item);
-      const from = isHead(from0, "Quote") ? positional(from0)[0] : from0;
+      const [from0, to0] = positional(item);
+      const from1 = isHead(from0, "Quote") ? positional(from0)[0] : from0;
+      // A value said in both ("kill 8080" means "... port 8080 ...") is a slot: the rewrite is for
+      // any value in its place ("kill 3000"), as the user's examples are (lesson.ts).
+      const general = isCall(from1) && to0 ? lessonsOf(from1, to0)[0] : undefined;
+      const from = general?.slots.length ? general.pattern : from1;
+      const to = general?.slots.length ? general.becomes : to0;
       const o = owner(from, to, world);
       if (!o || !to) throw new Error("a rewrite needs something to start from and something it means");
       // What it wants of its variables, where the user's own wording said it (a number).
-      const wants = role(item, "wants");
+      const wants = role(item, "wants") ?? (general?.slots.length ? general.wants : undefined);
       const r = world.store.addReading({ owner: o.head, pattern: o.pattern, wants: wants ? [wants] : [], becomes: to, needs: [], effects: [], checks: [], direction: "Expand" }, USER);
       for (const f of world.store.facts(o.head).filter((x) => x.meta.from === USER)) world.keep?.(c("Fact", c(o.head), f.claim, ["from", USER]));
       world.keep?.(c("Reading", ["on", c(o.head)], ["pattern", o.pattern], ...(wants ? ([["wants", wants]] as [string, Expr][]) : []), ["becomes", to], ["from", USER]));
-      return c("Remembered", c("Reading", { kind: "number", value: r.meta.id, pos: { line: 0, column: 0 } }));
+      const slots = general?.slots ?? [];
+      return c("Remembered", c("Reading", { kind: "number", value: r.meta.id, pos: { line: 0, column: 0 } }), ...(slots.length ? ([["slots", slots.length === 1 ? slots[0] : c("And", ...slots)]] as [string, Expr][]) : []));
     }
     if (isHead(item, "Fact")) {
       const [subject, claim] = positional(item);
