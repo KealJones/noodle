@@ -15,6 +15,10 @@ two things:
 The file lives at `~/.noodle/experiment/killtest.ncon` (private, never committed; it is built from
 real requests) unless another path is given.
 
+An agent's unreviewed draft of the file is at `~/.noodle/experiment/killtest-draft.ncon`, with a
+checklist for Keal in `docs/killtest-review.md`. `pnpm killtest -- --draft` runs against it and
+labels every number as an unreviewed draft; those numbers are not the kill test.
+
 ## Format
 
 An `.ncon` file. Each reduction is a concept with a `Reduction(...)` fact; a request also says
