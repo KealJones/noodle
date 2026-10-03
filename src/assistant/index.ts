@@ -87,6 +87,12 @@ export interface Config {
   replay?: boolean;
   /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
   learn?: boolean;
+  /**
+   * How sure the top reading must be (its probability, design section 9) for its act to be done
+   * without asking: the cost of asking over the cost of a mistake. Below it the act is offered,
+   * whatever its effects allow. Default 0.5; 0 never asks.
+   */
+  askBelow?: number;
 }
 
 export function readConfig(path = process.env.NOODLE_CONFIG ?? join(homedir(), ".noodle", "config.json")): Config {
@@ -123,6 +129,7 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
   };
   const session = new Session(store, PRIMITIVES, world);
+  if (config.askBelow !== undefined) session.askBelow = config.askBelow;
   // A program a request names that the graph does not know is learned from its documentation
   // (design section 25), understood over the words the store has, and loaded. Where the channel
   // keeps what it learns, the tool's pack is kept with the others, so it is there after a restart.

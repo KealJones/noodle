@@ -3,7 +3,8 @@
 // run with Suppose), the winner evaluated, and what it says realized and printed. Every choice is
 // recorded with its candidates and features.
 
-import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite as mapExpr, role, s } from "./expr.js";
+import { type Call, type Expr, c, isCall, isHead, key, n, positional, rewrite as mapExpr, role, s, v } from "./expr.js";
+import { STRUCTURAL_NAMES } from "../structural.js";
 import { alike } from "./canonical.js";
 import { Chart, type Cover, type Edge } from "./chart.js";
 import { Conversation, type TurnRecord } from "./conversation.js";
@@ -23,6 +24,9 @@ export interface TurnOptions {
 }
 
 export const DEFAULT_TURN: TurnOptions = { stageTwo: 16, derivations: 6 };
+
+/** How many readings a numbered choice offers at most (a stated, tunable number). */
+const CHOICES = 5;
 
 interface Reading {
   lfs: Expr[];
@@ -57,6 +61,27 @@ interface LastChoice {
   readings: Reading[];
   winner: Reading;
   words: Map<string, string>;
+  /** The user turn it was made in, and what was said in it. */
+  turn: number;
+  text: string;
+}
+
+/**
+ * Try, offer, learn: what the assistant asked at the end of a turn, waiting for the next one. A
+ * numbered choice of readings (a number picks one), or a step of a request nothing could do (the
+ * user may give the command for it, in backticks). What the user picks or gives is kept.
+ */
+interface Waiting {
+  /** The user turn it was asked after. */
+  turn: number;
+  /** The request, read again once a step of it is learned. */
+  text: string;
+  /** The readings offered, by number. */
+  options: Reading[];
+  /** The choice they came from: what the perceptron moves away from, and what was said. */
+  from?: LastChoice;
+  /** What a typed command is learned for: the step nothing could do. */
+  meaning?: Call;
 }
 
 export class Session {
@@ -68,6 +93,14 @@ export class Session {
   tools?: ToolLearner;
   /** A request waiting for a program to be learned from its help, which was offered. */
   private pendingTool?: { program: string; text: string };
+  /** What the last turn asked, waiting for this one (the try, offer, learn loop). */
+  private waiting?: Waiting;
+  /**
+   * How sure the top reading must be for its act to be done without asking (design section 9:
+   * the cost of asking over the cost of a mistake, a stated parameter of the config). Below it,
+   * the act is offered, whatever its effects allow.
+   */
+  askBelow = 0.5;
   /**
    * The replay gate (testing.md section 4): given the features an update changed, whether the
    * hand-checked items they touch still come out right. A change it vetoes is put back.
@@ -158,6 +191,11 @@ export class Session {
     const names = await this.surroundings(conv);
     const hearing = hear(this.store, text, { names });
     record.tone = toneOf(this.store, hearing);
+    // What the last turn asked is answered in this one, or lapses.
+    const waiting = this.waiting && this.waiting.turn === record.index - 2 ? this.waiting : undefined;
+    if (!opts.dry) this.waiting = undefined;
+    // The right command, given in backticks, for what the last turn could not do or offered wrong.
+    const typed = !opts.dry && waiting ? await this.typed(text, waiting, conv) : undefined;
 
     // Segmentations: at most two, ranked by the score of their best covers (runtime.md 3.2).
     const segs = segmentations(this.store, hearing).map((ss) =>
@@ -168,15 +206,15 @@ export class Session {
     );
     const segScore = (ss: typeof segs[number]) => ss.reduce((n, x) => n + (x.covers[0]?.score ?? 0), 0);
     segs.sort((x, y) => segScore(y) - segScore(x));
-    const chosen = learning?.offered ? [] : (segs[0] ?? []);
+    const chosen = learning?.offered || typed ? [] : (segs[0] ?? []);
     if (segs.length > 1)
       record.reasons.push(choice("segmentation", segs.map((ss, i) => ({ label: `segmentation ${i + 1}: ${ss.length} segments`, features: [], score: segScore(ss) })), 0));
 
-    const rewriter = new Rewriter(this.store, this.weights.get);
-    const said: Expr[] = [...(learning?.said ?? [])];
+    const rewriter = new Rewriter(this.store, this.weights.get, { mode: "Doing", beam: 6, maxSteps: 32, soft: true });
+    const said: Expr[] = [...(learning?.said ?? []), ...(typed?.said ?? [])];
     const words = new Map<string, string>();
     const allSteps: Step[] = [];
-    let anything = !!learning?.offered;
+    let anything = !!learning?.offered || !!typed;
     const choices: LastChoice[] = [];
     const acts: Expr[] = [];
     for (const seg of chosen) {
@@ -184,11 +222,22 @@ export class Session {
       const top = await this.readings(seg.covers, seg.chart, rewriter, segText, conv);
       if (!top.length) continue;
       const win = top[0];
+      // A number, said when a numbered choice is waiting, picks one of them (the loop).
+      const number = waiting?.options.length && chosen.length === 1 ? top.map((r) => (r.lfs.length === 1 ? r.lfs[0] : undefined)).find((x) => x?.kind === "number") : undefined;
+      if (waiting && number?.kind === "number" && Number.isInteger(number.value) && number.value >= 1 && number.value <= waiting.options.length) {
+        const picked = await this.pick(waiting, number.value - 1, record, conv);
+        said.push(...picked.said);
+        acts.push(...picked.acts);
+        allSteps.push(...picked.steps);
+        if (waiting.from) for (const [k, w] of waiting.from.words) words.set(k, w);
+        anything = true;
+        continue;
+      }
       // Two readings too close (design sections 9 and 23): when the best readings tie exactly and
       // lead to different acts, nothing says which was meant, so it asks instead of picking one.
       // The rival is the first tied reading whose act differs: ties among ways of saying the same
       // act are not a choice.
-      const actsOf = (r: Reading) => ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure));
+      const actsOf = (r: Reading) => this.actsOf(r);
       // Acts that run the same are one act: roles left on a primitive call are input it does not
       // take, two words for the same thing ("eggs", and "egg" in the plural) are one thing, and two
       // readings that differ only inside what is quoted ("to call mom", read two ways) do the same
@@ -204,11 +253,20 @@ export class Session {
         return (a.length !== b2.length || a.some((x, i) => !alike(this.store, given(x), given(b2[i])))) && inWords(r1) !== inWords(r2);
       };
       const runner = actsOf(win).length ? top.slice(1).find((r) => r.score === win.score && actsOf(r).length && differ(win, r)) : undefined;
-      if (opts.ask !== false && runner) {
-        const a = win.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
-        const b2 = runner.lfs.flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head)))[0];
-        record.reasons.push(choice(`reading of "${segText}" (too close)`, [win, runner].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
-        said.push(c("TooClose", a, b2));
+      // Asked as a numbered choice of every reading that does something different, so a number
+      // answers it, and the answer is learned from (the loop). Readings that would be said the same
+      // are one choice: the user cannot tell them apart, so neither can the question.
+      const w = new Map<string, string>();
+      for (const e of win.cover.edges) collectWords(e, text, hearing, w);
+      const options = runner ? this.alternatives(top.filter((r) => r.score === win.score), [], w, differ) : [];
+      // Where the top reading's act would be offered anyway, the offer is the question: a no to it
+      // brings the others, numbered.
+      const offered = options.length > 1 && (await this.suppose(win, segText, conv)).said.some((x) => isHead(x, "Offer"));
+      if (opts.ask !== false && options.length > 1 && !offered) {
+        record.reasons.push(choice(`reading of "${segText}" (too close)`, options.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
+        for (const [k, x] of w) words.set(k, x);
+        said.push(this.choicesOf(options));
+        if (!opts.dry) this.waiting = { turn: record.index, text, options, from: { segText, readings: top, winner: win, words: w, turn: record.index, text } };
         anything = true;
         continue;
       }
@@ -217,8 +275,15 @@ export class Session {
       record.lf.push(...win.lfs);
       for (const e of win.cover.edges) collectWords(e, text, hearing, words);
       allSteps.push(...win.steps);
-      choices.push({ segText, readings: top, winner: win, words });
+      choices.push({ segText, readings: top, winner: win, words, turn: record.index, text });
       const ev = new Evaluator(this.store, this.primitives, this.world, conv, opts.dry ? "Supposing" : "Doing", win.steps, segText, (x) => this.canSay(x), (x) => this.inWords(x, words, win.steps, true));
+      // How sure the winner is (design section 9): its probability among the readings that do
+      // something different. Below the stated level its act is offered, whatever its effects allow.
+      const sure = actsOf(win).length ? this.confidence(top, differ) : 1;
+      if (sure < this.askBelow) {
+        ev.offerAll = true;
+        record.reasons.push(choice(`not sure of "${segText}" (${sure.toFixed(2)} below ${this.askBelow}): offered`, [], -1));
+      }
       const segSaid: Expr[] = [];
       let reached = false;
       for (const lf of win.lfs) {
@@ -229,7 +294,11 @@ export class Session {
       }
       // Honest when stuck (design section 23): a segment nothing worked for says why once, and
       // the most useful why is a word it has no sense for, a need, or there being no source.
-      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && isCall(role(x, "because")) && ["NeedUnmet", "NoSource", "NoInverse"].includes((role(x, "because") as Call).head));
+      const specific = segSaid.filter((x) => isCall(x) && x.head === "Unworked" && isCall(role(x, "because")) && ["NeedUnmet", "NoSource", "NoInverse", "NoReading"].includes((role(x, "because") as Call).head));
+      // A step understood that nothing does is waiting to be taught: the user may give its command.
+      const stuckOn = segSaid.map((x) => role(x, "because")).find((x) => isHead(x, "NoReading"));
+      const step = isHead(stuckOn, "NoReading") ? positional(stuckOn)[0] : undefined;
+      if (!opts.dry && isCall(step) && !STRUCTURAL_NAMES.has(step.head)) this.waiting = { turn: record.index, text, options: [], meaning: step };
       if (!reached && specific.length) said.push(...specific);
       else if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
@@ -243,16 +312,33 @@ export class Session {
       } else said.push(...segSaid);
     }
     // A program's help read on the user's yes is learned, and the request that named it read again.
-    const rerun = opts.dry ? undefined : await this.learnFromHelp(conv, said);
+    // So is a request whose step the user just gave the command for.
+    const rerun = opts.dry ? undefined : ((await this.learnFromHelp(conv, said)) ?? typed?.rerun);
     // What Focus pulled in, and why, is part of the turn's reasons (runtime.md 8.3 and 11b).
     record.reasons.push(...conv.focus.log);
     // A proposal not taken up this turn lapses (runtime.md 11: the last proposal).
     const permitted = record.lf.some((x) => key(x).includes("Permit("));
+    // What a yes ran is said in the words it was asked for in.
+    if (permitted && this.last) for (const [k, w] of this.last.words) if (!words.has(k)) words.set(k, w);
     if (!permitted && conv.proposal && conv.proposal.turn < record.index) conv.proposal = undefined;
 
     // A correction (design section 17): a turn that did nothing of its own and carries a correction
     // signal is about the last reading. Flip its choice point to the best alternative that reaches
     // an act, run that, and move the weights toward it and away from what was chosen.
+    // A no to what the last turn offered: what else it could have meant is offered, numbered (the
+    // loop). The no itself is said only where there is nothing else to offer.
+    const declined = conv.declined;
+    if (!opts.dry && declined?.turn === record.index + 1 && this.last && this.last.turn === declined.offered - 1) {
+      const options = this.alternatives(this.last.readings, [declined.act], this.last.words);
+      if (options.length) {
+        said.length = 0;
+        said.push(this.choicesOf(options));
+        for (const [k, w] of this.last.words) words.set(k, w);
+        this.waiting = { turn: record.index, text: this.last.text, options, from: this.last };
+        // What was chosen last is still what a number is picked against.
+        choices.length = 0;
+      }
+    }
     if (!opts.dry && !anything && this.last && hasSignal(this.store, hearing)) {
       const flipped = await this.correct(this.last, record);
       if (flipped) {
@@ -398,14 +484,14 @@ export class Session {
     const alts = last.readings.filter((r) => r !== last.winner && r.lfs.map(key).join(";") !== was && (r.features.get("ReachedAct") ?? 0) > 0);
     const alt = alts.sort((a, b) => b.score - a.score)[0];
     if (!alt) return undefined;
-    // The latent-variable perceptron's step (runtime.md 15), capped, kept only if the replay gate
-    // passes; the flip itself happens either way, since the user said so.
-    const snapshot = this.gate ? this.weights.clone() : undefined;
-    const before = this.weights.update(alt.features, last.winner.features);
-    const kept = !this.gate || !snapshot || (await this.gate(new Set(before.keys()), this.weights, snapshot));
-    if (kept) this.onLearn?.(this.weights, [...before.keys()]);
-    else this.weights.revert(before);
-    record.reasons.push(choice(kept ? "weights updated" : "weights update vetoed by the replay gate", [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
+    // More than one other thing it could have meant: they are offered, numbered, and the one
+    // picked is learned from (the loop), rather than the next one guessed.
+    const options = this.alternatives(last.readings, this.actsOf(last.winner), last.words);
+    if (options.length > 1) {
+      this.waiting = { turn: record.index, text: last.text, options, from: last };
+      return { said: [this.choicesOf(options)], steps: [] };
+    }
+    await this.learnWeights(alt, last.winner, record);
     record.reasons.push(choice(`correction of "${last.segText}"`, [last.winner, alt].map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), 1));
     record.lf.push(...alt.lfs);
     const ev = new Evaluator(this.store, this.primitives, this.world, this.conversation, "Doing", alt.steps, last.segText, (x) => this.canSay(x));
@@ -413,6 +499,182 @@ export class Session {
     for (const lf of alt.lfs) said.push(...(await ev.run(lf)).said);
     last.winner = alt;
     return { said, steps: alt.steps };
+  }
+
+  /**
+   * The latent-variable perceptron's step (runtime.md 15) toward the reading the user chose and away
+   * from the one that was, capped, kept only if the replay gate passes.
+   */
+  private async learnWeights(good: Reading, bad: Reading, record: TurnRecord) {
+    const snapshot = this.gate ? this.weights.clone() : undefined;
+    const before = this.weights.update(good.features, bad.features);
+    const kept = !this.gate || !snapshot || (await this.gate(new Set(before.keys()), this.weights, snapshot));
+    if (kept) this.onLearn?.(this.weights, [...before.keys()]);
+    else this.weights.revert(before);
+    record.reasons.push(choice(kept ? "weights updated" : "weights update vetoed by the replay gate", [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
+  }
+
+  /** The acts a reading does: its calls to primitives that are not pure, where it reached an act. */
+  private actsOf(r: Reading): Call[] {
+    return ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure));
+  }
+
+  /** Acts as a key: what each is given (roles left on a call are input it does not take). */
+  private actsKey(acts: Expr[]): string {
+    return acts
+      .flatMap((x) => (isHead(x, "Sequence") ? positional(x) : [x]))
+      .map((x) => key(isCall(x) ? { ...x, args: x.args.filter((a) => a.name === undefined) } : x))
+      .join(";");
+  }
+
+  /**
+   * The readings that do something different from each other and from the acts left out (what was
+   * declined, or chosen and corrected), best first, a few at most: what the loop offers by number.
+   */
+  private alternatives(readings: Reading[], without: Expr[], words: Map<string, string>, differ?: (a: Reading, b: Reading) => boolean): Reading[] {
+    const out: Reading[] = [];
+    const left = this.actsKey(without);
+    // Readings said the same are one choice: the user cannot tell them apart, so neither can the question.
+    const shown = new Set<string>();
+    for (const r of [...readings].sort((a, b2) => b2.score - a.score)) {
+      const k = this.actsKey(this.actsOf(r));
+      if (!k || k === left || out.some((o) => this.actsKey(this.actsOf(o)) === k || (differ && !differ(o, r)))) continue;
+      const said = this.shown(r, words);
+      if (shown.has(said)) continue;
+      shown.add(said);
+      out.push(r);
+      if (out.length >= CHOICES) break;
+    }
+    return out;
+  }
+
+  /**
+   * How likely the top reading is (design section 9; runtime.md 8.4): the softmax of the final
+   * scores over what the readings would do, each different act (or answer) counted once at its
+   * best reading.
+   */
+  private confidence(top: Reading[], differ: (a: Reading, b: Reading) => boolean): number {
+    const win = top[0];
+    const best = new Map<string, number>();
+    for (const r of top) {
+      if ((r.features.get("ReachedAct") ?? 0) <= 0) continue;
+      const acts = this.actsOf(r);
+      if (r !== win && acts.length && !differ(win, r)) continue;
+      const k = r === win ? "win" : acts.length ? this.actsKey(acts) : "answer";
+      if (k !== "win" && k === this.actsKey(this.actsOf(win))) continue;
+      best.set(k, Math.max(best.get(k) ?? -Infinity, r.score));
+    }
+    let z = 0;
+    for (const [k, sc] of best) if (k !== "win") z += Math.exp(sc - win.score);
+    return 1 / (1 + z);
+  }
+
+  /** What a reading would be offered as, in a numbered choice: its act, or its acts in order. */
+  private choiceAct(r: Reading): Expr {
+    // Steps in order, what a command step printed given to the next as it will be (Output).
+    const acts: Expr[] = [];
+    for (const x of this.actsOf(r)) {
+      const prev = acts.at(-1);
+      const pointer = (y: Expr) => isHead(y, "Ref") && !role(y, "kind") && ![...walkCalls(role(y, "said") ?? y)].some((z) => z.args.some((a) => a.value.kind === "string"));
+      acts.push(isHead(prev, "Run") ? mapExpr(x, (y) => (pointer(y) ? c("Output", prev) : undefined)) : x);
+    }
+    return acts.length === 1 ? acts[0] : acts.length ? c("Sequence", ...acts) : r.lfs[0];
+  }
+
+  /** How a reading's act would be said, in the user's words where there are some. */
+  private shown(r: Reading, words: Map<string, string>): string {
+    return this.speaker.say(this.inWords(c("Choice", n(1), this.choiceAct(r)), words, r.steps), this.medium);
+  }
+
+  /** A numbered choice, said: Choices(Sequence(Choice(1, act), Sequence(Choice(2, act), ...))). */
+  private choicesOf(options: Reading[]): Expr {
+    const items = options.map((r, i) => c("Choice", n(i + 1), this.choiceAct(r)));
+    const nest = (xs: Expr[]): Expr => (xs.length === 1 ? xs[0] : c("Sequence", xs[0], nest(xs.slice(1))));
+    return c("Choices", nest(items));
+  }
+
+  /** What a request meant, where an act is learned for it: what led to its act, or the directive it was read as. */
+  private meaningOf(r: Reading, conv: Conversation): Call | undefined {
+    const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", r.steps);
+    for (const act of this.actsOf(r)) {
+      const said = ev.saidOf(ev.ancestry(act));
+      if (said) return said;
+    }
+    for (const lf of r.lfs) {
+      const x = isHead(lf, "Directive") ? positional(lf)[0] : undefined;
+      if (isCall(x) && !STRUCTURAL_NAMES.has(x.head)) return x;
+    }
+    return undefined;
+  }
+
+  /**
+   * A number picked from the choice the last turn offered: the weights move toward it and away
+   * from what was chosen (the perceptron); the user picked the very command, so the documentation
+   * that led to it is confirmed (design section 20) and what they said is kept as meaning it (a
+   * reading from the user); and it is done, or offered, as its effects allow.
+   */
+  private async pick(w: Waiting, i: number, record: TurnRecord, conv: Conversation): Promise<{ said: Expr[]; acts: Expr[]; steps: Step[] }> {
+    const option = w.options[i];
+    const from = w.from;
+    const against = from && from.winner !== option ? from.winner : w.options.find((o) => o !== option);
+    if (against) await this.learnWeights(option, against, record);
+    record.reasons.push(choice(`picked ${i + 1} for "${from?.segText ?? w.text}"`, w.options.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), i));
+    const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", option.steps, from?.segText ?? w.text, (x) => this.canSay(x));
+    for (const act of this.actsOf(option)) {
+      const ancestry = ev.ancestry(act);
+      for (const k of ev.untrustedReadings(ancestry)) this.world.confirm?.(k);
+      const said = ev.saidOf(ancestry);
+      if (said) await ev.teach(said, { ...act, args: act.args.filter((a) => a.name === undefined) });
+    }
+    const out = { said: [] as Expr[], acts: [] as Expr[], steps: option.steps };
+    for (const lf of option.lfs) {
+      const o = await ev.run(lf);
+      // A fragment beside the act that worked out nothing on its own is not said (as in a turn).
+      out.said.push(...o.said.filter((x) => !(isHead(x, "Unworked") && !role(x, "because"))));
+      out.acts.push(...o.acts);
+    }
+    if (from) {
+      from.winner = option;
+      this.last = from;
+    }
+    return out;
+  }
+
+  /**
+   * The right command, given in backticks, after a choice the user did not want or a step nothing
+   * could do: kept as what that request or step means (a reading from the user, its values
+   * variables), and the request read again, so it goes on from there. The command line is read
+   * into a program and its arguments, as written; the program must be there to run.
+   */
+  private async typed(text: string, w: Waiting, conv: Conversation): Promise<{ said: Expr[]; rerun?: string } | undefined> {
+    const code = /`([^`]+)`/.exec(text)?.[1];
+    const argv = code ? commandLine(code) : [];
+    const read = this.primitives.get("Read");
+    if (!argv.length || !read) return undefined;
+    try {
+      await read.run([c("Program", s(argv[0]))], this.world);
+    } catch {
+      return undefined;
+    }
+    const said = w.meaning ?? (w.from ? this.meaningOf(w.from.winner, conv) : undefined);
+    if (!said) return undefined;
+    // What the step is done to, where the command given does not name it (a value said, or what
+    // the step before printed), is the command's argument: "kill it", given `kill`, is kill with
+    // it, whatever it is next time. The same as a documented command line that takes a positional
+    // argument takes what its act is done to.
+    const theme = role(said, "theme");
+    const shown = theme?.kind === "number" ? String(theme.value) : theme?.kind === "string" ? theme.value : undefined;
+    const named = shown !== undefined && argv.slice(1).some((a) => a.includes(shown));
+    // (A referent the step is about, "the process", is what it finds or makes, not an argument.)
+    const open = (isHead(theme, "Output") || shown !== undefined) && !named;
+    const meaning = open ? ({ ...said, args: said.args.map((a) => (a.name === "theme" ? { ...a, value: v("it") } : a)) } as Call) : said;
+    const act = c("Run", s(argv[0]), c("Args", ...argv.slice(1).map((a) => s(a)), ...(open ? [v("it")] : [])));
+    const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", [], w.text, (x) => this.canSay(x));
+    // What the step before printed is what "it" is, there: a value said is not.
+    const lesson = await ev.teach(meaning, act, open && isHead(theme, "Output") ? c("IsA", v("it"), c("Output")) : undefined);
+    if (!lesson) return undefined;
+    conv.focus.log.push({ what: `taught: ${key(lesson.pattern)} is ${key(lesson.becomes)}`, candidates: [], winner: -1 });
+    return { said: [c("Taught", act)], rerun: w.text };
   }
 
   /**
@@ -555,6 +817,16 @@ function collectWords(e: Edge, text: string, h: Hearing, out: Map<string, string
 /** One thing, or nested pairs And(a, And(b, c)): a set said pairwise. */
 function pairs(xs: Expr[]): Expr {
   return xs.length === 1 ? xs[0] : c("And", xs[0], pairs(xs.slice(1)));
+}
+
+/**
+ * A command line as the user wrote it, read into its words the way a shell splits them (quotes
+ * group, and are not part of the word): the program and its arguments, never run through a shell.
+ */
+function commandLine(code: string): string[] {
+  const out: string[] = [];
+  for (const m of code.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)) out.push(m[1] ?? m[2] ?? m[3]);
+  return out;
 }
 
 function* walkCalls(e: Expr): Generator<Call> {

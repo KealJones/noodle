@@ -3,11 +3,12 @@
 // more than one candidate is a choice point; the alternatives are kept in a beam and scored. Opaque
 // nodes are not rewritten. An expression no reading applies to stays as it is: unworked is a value.
 
-import { type Call, type Expr, c, isCall, isHead, isVar, key, positional, role } from "./expr.js";
+import { type Call, type Expr, c, isCall, isHead, isVar, key, positional, role, walk } from "./expr.js";
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { type ReadingItem, type Store, readingKey } from "./store.js";
-import { STRUCTURAL_NAMES } from "../structural.js";
+import { contentHeads, type Described, describedActs, matchFeatures, softMatch } from "./softmatch.js";
+import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
 
@@ -40,10 +41,44 @@ export interface RewriteOptions {
    * meanings and stops there, so readings that act are left for when a request is evaluated.
    */
   allow?: (r: ReadingItem) => boolean;
+  /**
+   * Whether a directive's act is also matched, by the scored match (runtime.md 6.2), against every
+   * act the store says something does (a documented command's summary, a reading the user taught),
+   * the best few above the threshold becoming candidates. Off where a text is being understood
+   * (a definition, a summary), on for a request.
+   */
+  soft?: boolean;
+}
+
+/** The best few scored matches that become candidates (runtime.md 7). */
+const SOFT_CANDIDATES = 4;
+const PRIMITIVE_HEADS: ReadonlySet<string> = new Set(STRUCTURAL.primitives.names);
+/** An expression that does something: a primitive call is in it. */
+const isAct = (e: Expr) => [...walk(e)].some((x) => isCall(x) && PRIMITIVE_HEADS.has(x.head));
+
+/**
+ * Trust is whether a derivation rests on what the user said they mean, not how often: a reading
+ * the user taught, applied again inside its own meaning ("kill it" in "... and kill it"), earns
+ * nothing more.
+ */
+function trusted(f: Features): Features {
+  if ((f.get("Trust:1") ?? 0) > 1) f.set("Trust:1", 1);
+  return f;
+}
+
+interface Candidate {
+  r: ReadingItem;
+  b: Bindings;
+  result: Expr;
+  features?: Features;
+  /** For a scored match, the step is from the act matched to the act it came to, inside the directive. */
+  step?: { before: Expr; after: Expr };
 }
 
 /** Heads whose arguments are content, never rewritten (logical-form.md section 5). */
-const OPAQUE = new Set(["Quote", "Mention", "Block", "Ref"]);
+// What the user teaches (Rewrite) is kept as it was heard: its meaning is read each time it is
+// used, where it is used, not once, through guesses, when it is taught.
+const OPAQUE = new Set(["Quote", "Mention", "Block", "Ref", "Rewrite"]);
 
 export class Rewriter {
   constructor(
@@ -53,9 +88,9 @@ export class Rewriter {
   ) {}
 
   /** Readings that may apply to e in this mode, with their matches. */
-  candidates(e: Expr): { r: ReadingItem; b: Bindings; result: Expr; features?: Features }[] {
+  candidates(e: Expr): Candidate[] {
     if (!isCall(e)) return [];
-    const out: { r: ReadingItem; b: Bindings; result: Expr; features?: Features }[] = [];
+    const out: Candidate[] = [];
     const consider = (r: ReadingItem, target: Call, features?: Features) => {
       if (!this.usable(r)) return;
       const m = match(r.pattern, target, this.store);
@@ -87,7 +122,80 @@ export class Rewriter {
     for (const { sense, prior } of this.expandable(e.head))
       for (const r of this.store.readingsOn(sense))
         if (isCall(r.pattern) && r.pattern.head === sense) consider(r, { ...e, head: sense }, new Map([["SenseFrequency", prior]]));
+    if (this.opts.soft && e.head === "Directive") out.push(...this.soft(e));
     return out;
+  }
+
+  private softMemo = new Map<string, { result: Expr; d: Described; f: Features }[]>();
+
+  /**
+   * A directive's act matched against what the store says acts do (runtime.md 6.2 and 7): each
+   * match is scored by its features, and the best few above the threshold (a fact on Match, in
+   * the seed's weights) are candidates, the act replaced by the one matched. A plan (And, Then)
+   * is matched step by step, each step replaced on its own: one description never stands for
+   * several steps. A request that is already a command is not matched again.
+   */
+  private soft(e: Call): Candidate[] {
+    const x = positional(e)[0];
+    if (!isCall(x)) return [];
+    const directive = (act: Expr): Expr => ({ ...e, args: [{ value: act }, ...e.args.slice(1)] });
+    if (x.head !== "And" && x.head !== "Then")
+      return this.softFor(x).map((y) => ({ r: y.d.reading, b: new Map(), result: directive(y.result), features: y.f, step: { before: x, after: y.result } }));
+    const out: Candidate[] = [];
+    x.args.forEach((a, i) => {
+      if (a.name !== undefined) return;
+      for (const y of this.softFor(a.value).slice(0, 2)) {
+        const args = x.args.slice();
+        args[i] = { value: y.result };
+        out.push({ r: y.d.reading, b: new Map(), result: directive({ ...x, args }), features: y.f, step: { before: a.value, after: y.result } });
+      }
+    });
+    return out;
+  }
+
+  /** The best few scored matches of one act, above the threshold. */
+  private softFor(x: Expr): { result: Expr; d: Described; f: Features }[] {
+    if (!isCall(x) || x.head === "Run") return [];
+    const k = key(x);
+    const have = this.softMemo.get(k);
+    if (have) return have;
+    const index = describedActs(this.store, STRUCTURAL_NAMES, isAct);
+    const pool = new Set<Described>();
+    for (const h of contentHeads(this.store, x, STRUCTURAL_NAMES)) for (const d of index.byHead.get(h) ?? []) pool.add(d);
+    const threshold = this.threshold();
+    const scored: { d: Described; f: Features; s: number; result: Expr }[] = [];
+    for (const d of pool) {
+      const m = softMatch(this.store, d.pattern, x, index.weigh);
+      if (!m) continue;
+      // What the reading wants of what fills it counts as it does for an exact match.
+      const f = mergeFeatures(matchFeatures(m), this.wantFeatures(d.reading, m.bindings));
+      const s = scoreOf(f, this.weights);
+      if (s < threshold) continue;
+      const result = instantiate(d.becomes, m.bindings);
+      if ([...walk(result)].some(isVar)) continue;
+      scored.push({ d, f, s, result });
+    }
+    const seen = new Set<string>();
+    const out = scored
+      .sort((a, b2) => b2.s - a.s)
+      .filter((y) => !seen.has(key(y.result)) && !!seen.add(key(y.result)))
+      .slice(0, SOFT_CANDIDATES);
+    this.softMemo.set(k, out);
+    return out;
+  }
+
+
+  /** A source's trust level, from the trust table (TrustLevel facts on source concepts). */
+  private trust(from: Expr): number | undefined {
+    if (!isCall(from)) return undefined;
+    const n = this.store.facts(from.head, "TrustLevel").map((f) => positional(f.claim as Call)[0])[0];
+    return n?.kind === "number" ? n.value : undefined;
+  }
+
+  /** The scored match's threshold: a fact on the Match template (the seed's weights). */
+  private threshold(): number {
+    const t = this.store.facts("Match", "Threshold").map((f) => positional(f.claim as Call)[0])[0];
+    return t?.kind === "number" ? t.value : -Infinity;
   }
 
   private usable(r: ReadingItem): boolean {
@@ -143,6 +251,10 @@ export class Rewriter {
     for (const w of r.wants) {
       if (!isCall(w)) continue;
       const [x0, k] = positional(w).map((a) => (isVar(a) ? b.get(a.text) : a));
+      // A referent that only points ("it") says no kind. A reading the user taught wanted what
+      // "it" pointed at when they taught it (what a step printed), found only when it is
+      // evaluated, so for theirs the want is neither met nor missed here.
+      if (isHead(x0, "Ref") && !role(x0, "kind") && !role(x0, "of") && this.trust(r.meta.from) === 1) continue;
       // A referent is of the kind it was said as (logical-form.md section 4).
       // A number said as digits is of the kind its shape is (the seed's Numeral, a number).
       const x = isHead(x0, "Ref") && isCall(role(x0, "kind")) ? role(x0, "kind") : x0?.kind === "number" ? c("Numeral") : x0;
@@ -199,11 +311,15 @@ export class Rewriter {
     const seen2 = new Set(seen).add(k);
     const cands = this.candidates(e);
     const alts: Omit<Derivation, "score">[] = [];
-    for (const { r, b, result, features } of cands) {
-      const step: Step = { reading: r.meta.id, owner: r.owner, before: e, after: result, from: r.meta.from, key: readingKey(r), effects: r.effects };
+    for (const { r, b, result, features, step: inner } of cands) {
+      const step: Step = { reading: r.meta.id, owner: r.owner, before: inner?.before ?? e, after: inner?.after ?? result, from: r.meta.from, key: readingKey(r), effects: r.effects };
       const own = features ? mergeFeatures(this.wantFeatures(r, b), features) : this.wantFeatures(r, b);
       addFeature(own, `Evidence:${readingKey(r)}`, 1);
-      for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: mergeFeatures(own, d.features), steps: [step, ...d.steps] });
+      // Trust (runtime.md 8.1): a reading the user gave (level 1) is what they said they mean. Only
+      // that level is a feature here: the seed's readings are everywhere, and documentation's are
+      // weighed by their evidence, so a correction moves them one by one, never all at once.
+      if (this.trust(r.meta.from) === 1) addFeature(own, "Trust:1", 1);
+      for (const d of this.norm(result, depth + 1, seen2)) alts.push({ expr: d.expr, features: trusted(mergeFeatures(own, d.features)), steps: [step, ...d.steps] });
     }
     // Leaving this node as it is, and reading its arguments, is an alternative too: a reading
     // that applies here is a choice, not an obligation (an inner "is in" may be part of an outer
@@ -223,14 +339,14 @@ export class Rewriter {
           const call = cmb.expr as Call;
           const args = call.args.slice();
           args[i] = { ...args[i], value: alt.expr };
-          next.push({ expr: { ...call, args }, features: mergeFeatures(cmb.features, alt.features), steps: [...cmb.steps, ...alt.steps] });
+          next.push({ expr: { ...call, args }, features: trusted(mergeFeatures(cmb.features, alt.features)), steps: [...cmb.steps, ...alt.steps] });
         }
       combos = this.top(next);
     });
     const out: Omit<Derivation, "score">[] = [];
     for (const cmb of combos) {
       if (key(cmb.expr) !== k && this.candidates(cmb.expr).length)
-        for (const d of this.norm(cmb.expr, depth + 1, seen2)) out.push({ expr: d.expr, features: mergeFeatures(cmb.features, d.features), steps: [...cmb.steps, ...d.steps] });
+        for (const d of this.norm(cmb.expr, depth + 1, seen2)) out.push({ expr: d.expr, features: trusted(mergeFeatures(cmb.features, d.features)), steps: [...cmb.steps, ...d.steps] });
       else out.push(cmb);
     }
     return this.top(out);

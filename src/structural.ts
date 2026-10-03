@@ -84,6 +84,9 @@ export const STRUCTURAL = {
       "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",
       // Focus's budget per turn, per source (runtime.md 11b), a policy fact on Focus.
       "Focus", "Budget", "Lookups", "Candidates",
+      // The scored match's threshold (runtime.md 6.2), a fact on Match; and what a command's
+      // summary, understood, says it does (Describes on its sense), which requests are matched to.
+      "Threshold", "Describes",
     ],
   },
   effects: {
@@ -103,6 +106,10 @@ export const STRUCTURAL = {
   stuck: {
     why: "seed draft: the reasons the runtime records for an unworked expression (design section 23)",
     names: ["NoSense", "NoReading", "NeedUnmet", "NoSource", "NoPermission", "TooClose", "BlockedBy", "NoInverse"],
+  },
+  loop: {
+    why: "try, offer, learn (design section 17): the numbered choice the turn says and a number picks from, and what a typed command taught",
+    names: ["Choices", "Choice", "Taught", "Slots"],
   },
   speaking: {
     why: "seed draft: what Say is handed to realize, and the printing step of design section 25b",

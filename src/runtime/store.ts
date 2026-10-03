@@ -135,7 +135,11 @@ export class Store {
     });
   }
 
+  /** Changes with every write, so what is worked out over the whole store can be kept until it changes. */
+  generation = 0;
+
   private clearCaches() {
+    this.generation++;
     for (const m of Object.values(this.cache)) m.clear();
     this.lemmaList = undefined;
   }
@@ -231,6 +235,7 @@ export class Store {
   /** A runtime addition: written, and the caches it touches dropped. */
   private add<T extends Item>(item: T): T {
     this.write(item);
+    this.generation++;
     if (item.kind === "fact") {
       this.cache.bySubject.delete(item.subject);
       this.cache.has.delete(item.subject);
@@ -403,6 +408,31 @@ export class Store {
   /** Readings whose pattern has this head; "" for patterns that are a bare variable. */
   readingsFor(head: string): ReadingItem[] {
     return this.cached(this.cache.byPatternHead, head, () => this.rows<ReadingItem>("byPatternHead", head));
+  }
+
+  private headCountsCache?: { readings: number; df: Map<string, number> };
+
+  /**
+   * How many readings name each concept, and how many readings there are: how common a concept
+   * is in what the graph says (read once per store, a scan of every reading; what is learned
+   * after hardly moves it).
+   */
+  headCounts(): { readings: number; df: Map<string, number> } {
+    if (this.headCountsCache) return this.headCountsCache;
+    const df = new Map<string, number>();
+    const rows = this.db.prepare("SELECT json FROM items WHERE kind = 'reading' AND status != 'Retracted'").all() as { json: string }[];
+    for (const r of rows) for (const h of new Set([...r.json.matchAll(/"head":"([^"]+)"/g)].map((m) => m[1]))) df.set(h, (df.get(h) ?? 0) + 1);
+    this.headCountsCache = { readings: rows.length, df };
+    return this.headCountsCache;
+  }
+
+  /** Readings added at runtime (taught, learned from a pick), in no pack: few, read whole. */
+  readingsAdded(): ReadingItem[] {
+    return (this.db.prepare("SELECT id, json FROM items WHERE kind = 'reading' AND pack IS NULL AND status != 'Retracted' ORDER BY id").all() as { id: number; json: string }[]).map((r) => {
+      const item = fromJson(r.json) as ReadingItem;
+      item.meta.id = r.id;
+      return item;
+    });
   }
 
   block(id: string): BlockItem | undefined {

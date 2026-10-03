@@ -29,6 +29,19 @@ Concept(Coverage(), Weight(0))
 Concept(FocusSource(), Weight(0))
 Concept(FocusFit(), Weight(0.25))
 
+// The scored match (runtime.md 6.2): its features are costs (an exact match costs nothing),
+// weighed one by one, apart from the Match template's own weight (Match:Said, in choosing a
+// referent, stays at 0). A match whose score is below the threshold is not a candidate.
+Fact(Feature(), Weight("Match:Uncovered", 1))
+Fact(Feature(), Weight("Match:Unexplained", 1))
+Fact(Feature(), Weight("Match:Distance", 0.25))
+Concept(Match(), Threshold(-0.9))
+
+// A reading the user gave (trust level 1) is what they said they mean (runtime.md 8.1: Trust):
+// it outweighs the guesses (a sense, a frame) that would read the same words, and the steps of
+// its meaning left to work out.
+Fact(Feature(), Weight("Trust:1", 3))
+
 // Stage two (runtime.md section 8.2)
 Concept(ReachedAct(), Weight(1))
 Concept(NeedsMet(), Weight(0))
