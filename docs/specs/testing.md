@@ -141,9 +141,19 @@ One JSON object per item, in `~/.noodle/experiment/gold.jsonl`:
 }
 ```
 
-- **Arguments match per kind**: exact for files, branches, refs and remotes; flags as a set; a
-  commit message is any message that passes its stated constraints (design section 26), never a
-  string match.
+- **Arguments are typed by their key**: `files` (paths, a list), `branch`, `onto` and `base`
+  (branches or refs), `remote`, `number` (a pull request or issue number, a JSON number), `url`,
+  `flags` (a list) and `message`. A message is `{ "constraints": [...] }`, or, when the request
+  dictated it, `{ "text": "fix the typo", "constraints": [] }`.
+- **Arguments match per kind**: exact for files, branches, refs, remotes, numbers and urls; flags as
+  a set; a dictated message exactly (trimmed); any other commit message is any message that passes
+  its stated constraints (design section 26), never a string match.
+- **Labelling arguments** (`pnpm label`): an act typed without arguments gets the values its request
+  text holds proposed, by the slot filler's rules (section 7) over the prompt and the fixture's
+  branch names, never from Noodle; enter accepts them, `n` takes none, or the labeller types them.
+  Known risk: a labeller who accepts proposals unread anchors the gold to the slot filler, which
+  favours the baselines that use it; the proposals are shown only after the act is typed, and the
+  re-labelled 20 percent (section 6.3) is typed without them.
 - **Order**: acts in the listed order; an item whose acts may run in any order says
   `"order": "any"`.
 - **A constraint on its own** ("don't push yet") has `class: "constraint"`, no acts, and the stored
@@ -250,7 +260,23 @@ trusted.
   filler (recency plus shape match) for every act baseline; for referents, recency and a learned
   salience ranker; a language model as a non-deciding ceiling. Napkin is scored too.
 - Baselines live in `scripts/baselines/`, are run by the same scorer on the same items, and are
-  frozen with the system.
+  frozen with the system. `name-match.mjs` (role `name-match`) and `trained-knn.mjs`,
+  `trained-classifier.mjs`, `trained-classifier-man.mjs`, `trained-classifier-man-wn.mjs` (role
+  `trained`; decide compares with the best of them) share their models with `scripts/baseline.mjs`
+  (`scripts/baselines/lib/models.mjs`); the trained ones learn from every development label (the
+  exploratory labels minus the holdout).
+- **The slot filler** (`scripts/baselines/lib/slots.mjs`, the same for every act baseline) gives an
+  act label its arguments by stated rules: (1) typed values are taken from the request in order: a
+  url (`http://`, `https://`), a number (`#123`, or a number after "pr", "pull request", "issue" or
+  "number"), a message (a quoted span with a space in it), a path (a word naming a file or folder in
+  the sandbox's working tree), a branch (a word naming a branch of the fixture, or shaped
+  `word/word`), a remote (a word naming one of the fixture's remotes); (2) each act takes the kinds
+  its row in a fixed table lists (merge, checkout, switch, rebase: a branch; push, pull, fetch: a
+  remote and a branch; add, commit, diff, restore: paths, commit also the message; read and edit:
+  paths; pull request acts: a number or url; clone: a url); (3) recency: an act that needs a kind the
+  request lacks (merge, checkout, switch, rebase a branch; read and edit a path; clone a url; `gh pr
+  checkout` a number) takes the latest of that kind from the assistant's turns before it; (4) no
+  flags and no defaults (the scorer drops the current branch and a remote a plain push leaves out).
 - **Statistics**: every number with a 95 percent interval (Wilson for proportions); comparisons on
   the same items by paired bootstrap on per-item correctness (10,000 resamples, resampling
   conversations, not items); non-inferiority by TOST at the margin; the several go tests corrected
@@ -287,6 +313,15 @@ cost ratio, the update cap, k, the stage-two width, the rewrite budget).
   the checkout or anything else differs from the manifest, n is not set or not reached (with how
   many more are needed), or a baseline the go rule needs is missing. Results go to
   `~/.noodle/experiment/decided/`.
+- `pnpm train` makes the trained weights (design section 9; runtime.md 15): the latent-variable
+  structured perceptron over the development labels minus a calibration slice (whole
+  conversations, about 20 percent of the items, chosen by a fixed hash), with the runtime's capped
+  update, shuffled epochs with a fixed seed, averaged weights, and rounds that hear the training
+  prompts again with the new weights so the readings the chart keeps under them join the pools. It
+  reports accuracy before and after by 5-fold cross-validation over conversations, checks the final
+  weights with the replay gate on the hand-checked items and on the calibration slice, fits the
+  softmax temperature there, and writes a learned-weights pack (`from=Training()`) for
+  `pnpm freeze --weights FILE`, with a report beside it.
 - Development continues on a separate version that is never the one scored.
 - The freeze, the gold format and the mapping of expectations onto it are published before any
   confirmatory item is scored.
