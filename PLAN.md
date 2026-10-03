@@ -151,6 +151,11 @@ classifier with and without man-page and WordNet features, nearest neighbours, t
 slot fillers), the margin and n from a power calculation with its assumptions stated. If n cannot
 be reached in about four months, the domain widens to files in general now.
 
+Run as far as it goes without new labels: `pnpm pilot`, results in `docs/pilot.md` (2026-10-03). The
+planned n (243) is reached in about two months at the measured rates, so the domain does not need
+to widen for n; but A+ trained cannot run yet (no trainer), end state cannot be measured on the
+exploratory labels, and with the effect the pilot measured no n reaches go.
+
 ## Phase 6: stage 2 (the deciding run)
 
 Freeze the scored system as one unit (runtime commit hash, pack versions, trained weights) and

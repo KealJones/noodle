@@ -22,7 +22,8 @@
     "score:acts": "pnpm build && node scripts/acts.mjs",
     "killtest": "pnpm build && node scripts/killtest.mjs",
     "versus": "pnpm build && node scripts/versus.mjs",
-    "versus:noodle": "pnpm build && node scripts/versus.mjs --reuse-napkin"
+    "versus:noodle": "pnpm build && node scripts/versus.mjs --reuse-napkin",
+    "pilot": "pnpm build && node scripts/pilot.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
