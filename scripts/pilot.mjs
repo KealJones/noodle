@@ -11,7 +11,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { conversation, corpus, devLabels, jsonl, split } from "./devset.mjs";
+import { conversation, corpus, devLabels, jsonl, split, reviewedByKeal } from "./devset.mjs";
 import { captures, namesCommand } from "./label.mjs";
 
 const here = import.meta.dirname;
@@ -218,7 +218,7 @@ const noodle = best(ARMS.map((a) => `Noodle ${a.name}`));
 const vsName = paired(noodle.s, "name", actItems);
 const vsBest = paired(noodle.s, bestBaseline.s, actItems);
 const vsTrained = bestTrained.s === bestBaseline.s ? vsBest : paired(noodle.s, bestTrained.s, actItems);
-const keal = actItems.filter((it) => it.labeller === "keal" || it.labeller === undefined);
+const keal = actItems.filter(reviewedByKeal);
 const vsBestKeal = paired(noodle.s, bestBaseline.s, keal);
 
 // ---- power
