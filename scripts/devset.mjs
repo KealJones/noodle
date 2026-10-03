@@ -30,3 +30,9 @@ export function devLabels({ classes = ["acts", "none"], maxWords = Infinity, all
     .filter((l) => l.verdict !== "drop" && classes.includes(l.class) && all[l.i]?.text && !all[l.i].text.trimStart().startsWith("<heartbeat>"))
     .map((l) => ({ ...l, text: all[l.i].text, row: all[l.i], tooLong: all[l.i].text.split(/\s+/).length > maxWords }));
 }
+
+/**
+ * Whether Keal wrote or checked a label: labelled by him, or a draft he reviewed in a labelling
+ * session (ok, fixed, resolved, or spot-checked). Drafts nobody reviewed carry verdict "label".
+ */
+export const reviewedByKeal = (l) => l.labeller === "keal" || ["ok", "fixed", "resolved", "spot-ok", "spot-fixed"].includes(l.verdict);
