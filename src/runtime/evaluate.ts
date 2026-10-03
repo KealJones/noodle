@@ -517,15 +517,28 @@ export class Evaluator {
   // -------------------------------------------------------------------------------------------
   // Rules and guards
 
+  /**
+   * What an act was rewritten from, back to what was heard: whole-expression steps, and steps that
+   * rewrote a part of it (the act as it was before that part changed), so a reading that made the
+   * act is found even when something inside the act was rewritten after it (a referent resolved,
+   * a role read). Rules and the trust of the readings that led to an act are checked over all of it.
+   */
   private ancestry(a: Expr): Expr[] {
     const out: Expr[] = [a];
     const seen = new Set([key(a)]);
+    const push = (x: Expr) => {
+      const k = key(x);
+      if (seen.has(k) || out.length > 200) return;
+      seen.add(k);
+      out.push(x);
+    };
     for (let i = 0; i < out.length; i++)
-      for (const st of this.steps)
-        if (key(st.after) === key(out[i]) && !seen.has(key(st.before))) {
-          seen.add(key(st.before));
-          out.push(st.before);
-        }
+      for (const st of this.steps) {
+        const after = key(st.after);
+        if (after === key(out[i])) push(st.before);
+        else if (isCall(out[i]) && [...walk(out[i])].some((y) => y !== out[i] && key(y) === after))
+          push(mapExpr(out[i], (y) => (key(y) === after ? st.before : undefined)));
+      }
     return out;
   }
 
