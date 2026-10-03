@@ -40,3 +40,11 @@
   corrects raises confidence (the learned weights and a reading from=User), so the same ask is
   done directly next time, and it carries over to new asks through the concepts it shares
   (concept reuse), not as a stored phrase.
+- **ChatGPT as a tutor for choices (the oracle arm, design phase 7)** (after gptb and the learn loop
+  land). Keal: when a choice has no clear evidence path, ask gptb to choose given the same context
+  and explain why, in a fixed structure that parses. Ask with the request, context and numbered
+  candidates; reply as `choice: N` and `because: ...`. The choice is a weak training signal
+  (from=ChatGPT, trust 4, through the replay gate, never overriding the user); the because is heard
+  by Noodle's own pipeline into proposed facts, Pending until they prove out or Keal confirms. It
+  never picks an effectful act for the user. Everything it teaches is tagged so it can be switched
+  off and its share measured; the scored experiment runs with it off.
