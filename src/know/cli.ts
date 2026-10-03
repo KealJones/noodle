@@ -7,6 +7,7 @@
 //   pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz
 //   pnpm import tool git       (from the local man pages)
 //   pnpm import definitions [count] [verb|all]   (the imported senses' definitions, understood)
+//   pnpm import openapi <description.json> <name> --cli "gh api" --method -X --field -f --typed-field -F --fills owner,repo
 
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -15,6 +16,7 @@ import { gunzipSync } from "node:zlib";
 import { seededStore } from "../runtime/seed.js";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { learnTool } from "./tooldocs.js";
+import { learnOpenApi } from "./openapi.js";
 import { importVerbNet } from "./verbnet.js";
 import { importWiktionary, importWiktionaryPhrases } from "./wiktionary.js";
 import { STORE, packedStore } from "../assistant/index.js";
@@ -80,6 +82,26 @@ if (source === "wordnet" && path) {
   const r = await learnTool(path, PRIMITIVES.get("Read")!, world, store, words);
   writeFileSync(join(PACKS, `tool-${path}.ncon`), r.text);
   console.log(`tool-${path}: ${r.commands.length} commands learned, ${r.skipped.length} pages skipped -> ${join(PACKS, `tool-${path}.ncon`)}`);
+} else if (source === "openapi" && path && version) {
+  // An HTTP API's published description (OpenAPI 3), its operations' summaries understood over
+  // the words the other packs give. How the API is spoken to is the user's to say here: the
+  // program and its leading arguments, its options for the method and for fields, and the path
+  // placeholders it fills itself.
+  const opt = (flag: string) => {
+    const i = process.argv.indexOf(flag);
+    return i > 0 ? process.argv[i + 1] : undefined;
+  };
+  const command = opt("--cli")?.split(/\s+/).filter(Boolean);
+  const method = opt("--method");
+  const field = opt("--field");
+  if (!command?.length || !method || !field) throw new Error('say how the API is spoken to: --cli "<program> [args]" --method <option> --field <option> [--typed-field <option>] [--fills a,b]');
+  const words = packedStore(PACKS);
+  for (const name of words.packNames()) if (name.startsWith("tool-") || name.startsWith("openapi-")) words.unload(name);
+  const doc = JSON.parse(read(path));
+  const t0 = Date.now();
+  const r = await learnOpenApi(doc, version, { command, method, field, typedField: opt("--typed-field"), fills: opt("--fills")?.split(",").filter(Boolean) }, store, words, (n, all) => n % 200 === 0 && console.error(`  ${n} of ${all} operations, ${Math.round((Date.now() - t0) / 1000)} s`));
+  writeFileSync(join(PACKS, `openapi-${version}.ncon`), r.text);
+  console.log(`openapi-${version}: ${r.operations} operations, ${r.understood} summaries understood, ${r.readings} readings, ${r.parameters} parameters, ${r.skipped.length} not understood -> ${join(PACKS, `openapi-${version}.ncon`)}`);
 } else if (source === "definitions") {
   // Stage 0 (design section 6): the definitions of the first senses of the most common words, and
   // of every sense they need, understood into Expand readings on the senses. The words come from

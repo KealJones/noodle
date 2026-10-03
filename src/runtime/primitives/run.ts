@@ -9,13 +9,17 @@ import type { Primitive } from "../primitive.js";
 import { blockRef, SELF, str } from "./args.js";
 import { resolveInside } from "./paths.js";
 
+// One argument may be made of pieces, Joined(...), written together: a path with what fills its
+// placeholders ("repos/", 12, "/reviews"), a field and its value ("body=", "fixed").
 function argv(args: Expr | undefined): string[] {
   if (!isHead(args, "Args")) throw new Error("Run's arguments are Args(...)");
-  return positional(args).map((a) => {
+  const one = (a: Expr): string => {
     if (a.kind === "string") return a.value;
     if (a.kind === "number") return String(a.value);
+    if (isHead(a, "Joined")) return positional(a).map(one).join("");
     throw new Error("each of Run's arguments is a string or a number");
-  });
+  };
+  return positional(args).map(one);
 }
 
 /**

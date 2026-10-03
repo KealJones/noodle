@@ -97,3 +97,17 @@ CC BY-SA 4.0 (it includes Wikipedia and other ShareAlike text counts), so it is 
   strict precision is 54 percent (84 counting partial), still below PLAN.md phase 4's 70 percent
   line, but the harness scores the same with it as without, so it is loaded. A pack whose file
   leaves `~/.noodle/packs/` is taken out of the store on the next start.
+
+## HTTP APIs from their OpenAPI descriptions
+
+GitHub's REST API description (`api.github.com.json` from the `descriptions/api.github.com/`
+directory of <https://github.com/github/rest-api-description>, about 13 MB, MIT) is downloaded
+once into `~/.noodle/sources/`. How the API is spoken to is given on the command line:
+
+```bash
+pnpm run import openapi ~/.noodle/sources/api.github.com.json github --cli "gh api" --method -X --field -f --typed-field -F --fills owner,repo
+```
+
+This writes `openapi-github.ncon` (about 2 minutes; on 2026-10-03: 1,232 operations, 1,107
+summaries understood, 4,276 readings, 3,680 parameters). Its source is `ApiDoc(...)`, which the
+trust table does not list, so it is level 4: every operation is a proposal.
