@@ -6,7 +6,8 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import type { Call } from "../runtime/expr.js";
+import { type Call, type Expr, isCall } from "../runtime/expr.js";
+import { chatgptServer } from "../runtime/know/sources.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
@@ -18,6 +19,8 @@ import type { Assistant, ChatMessage } from "../serve/assistant.js";
 import { ReplayGate } from "./replay.js";
 import { Know } from "../runtime/know/know.js";
 import { learnTool } from "../know/tooldocs.js";
+import { FrozenSystem } from "./frozen.js";
+import type { Weights } from "../runtime/score.js";
 
 export interface AssistantOptions {
   /** The workspace every primitive is confined to. */
@@ -28,6 +31,11 @@ export interface AssistantOptions {
 /** The store: one SQLite file, imported into once, queried as it is used (ncon.md section 9). */
 export const STORE = process.env.NOODLE_STORE ?? join(homedir(), ".noodle", "store.db");
 export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "packs");
+/**
+ * A frozen system to run instead of the working one (design section 29; pnpm freeze): its store is
+ * built from the frozen copies, and it refuses to start if anything differs from its manifest.
+ */
+export const FROZEN = process.env.NOODLE_FROZEN;
 
 /**
  * The durable store with the seed and every pack in ~/.noodle/packs/ in it (pnpm run import). A part or
@@ -35,6 +43,7 @@ export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "pac
  * What was learned and taught is in the same database, kept across sessions.
  */
 export function packedStore(dir = PACKS, path = STORE): Store {
+  if (FROZEN) return new FrozenSystem(FROZEN).store("A+");
   if (path !== ":memory:") mkdirSync(join(path, ".."), { recursive: true });
   const store = seededStore(undefined, path);
   if (existsSync(dir)) {
@@ -93,6 +102,38 @@ export interface Config {
    * whatever its effects allow. Default 0.5; 0 never asks.
    */
   askBelow?: number;
+  /**
+   * Ask ChatGPT when no other source answers (design section 21), through the program that
+   * speaks to it in the user's browser: the command line before the question (["gptb"] by
+   * default), or false to never ask it. Asking sends the question outside, so it is guarded as
+   * any lookup is (the SendsOutside grant).
+   */
+  chatgpt?: boolean | string[];
+  /** How long ChatGPT may take to answer, in milliseconds (120000). */
+  chatgptTimeoutMs?: number;
+}
+
+/**
+ * ChatGPT, asked through Run of the configured program with the question as its last argument;
+ * where that cannot reach the browser (another gptb holds it), through gptb's local server. Its
+ * reply is its output.
+ */
+function chatgptAsker(config: Config, world: World): ((question: string) => Promise<string | undefined>) | undefined {
+  if (config.chatgpt === false || !config.know || config.know === "offline") return undefined;
+  const [program, ...args] = Array.isArray(config.chatgpt) && config.chatgpt.length ? config.chatgpt : ["gptb"];
+  // A config that lists the programs Run may start, without this one, does not ask it at all.
+  if (world.programs && !world.programs.has(program)) return undefined;
+  const timeoutMs = config.chatgptTimeoutMs ?? 120000;
+  const run = PRIMITIVES.get("Run")!;
+  const str = (x: string): Expr => ({ kind: "string", value: x, pos: P0 });
+  return async (question) => {
+    const ran = await run.run([str(program), { kind: "call", head: "Args", args: [...args, question].map((x) => ({ value: str(x) })), pos: P0 }], { ...world, timeoutMs }).catch(() => undefined);
+    const exit = ran && isCall(ran) ? ran.args.find((a) => a.name === "exit")?.value : undefined;
+    const out = ran && isCall(ran) ? ran.args.find((a) => a.name === "output")?.value : undefined;
+    const id = isCall(out) ? out.args[0]?.value : undefined;
+    const text = exit?.kind === "number" && exit.value === 0 && id?.kind === "string" ? world.store.block(id.value)?.body : undefined;
+    return text?.trim() ? text : chatgptServer(question, 7778, timeoutMs);
+  };
 }
 
 export function readConfig(path = process.env.NOODLE_CONFIG ?? join(homedir(), ".noodle", "config.json")): Config {
@@ -100,7 +141,15 @@ export function readConfig(path = process.env.NOODLE_CONFIG ?? join(homedir(), "
   return JSON.parse(readFileSync(path, "utf8")) as Config;
 }
 
-export function createSession(store: Store, root: string, config: Config = {}, onSay?: (doc: unknown) => void): Session {
+/** What the experiment's arms set (design section 29): the weights, and the confirmations of the variant. */
+export interface SessionArm {
+  weights?: Weights;
+  confirmed?: Iterable<string>;
+}
+
+export function createSession(store: Store, root: string, config: Config = {}, onSay?: (doc: unknown) => void, arm: SessionArm = {}): Session {
+  // A frozen system learns nothing: what it is, is what was frozen.
+  if (FROZEN) config = { ...config, learn: false, replay: false };
   const world: World = {
     root,
     store,
@@ -113,9 +162,10 @@ export function createSession(store: Store, root: string, config: Config = {}, o
   };
   // Know, the door to outside knowledge, where the channel turns it on; whether it may go out is
   // the SendsOutside grant.
-  if (config.know) world.know = new Know(store, world.now, { offline: config.know === "offline" });
+  if (config.know) world.know = new Know(store, world.now, { offline: config.know === "offline", chatgpt: chatgptAsker(config, world) });
   // Readings from documentation the user has confirmed, kept as facts (runtime.md 13).
   const confirmed = new Set(
+    arm.confirmed ??
     store
       .facts("Confirmation", "Confirmed")
       .map((f) => (f.claim as Call).args[0]?.value)
@@ -128,7 +178,7 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     const claim: Call = { kind: "call", head: "Confirmed", args: [{ value: { kind: "string", value: k, pos: { line: 0, column: 0 } } }], pos: { line: 0, column: 0 } };
     store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
   };
-  const session = new Session(store, PRIMITIVES, world);
+  const session = new Session(store, PRIMITIVES, world, undefined, arm.weights);
   if (config.askBelow !== undefined) session.askBelow = config.askBelow;
   // A program a request names that the graph does not know is learned from its documentation
   // (design section 25), understood over the words the store has, and loaded. Where the channel

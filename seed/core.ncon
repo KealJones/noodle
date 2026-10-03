@@ -235,6 +235,26 @@ Concept(Warning(), Lemma("warning"), IsA(Kind()))                         // a c
 Concept(Caution(), Lemma("caution"), IsA(Kind()))                         // a callout kind
 
 // ---------------------------------------------------------------------------------------------
+// What the assistant learns to use (design section 25): the kinds every tool, service and source
+// it learns is filed under. They pass the test of built-ins.md section 1: a chess assistant learns
+// an engine's commands and options, a jam website's assistant a shop's API and its operations,
+// and both look things up somewhere; none of these kinds is any one tool's, service's or
+// source's. What belongs to what is PartOf (a command PartOf its tool, an option PartOf its
+// command, an operation PartOf its API, a parameter PartOf its operation); a service spoken to
+// through a program is ServedBy it. Command and Option are also the names of a usage line's parts
+// (Read of a manual page): the same things, written down. Source is the role (where something
+// starts), so where knowledge comes from is KnowledgeSource, said "source".
+
+Concept(Tool(), Lemma("tool"), IsA(Program()))                            // a program on this machine, run by its name
+Concept(Command(), Lemma("command"), IsA(Program()))                      // what a tool does when told
+Concept(Option(), Lemma("option"))                                        // what changes how a command does it
+Concept(Api(), Lemma("api"))                                              // a service spoken to over HTTP
+Concept(Operation(), Lemma("operation"))                                  // what a service does when asked
+Concept(Parameter(), Lemma("parameter"))                                  // what an operation is told
+Concept(KnowledgeSource(), Lemma("source"))                               // where what is known comes from
+Concept(ServedBy(), Frame(Thing(), Thing()))                              // reached through another: an API through its program
+
+// ---------------------------------------------------------------------------------------------
 // The assistant itself: what it holds about the one addressed in every conversation, so a
 // question about it is answered from here (design section 14b), never from the world's sources.
 
