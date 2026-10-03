@@ -23,6 +23,9 @@ export interface Knowledge {
 /** How long an answer stays fresh, in days (a fact on a source, here its starting value). */
 const FRESH_DAYS = 30;
 
+/** How long a source that did not answer is left alone, in milliseconds. */
+const QUIET_MS = 10 * 60 * 1000;
+
 export interface KnowOptions {
   /** Never go out: answer from the graph and what was kept. */
   offline?: boolean;
@@ -34,6 +37,7 @@ export interface KnowOptions {
 }
 
 export class Know {
+  private quietUntil = 0;
   readonly learner: Learner;
   /** What learning found, for the report (fact counts per page). */
   readonly learned: Learned[] = [];
@@ -139,8 +143,14 @@ export class Know {
   async ask(question: string, topic?: string): Promise<Knowledge | undefined> {
     const have = this.cached("ask", question);
     if (have || this.opts.offline || !this.opts.chatgpt) return have;
+    // A source that did not answer is not asked again for a while: each try waits on it (gptb
+    // waits for ChatGPT's page), and a turn should not pay that for every question.
+    if (this.quietUntil > this.now().getTime()) return undefined;
     const text = (await this.opts.chatgpt(question).catch(() => undefined))?.trim();
-    if (!text) return undefined;
+    if (!text) {
+      this.quietUntil = this.now().getTime() + QUIET_MS;
+      return undefined;
+    }
     const found: Found = { text, title: topic ?? question, url: "", source: "ChatGPT", media: "text/markdown" };
     const k = this.keep("ask", question, found);
     await this.understand(found).catch(() => undefined);
