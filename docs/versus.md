@@ -1,6 +1,6 @@
 # Noodle beside Napkin
 
-Run 2026-10-03 20:47 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-03 21:45 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 1:48 PM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 2:45 PM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Saturday, October 3. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | From Wikipedia, [Date palm](https://en.wikipedia.org/wiki/Date_palm):<br><br>Phoenix dactylifera, commonly known as the date palm, is a flowering-plant species in the palm family Arecaceae, native to the region from the Gulf States and Iraq to Pakistan and India. It is cultivated for its edible sweet fruit called dates. The species is widely cultivated across northern Africa, the Middle East, Aust ... | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -128,9 +128,9 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-qfTcHn`. | WRONG | I don't know what branch on you yet. | HONEST |
-| 58 | what changed since the last commit | From Wikipedia, [Continuous integration](https://en.wikipedia.org/wiki/Continuous_integration):<br><br>Continuous integration (CI) is the practice of integrating source code changes frequently and ensuring that the integrated codebase is in a workable state. Typically, developers merge changes to an integration branch, and an automated system builds and tests the software system. <br>Often, the au ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 7fe132f7e2030e00fe73d24d86d8277135b73672<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 13:49:02 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 57 | what branch am i on | We're in `/private/var/folders/0d/gsyzwl_x2wl8f2zxbtfq_mj80000gs/T/versus-Vg64R5`. | WRONG | I don't know what branch on you yet. | HONEST |
+| 58 | what changed since the last commit | From Wikipedia, [Continuous integration: Committing changes](https://en.wikipedia.org/wiki/Continuous_integration#Committing_changes):<br><br>When making a code change, a developer creates a branch that is a copy of the current codebase. As other changes are committed to the repository, this copy diverges from the latest version.<br><br>The longer development continues on a branch without merging  ... | WRONG | I don't know changed since last commit yet. | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 364e9f016b20b177de07c62aa251226384165f2b<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 14:46:27 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I can run `git commit`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
 | 61 | yes go ahead | `git commit` failed (exit 1):<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
 | 62 | is the working tree clean now? | Do you mean run ` git clean  `, or run `git clean`? | RIGHT | I don't know yet. | HONEST |
@@ -162,7 +162,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 74 | waht is teh capitol of france | I couldn't work out "waht is teh capitol of france". | HONEST | Paris. | RIGHT |
 | 75 | hwo many days in a leap yeer | I couldn't work out "hwo many days in a leap yeer". | HONEST | I don't know that yet. | HONEST |
-| 76 | pls show me whats in teh readme | ```<br>git show<br>```<br><br>```<br>commit 3e74c4f0313b8bab4ca90df31174654c7193540c<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 13:49:14 2026 -0700<br><br>    first commit<br><br>diff --git a/README.md b/README.md<br>new file mode 100644<br>index 0000000..4c6e061<br>--- /dev/null<br>+++ b/README.md<br>@@ -0,0 +1,3 @@<br>+# Shopping app<br>+<br>+A tiny app that keeps a shopping lis ... | RIGHT | I don't know how to what yet. | HONEST |
+| 76 | pls show me whats in teh readme | I couldn't work out "pls show me whats in teh readme". I understood run `git show me`, but I don't know how to do it.<br><br>`README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I don't know how to what yet. | HONEST |
 | 77 | whats 9 tims 9 | 9 times 9 is 81. | RIGHT | I don't know yet. | HONEST |
 | 78 | remmber my fav color is green | I couldn't work out "remmber my fav color is green". | HONEST | I don't know how to is yet. | HONEST |
 | 79 | wats my fav color | You haven't told me that. | HONEST | I see. | WRONG |
