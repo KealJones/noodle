@@ -108,20 +108,23 @@ export function sameAct(gold, s, defaults = {}) {
   if (!sameLabel(gold, s)) return { ok: false };
   if (gold.program === "gh" && gold.sub?.startsWith("pr")) return { ok: true, labelOnly: true };
   let { rest } = subOf(gold, s);
-  let message = false;
+  let message;
   const args = [];
   for (let i = 0; i < rest.length; i++) {
     const t = rest[i];
-    if (MESSAGE_FLAGS.has(t)) (message = true), i++;
-    else if (t.startsWith("--message=")) message = true;
+    if (MESSAGE_FLAGS.has(t)) message = rest[++i] ?? "";
+    else if (t.startsWith("--message=")) message = t.slice("--message=".length);
     else args.push(t);
   }
-  const want = [...(gold.flags ?? []), ...(gold.files ?? []), ...Object.entries(gold).filter(([k, v]) => !GOLD_KEYS.has(k) && typeof v === "string").map(([, v]) => v)];
+  // Typed values (testing.md 5.1): paths, branches, refs, remotes and urls as strings, numbers as written.
+  const want = [...(gold.flags ?? []), ...(gold.files ?? []), ...Object.entries(gold).filter(([k, v]) => !GOLD_KEYS.has(k) && (typeof v === "string" || typeof v === "number")).map(([, v]) => String(v))];
   const optional = new Set([defaults.branch, ...(defaults.remotes ?? [])].filter(Boolean));
   const bag = (xs) => xs.map(tidy).filter((x) => !optional.has(x)).sort();
   const files = s.files ?? [];
   const got = [...args, ...files];
-  const ok = JSON.stringify(bag(want)) === JSON.stringify(bag(got)) && (!gold.message || message);
+  // A message the request dictated is that message; any other passes its constraints (unchecked here).
+  const said = !gold.message || (message !== undefined && (gold.message.text === undefined || message.trim() === gold.message.text.trim()));
+  const ok = JSON.stringify(bag(want)) === JSON.stringify(bag(got)) && said;
   return { ok, unchecked: gold.message?.constraints?.length ? gold.message.constraints : undefined };
 }
 
@@ -387,7 +390,7 @@ export async function scoreAll({ sys, items, baselines, root, createSession, inM
         }
       }
       for (const b of baselines) {
-        const acts = await b.predict({ ...g, meta, root: box.root });
+        const acts = await b.predict({ ...g, meta, root: box.root, turns: jsonl(join(fixtureDir, "turns.jsonl")) });
         row.baselines[b.name] = { ...scoreItem(g, { acts, said: [] }, defaults), acted: acts.length > 0, role: b.role };
       }
     } finally {

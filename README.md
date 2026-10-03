@@ -1,4 +1,5 @@
 # Noodle
+hello from sol!
 
 An assistant that understands and acts without a language model. Everything it knows is a graph of
 nested concepts, written in **N-Con** (`.ncon`). A message is heard into N-Con close to the words
