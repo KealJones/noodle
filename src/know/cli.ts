@@ -9,6 +9,7 @@
 //   pnpm import definitions [count] [verb|all]   (the imported senses' definitions, understood)
 //   pnpm import openapi <description.json> <name> --cli "gh api" --method -X --field -f --typed-field -F --fills owner,repo
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -109,6 +110,9 @@ if (source === "wordnet" && path) {
   let bytes = 0;
   let commands = 0;
   const failed: string[] = [];
+  const large: string[] = [];
+  /** Bytes of a manual page's source (compressed or not) above which it is left out. */
+  const BOOK = 64 * 1024;
   for (const name of [...programs].sort()) {
     if (learned >= limit) break;
     if (have.has(name)) continue;
@@ -120,6 +124,18 @@ if (source === "wordnet" && path) {
     }
     const manual = found.kind === "call" ? found.args.find((a) => a.name === "manual")?.value : undefined;
     if (!(manual?.kind === "boolean" && manual.value)) continue;
+    // A manual the size of a book (a compiler's, a shell's) takes minutes to understand: it is
+    // left for `pnpm import tool <name>`, one at a time, and listed.
+    let size = 0;
+    try {
+      size = statSync(execFileSync("man", ["-w", name], { encoding: "utf8", timeout: 10000 }).trim().split("\n")[0]).size;
+    } catch {
+      size = 0;
+    }
+    if (size > BOOK) {
+      large.push(name);
+      continue;
+    }
     const t1 = Date.now();
     try {
       const r = await learnTool(name, read, world, store, words, "manual");
@@ -137,7 +153,7 @@ if (source === "wordnet" && path) {
       console.error(`  ${name}: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
     }
   }
-  console.log(`tools: ${learned} programs learned from their manual pages (${commands} commands, ${(bytes / 1024 / 1024).toFixed(1)} MB of packs) in ${Math.round((Date.now() - t0) / 1000)} s; ${failed.length} with a page nothing could be learned from -> ${PACKS}`);
+  console.log(`tools: ${learned} programs learned from their manual pages (${commands} commands, ${(bytes / 1024 / 1024).toFixed(1)} MB of packs) in ${Math.round((Date.now() - t0) / 1000)} s; ${failed.length} with a page nothing could be learned from; ${large.length} left out for their size (${large.join(" ")}) -> ${PACKS}`);
 } else if (source === "openapi" && path && version) {
   // An HTTP API's published description (OpenAPI 3), its operations' summaries understood over
   // the words the other packs give. How the API is spoken to is the user's to say here: the
