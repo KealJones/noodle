@@ -78,7 +78,7 @@ if (source === "wordnet" && path) {
   // understood over the words the other packs give, without any tool's readings (a command is not
   // understood through itself, nor through another tool's word for it).
   const world = { root: process.cwd(), store, now: () => new Date(), say() {}, ask() {} };
-  const words = packedStore(PACKS);
+  const words = packedStore(PACKS, undefined, (f) => !f.startsWith("tool-"));
   for (const name of words.packNames()) if (name.startsWith("tool-")) words.unload(name);
   const r = await learnTool(path, PRIMITIVES.get("Read")!, world, store, words);
   writeFileSync(join(PACKS, `tool-${path}.ncon`), r.text);
@@ -90,7 +90,7 @@ if (source === "wordnet" && path) {
   // with a pack already are skipped, so a run can be stopped and started again. `pnpm import
   // tools [count]` learns at most count programs.
   const world = { root: process.cwd(), store, now: () => new Date(), say() {}, ask() {} };
-  const words = packedStore(PACKS);
+  const words = packedStore(PACKS, undefined, (f) => !f.startsWith("tool-"));
   for (const name of words.packNames()) if (name.startsWith("tool-")) words.unload(name);
   const read = PRIMITIVES.get("Read")!;
   const programs = new Set<string>();

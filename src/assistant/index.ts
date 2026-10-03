@@ -42,14 +42,14 @@ export const FROZEN = process.env.NOODLE_FROZEN;
  * pack already there with the same text is not read again, so this is fast after the first time.
  * What was learned and taught is in the same database, kept across sessions.
  */
-export function packedStore(dir = PACKS, path = STORE): Store {
+export function packedStore(dir = PACKS, path = STORE, keep: (file: string) => boolean = () => true): Store {
   if (FROZEN) return new FrozenSystem(FROZEN).store("A+");
   if (path !== ":memory:") mkdirSync(join(path, ".."), { recursive: true });
   const store = seededStore(undefined, path);
   if (existsSync(dir)) {
     const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : f.startsWith("wiktionary") ? 2 : 3);
     const present = new Set<string>();
-    for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon")).sort((a, b) => order(a) - order(b) || a.localeCompare(b))) {
+    for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon") && keep(x)).sort((a, b) => order(a) - order(b) || a.localeCompare(b))) {
       const text = readFileSync(join(dir, f), "utf8");
       const name = /Pack\(\s*name\s*=\s*"([^"]*)"/.exec(text)?.[1];
       if (name) present.add(name);
