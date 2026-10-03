@@ -139,7 +139,7 @@ export const STRUCTURAL = {
     why: "the structures primitives return; observation reads tools' machine formats as structure (runtime.md section 9)",
     names: [
       "File", "Directory", "Entry", "GitStatus", "GitLog", "GitBranches", "Changed", "Untracked", "GitCommit", "GitBranch",
-      "Ran", "Args", "Wrote", "Edited", "Replace", "Inserted", "Withdrawn",
+      "Ran", "Args", "Joined", "Wrote", "Edited", "Replace", "Inserted", "Withdrawn",
       // Read of a manual page: the page, its parts, and its usage lines (Optional, Repeat, Literal
       // and Block are structural already).
       "ManPage", "Section", "Subsection", "Paragraph", "Item", "Synopsis", "Usage",

@@ -1135,6 +1135,17 @@ is tracked alongside accuracy.
   ("what does git commit do"), the answer is what its own page says, not a page from the web: a
   question about a command reached through a documentation reading is answered from that page's
   summary, as a question about the user is answered from the graph (section 14b).
+- **An HTTP API is learned from its published description** (OpenAPI 3, `src/know/openapi.ts`),
+  as a tool is from its man pages: each operation is a concept, its summary understood by the same
+  pipeline, its path, query and body parameters roles of it with what their descriptions say fills
+  them. Its readings reach Run of the program that speaks to the API (`gh api` for GitHub): the
+  method, the path with its placeholders filled (one argument made of pieces, `Joined`), and the
+  required fields. Which program that is, its options for the method and fields, and the path
+  placeholders it fills on its own are the user's configuration given at import, never written per
+  operation. A reading's pattern is the summary's act done to the kind of thing it names; a
+  placeholder nothing in the request fills stays a variable, so the act is unworked rather than
+  guessed. Effects come from the HTTP method (GET reads and sends outside; POST, PUT and PATCH
+  publish; DELETE deletes); Run can hold none of them, so every operation is offered first.
 
 **Code is language.** The assistant reads, understands, changes and writes code as it does English:
 code becomes concepts (what a function takes, gives and does), changes are readings over them, and
