@@ -2,11 +2,14 @@
 // development side of the split only (~/.noodle/experiment/split.json; never the holdout). Each
 // prompt is heard in a fresh session as a dry run: nothing runs, the acts the winner would run (or
 // offer) are compared with the label's. Prints aggregates and ids, never the prompts.
-//   node scripts/acts.mjs [--limit N] [--json]
-import { mkdtempSync, readFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+//   node scripts/acts.mjs [--limit N] [--from K] [--json | --jsonl]
+// --jsonl writes each row as it is scored, from the K-th label on, so a caller keeps what was scored
+// if one prompt takes the process down (scripts/pilot.mjs).
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { devLabels } from "./devset.mjs";
 
 const dist = join(import.meta.dirname, "..", "dist");
 const { packedStore, createSession } = await import(join(dist, "assistant", "index.js"));
@@ -17,13 +20,8 @@ const limit = Number(args.includes("--limit") ? args[args.indexOf("--limit") + 1
 // Very long prompts (pasted logs, documents) are reported as too long rather than heard: the chart
 // is cubic in a segment's length, and these are measured separately (pnpm measure).
 const maxWords = Number(args.includes("--max-words") ? args[args.indexOf("--max-words") + 1] : 150);
-const jsonl = (p) => readFileSync(p, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
-const all = jsonl(join(homedir(), ".napkin", "corpus", "all.jsonl"));
-const split = JSON.parse(readFileSync(join(homedir(), ".noodle", "experiment", "split.json"), "utf8"));
-const holdout = new Set(split.holdout);
-const labels = jsonl(join(homedir(), ".napkin", "corpus", "tests", "labels.jsonl"))
-  .filter((l) => typeof l.i === "number" && !holdout.has(l.i) && l.verdict !== "drop" && (l.class === "acts" || l.class === "none"))
-  .slice(0, limit);
+const from = Number(args.includes("--from") ? args[args.indexOf("--from") + 1] : 0);
+const labels = devLabels({ maxWords }).slice(from, from + limit);
 
 const store = packedStore();
 const root = mkdtempSync(join(tmpdir(), "noodle-acts-"));
@@ -44,13 +42,15 @@ function named(act) {
 const k = (a) => `${a.program ?? ""} ${a.sub ?? ""}`.trim();
 
 const rows = [];
+const stream = args.includes("--jsonl");
+const add = (r) => {
+  rows.push(r);
+  if (stream) process.stdout.write(JSON.stringify(r) + "\n");
+};
 for (const l of labels) {
-  const text = all[l.i]?.text;
-  if (!text) continue;
-  // Automated messages (scheduled heartbeats) are not prompts (testing.md section 5).
-  if (text.trimStart().startsWith("<heartbeat>")) continue;
-  if (text.split(/\s+/).length > maxWords) {
-    rows.push({ i: l.i, cls: l.class, tooLong: true });
+  const text = l.text;
+  if (l.tooLong) {
+    add({ i: l.i, cls: l.class, tooLong: true });
     continue;
   }
   const s = createSession(store, root);
@@ -61,12 +61,12 @@ for (const l of labels) {
     const ms = performance.now() - t0;
     if (args.includes("--progress")) console.error(`${l.i}\t${text.split(/\s+/).length}w\t${ms.toFixed(0)}ms`);
   } catch (e) {
-    rows.push({ i: l.i, cls: l.class, error: String(e).slice(0, 80) });
+    add({ i: l.i, cls: l.class, error: String(e).slice(0, 80) });
     continue;
   }
   const want = (l.acts ?? []).map(k).filter(Boolean);
   const got = [...new Set(acts.map((a) => (a.sub2 && want.includes(k({ program: a.program, sub: a.sub2 })) ? k({ program: a.program, sub: a.sub2 }) : k(a))))];
-  rows.push({ i: l.i, cls: l.class, want, got, exact: want.length === got.length && want.every((w) => got.includes(w)), first: want.length > 0 && got[0] === want[0], any: got.some((g) => want.includes(g)) });
+  add({ i: l.i, cls: l.class, want, got, exact: want.length === got.length && want.every((w) => got.includes(w)), first: want.length > 0 && got[0] === want[0], any: got.some((g) => want.includes(g)) });
 }
 
 const of = (f) => rows.filter(f).length;
@@ -83,7 +83,9 @@ const report = {
   noneCorrect: pct(noneRows.filter((r) => r.got.length === 0).length, noneRows.length),
   falseActs: pct(noneRows.filter((r) => r.got.length > 0).length, noneRows.length),
 };
-if (args.includes("--json")) console.log(JSON.stringify({ report, rows }));
+if (stream) {
+  // With --jsonl the rows were the output.
+} else if (args.includes("--json")) console.log(JSON.stringify({ report, rows }));
 else {
   for (const [key, v] of Object.entries(report)) console.log(`${key.padEnd(12)} ${v}`);
   const confusion = new Map();
