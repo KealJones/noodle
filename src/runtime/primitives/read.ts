@@ -9,6 +9,7 @@ import type { Primitive } from "../primitive.js";
 import { blockRef, SELF, str } from "./args.js";
 import { logCount, readBranches, readLog, readStatus } from "./git.js";
 import { readManPage } from "./manpage.js";
+import { readHelp, readProgram } from "./helptext.js";
 import { mediaFor, resolveInside } from "./paths.js";
 import { holds, isThing, readThing } from "./hold.js";
 import { readSchedule } from "./schedule.js";
@@ -51,6 +52,11 @@ export const Read: Primitive = {
           return readBranches(world);
         case "ManPage":
           return readManPage(world, source);
+        // A program's own help, run held to reading, and whether a program is there to learn.
+        case "Help":
+          return readHelp(world, source);
+        case "Program":
+          return readProgram(source);
         case "Schedule":
           return readSchedule(world);
       }

@@ -116,9 +116,11 @@ export const Remember: Primitive = {
       const from = isHead(from0, "Quote") ? positional(from0)[0] : from0;
       const o = owner(from, to, world);
       if (!o || !to) throw new Error("a rewrite needs something to start from and something it means");
-      const r = world.store.addReading({ owner: o.head, pattern: o.pattern, wants: [], becomes: to, needs: [], effects: [], checks: [], direction: "Expand" }, USER);
+      // What it wants of its variables, where the user's own wording said it (a number).
+      const wants = role(item, "wants");
+      const r = world.store.addReading({ owner: o.head, pattern: o.pattern, wants: wants ? [wants] : [], becomes: to, needs: [], effects: [], checks: [], direction: "Expand" }, USER);
       for (const f of world.store.facts(o.head).filter((x) => x.meta.from === USER)) world.keep?.(c("Fact", c(o.head), f.claim, ["from", USER]));
-      world.keep?.(c("Reading", ["on", c(o.head)], ["pattern", o.pattern], ["becomes", to], ["from", USER]));
+      world.keep?.(c("Reading", ["on", c(o.head)], ["pattern", o.pattern], ...(wants ? ([["wants", wants]] as [string, Expr][]) : []), ["becomes", to], ["from", USER]));
       return c("Remembered", c("Reading", { kind: "number", value: r.meta.id, pos: { line: 0, column: 0 } }));
     }
     if (isHead(item, "Fact")) {

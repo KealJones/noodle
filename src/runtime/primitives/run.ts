@@ -27,8 +27,8 @@ function argv(args: Expr | undefined): string[] {
  * denies it every write to a file and every network connection (macOS's sandbox-exec). Where there
  * is none, nothing is held, and a command's effects stay unknown.
  */
-const SANDBOX = "/usr/bin/sandbox-exec";
-const READ_ONLY = [
+export const SANDBOX = "/usr/bin/sandbox-exec";
+export const READ_ONLY = [
   "(version 1)",
   "(allow default)",
   "(deny network*)",
@@ -36,7 +36,7 @@ const READ_ONLY = [
   '(allow file-write* (literal "/dev/null") (literal "/dev/tty") (literal "/dev/dtracehelper"))',
 ].join("");
 let confinement: boolean | undefined;
-const canConfine = () => (confinement ??= process.platform === "darwin" && existsSync(SANDBOX));
+export const canConfine = () => (confinement ??= process.platform === "darwin" && existsSync(SANDBOX));
 
 export const Run: Primitive = {
   name: "Run",

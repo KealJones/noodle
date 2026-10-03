@@ -5,7 +5,7 @@
 // restart) are not replayed, so nothing runs twice.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import type { Call } from "../runtime/expr.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +17,7 @@ import type { Store } from "../runtime/store.js";
 import type { Assistant, ChatMessage } from "../serve/assistant.js";
 import { ReplayGate } from "./replay.js";
 import { Know } from "../runtime/know/know.js";
+import { learnTool } from "../know/tooldocs.js";
 
 export interface AssistantOptions {
   /** The workspace every primitive is confined to. */
@@ -122,6 +123,21 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
   };
   const session = new Session(store, PRIMITIVES, world);
+  // A program a request names that the graph does not know is learned from its documentation
+  // (design section 25), understood over the words the store has, and loaded. Where the channel
+  // keeps what it learns, the tool's pack is kept with the others, so it is there after a restart.
+  session.tools = {
+    known: (program) => store.packNames().includes(`tool-${program}`),
+    async learn(program, how) {
+      const r = await learnTool(program, PRIMITIVES.get("Read")!, world, store, store, how);
+      if (!r.commands.length) throw new Error(`nothing in ${program}'s ${how === "help" ? "help" : "manual page"} could be learned`);
+      if (config.learn) {
+        mkdirSync(PACKS, { recursive: true });
+        writeFileSync(join(PACKS, `tool-${program}.ncon`), r.text);
+      }
+      store.load(r.text);
+    },
+  };
   // The replay gate, where the corpus is on this machine and the config asks for it.
   if (config.replay) {
     const gate = new ReplayGate(store);

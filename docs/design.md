@@ -1135,6 +1135,33 @@ is tracked alongside accuracy.
   ("what does git commit do"), the answer is what its own page says, not a page from the web: a
   question about a command reached through a documentation reading is answered from that page's
   summary, as a question about the user is answered from the graph (section 14b).
+- **Any CLI, from its manual page or its `--help`.** A program with no manual page is read from its
+  help (`Read(Help(program, ...subcommands))`, the program run held to reading), whose layout
+  (usage lines that start with the program's name, headings, indented items) is parsed into the
+  same structure a manual page gives; subcommands are its items that are words. The program
+  itself is a command, so what its page says is what it does ("what does jq do"). A group of
+  commands ("gh pr") names a kind of thing; what its commands' summaries most often name ("a
+  pull request") is that kind as the documentation says it, and a placeholder in their usage
+  lines (`<number>`) is something the group's noun takes after it, of the placeholder word's kind
+  ("pr 1748", never "pr twelve"), filling the command's argument. Each option's description is
+  understood like a summary: the act it is heard as, done to what the command is done to, adds
+  the flag ("Approve pull request": "approve pr 1748" is `gh pr review 1748 --approve`), and is
+  held to reading only where both the command and the option only show. A summary is also a way
+  to say its command ("add a comment to the pr"), and a group command that only shows the thing
+  itself is what showing one is ("show me pr 1748" is `gh pr view 1748`). Where a summary does
+  not say the command only shows, the first sentence of its page's description is understood too.
+- **Learned on demand.** A word nothing knows, or a name in backticks, that is a program on the
+  PATH (`Read(Program(name))`) is learned before the request is read: from its manual page at
+  once (reading documentation), or, where it has none, offered first, since reading its help runs
+  it; on a yes it is learned and the request read again. A learned tool is kept as a pack
+  (`tool-<name>.ncon`) beside the others, so it is there after a restart.
+- **A command held to reading that fails** (one that needs the network: `gh pr view`) is offered
+  again unheld, its effects unknown: the claim was made true and turned out wrong.
+- **The user's own way of asking.** A command a documentation reading led to that the user said
+  yes to is kept as the user's reading (Remember, level 1): what they said, the values they gave
+  as variables, and where a value was said with a noun ("pr 1748") the value said alone too,
+  wanting the same kind ("approve 1760"). It runs nothing on its own: a Run is still guarded by
+  its effects, whoever's reading led to it.
 - **An HTTP API is learned from its published description** (OpenAPI 3, `src/know/openapi.ts`),
   as a tool is from its man pages: each operation is a concept, its summary understood by the same
   pipeline, its path, query and body parameters roles of it with what their descriptions say fills

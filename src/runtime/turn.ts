@@ -32,6 +32,18 @@ interface Reading {
   cover: Cover;
 }
 
+/**
+ * Learning a program on demand (design section 25): what the channel gives a session to learn a
+ * tool from its documentation and keep it. Reading the documentation is a primitive's (Read of a
+ * manual page, or of a program's help, held to reading); turning it into readings is the import's.
+ */
+export interface ToolLearner {
+  /** Whether the graph has learned this program already. */
+  known(program: string): boolean;
+  /** Learn a program from its manual pages or its help, keep it, and load it into the store. */
+  learn(program: string, how: "manual" | "help"): Promise<void>;
+}
+
 export interface TurnResult {
   text: string;
   record: TurnRecord;
@@ -52,6 +64,10 @@ export class Session {
   private last?: LastChoice;
   /** Called after learning changes the weights, so the channel can keep them (no file access here). */
   onLearn?: (weights: Weights, changed: string[]) => void;
+  /** Learning a program a request names that the graph does not know (design section 25). */
+  tools?: ToolLearner;
+  /** A request waiting for a program to be learned from its help, which was offered. */
+  private pendingTool?: { program: string; text: string };
   /**
    * The replay gate (testing.md section 4): given the features an update changed, whether the
    * hand-checked items they touch still come out right. A change it vetoes is put back.
@@ -136,6 +152,9 @@ export class Session {
     conv.turns.push(record);
 
     const due = opts.dry ? [] : await this.due();
+    // A program the request names that the graph does not know is learned first, from its manual
+    // page (reading documentation), or offered to be learned from its help (which runs it).
+    const learning = opts.dry || !this.tools ? undefined : await this.learnPrograms(text, conv);
     const names = await this.surroundings(conv);
     const hearing = hear(this.store, text, { names });
     record.tone = toneOf(this.store, hearing);
@@ -149,15 +168,15 @@ export class Session {
     );
     const segScore = (ss: typeof segs[number]) => ss.reduce((n, x) => n + (x.covers[0]?.score ?? 0), 0);
     segs.sort((x, y) => segScore(y) - segScore(x));
-    const chosen = segs[0] ?? [];
+    const chosen = learning?.offered ? [] : (segs[0] ?? []);
     if (segs.length > 1)
       record.reasons.push(choice("segmentation", segs.map((ss, i) => ({ label: `segmentation ${i + 1}: ${ss.length} segments`, features: [], score: segScore(ss) })), 0));
 
     const rewriter = new Rewriter(this.store, this.weights.get);
-    const said: Expr[] = [];
+    const said: Expr[] = [...(learning?.said ?? [])];
     const words = new Map<string, string>();
     const allSteps: Step[] = [];
-    let anything = false;
+    let anything = !!learning?.offered;
     const choices: LastChoice[] = [];
     const acts: Expr[] = [];
     for (const seg of chosen) {
@@ -223,6 +242,8 @@ export class Session {
         said.push(...kept);
       } else said.push(...segSaid);
     }
+    // A program's help read on the user's yes is learned, and the request that named it read again.
+    const rerun = opts.dry ? undefined : await this.learnFromHelp(conv, said);
     // What Focus pulled in, and why, is part of the turn's reasons (runtime.md 8.3 and 11b).
     record.reasons.push(...conv.focus.log);
     // A proposal not taken up this turn lapses (runtime.md 11: the last proposal).
@@ -297,7 +318,79 @@ export class Session {
     record.said = spoken;
     const out = spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean).join("\n\n");
     conv.turns.push({ index: conv.turnIndex, who: "Self", text: out, heard: [], lf: [], said: spoken, reasons: [], tone: [], asides: [] });
+    if (rerun !== undefined) {
+      const again = await this.turn(rerun, opts);
+      return { text: [out, again.text].filter(Boolean).join("\n\n"), record, acts: [...acts, ...again.acts] };
+    }
     return { text: out, record, acts };
+  }
+
+  /**
+   * The programs a request names that the graph has not learned: a word nothing knows, or a name
+   * in backticks, that Read finds on the PATH. One with a manual page is learned from it now; one
+   * without is offered to be learned from its help, since that runs it (held to reading).
+   */
+  private async learnPrograms(text: string, conv: Conversation): Promise<{ said: Expr[]; offered: boolean }> {
+    const out = { said: [] as Expr[], offered: false };
+    const read = this.primitives.get("Read");
+    if (!read || !this.tools) return out;
+    const h = hear(this.store, text, { names: [] });
+    const named = new Set<string>();
+    h.tokens.forEach((tok, i) => {
+      if (h.candidates[i].every((x) => x.source === "Unknown")) named.add(tok.text);
+    });
+    // Code in the request (markup heard, design section 25b) is a name as written.
+    for (const m of text.matchAll(/`([^`\s]+)[^`]*`/g)) named.add(m[1]);
+    for (const name of named) {
+      if (!/^[A-Za-z0-9_][\w.+-]*$/.test(name) || this.tools.known(name)) continue;
+      let found: Expr;
+      try {
+        found = await read.run([c("Program", s(name))], this.world);
+      } catch {
+        continue;
+      }
+      const manual = role(found, "manual");
+      if (manual?.kind === "boolean" && manual.value) {
+        try {
+          await this.tools.learn(name, "manual");
+          out.said.push(c("Learned", s(name), ["from", c("ManPage")]));
+        } catch (err) {
+          conv.focus.log.push({ what: `learning ${name} from its manual page failed: ${err instanceof Error ? err.message : String(err)}`, candidates: [], winner: -1 });
+        }
+        continue;
+      }
+      const act = c("Read", c("Help", s(name)));
+      conv.proposal = { act, ancestry: [act], untrusted: [], turn: conv.turnIndex };
+      this.pendingTool = { program: name, text };
+      out.said.push(c("Offer", act));
+      out.offered = true;
+      break;
+    }
+    return out;
+  }
+
+  /** After a yes to learning a program from its help: learn it, and give back the request to read again. */
+  private async learnFromHelp(conv: Conversation, said: Expr[]): Promise<string | undefined> {
+    const pending = this.pendingTool;
+    if (!pending || !this.tools) return undefined;
+    const isHelp = (x: Expr | undefined) => isHead(x, "Read") && isHead(positional(x as Call)[0], "Help");
+    const ev = conv.events.find((e) => e.turn === conv.turnIndex && isHelp(e.act) && e.result);
+    if (!ev) {
+      // Not taken up: the offer lapses with the proposal.
+      if (!conv.proposal || !isHelp(conv.proposal.act)) this.pendingTool = undefined;
+      return undefined;
+    }
+    this.pendingTool = undefined;
+    // What was read is not said: what was learned from it is.
+    for (let i = said.length - 1; i >= 0; i--) if (isHead(said[i], "Outcome") && isHelp(positional(said[i] as Call)[0])) said.splice(i, 1);
+    try {
+      await this.tools.learn(pending.program, "help");
+    } catch (err) {
+      said.push(c("Outcome", ev.act, ["error", s(err instanceof Error ? err.message : String(err))]));
+      return undefined;
+    }
+    said.push(c("Learned", s(pending.program), ["from", c("Help")]));
+    return pending.text;
   }
 
   private async correct(last: LastChoice, record: TurnRecord): Promise<{ said: Expr[]; steps: Step[] } | undefined> {

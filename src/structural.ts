@@ -126,6 +126,8 @@ export const STRUCTURAL = {
       // What a page is about, learned (a Topic concept), and how its title is heard, so a question
       // that names it reaches it.
       "Topic", "Heard",
+      // A program learned on demand from its documentation (design section 25).
+      "Learned",
     ],
   },
   primitives: {
@@ -143,6 +145,10 @@ export const STRUCTURAL = {
       // Read of a manual page: the page, its parts, and its usage lines (Optional, Repeat, Literal
       // and Block are structural already).
       "ManPage", "Section", "Subsection", "Paragraph", "Item", "Synopsis", "Usage",
+      // Read of a program's own help (helptext.ts), and of whether a program is there to learn.
+      "Help", "Program",
+      // A command held to reading that failed, offered to run unheld (a role of the Offer).
+      "Unheld",
       "Choice", "Group", "Flag", "Option", "Placeholder", "Unparsed",
       // Roles of those structures that realizations read.
       "Path", "Media", "Exit", "Error", "Previous", "Term", "Summary", "Command",

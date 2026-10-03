@@ -5,7 +5,7 @@
 // says is handed to Say as structure (Outcome, Offer, Echo, the reasons it is stuck); the words
 // are the seed's.
 
-import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite as mapExpr, role, s, walk } from "./expr.js";
+import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite as mapExpr, role, s, v, walk } from "./expr.js";
 import type { Conversation, StandingRule } from "./conversation.js";
 import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
@@ -245,10 +245,56 @@ export class Evaluator {
       const prim = this.primitiveCall(act);
       if (!prim) return this.merge(o, this.stuck(act, c("NoReading", act)));
       const r = await this.call(prim.p, prim.args, act, true);
+      // A command the user said yes to, that documentation led to, is how they say it from now on.
+      if (prop.untrusted?.length) await this.rememberCommand(act, prop.ancestry);
       o = this.merge(o, r);
       if (r.unworked || r.checksPassed === 0) break;
     }
     return o;
+  }
+
+  /**
+   * What the user said, and the command line it came to, kept as the user's own reading (design
+   * section 17: a reading made only of existing concepts, from the user, level 1), so the next time
+   * it is said, or said of another value, the same command, flags and argument places come back
+   * without being worked out again. A value said in the request and given to the command (a
+   * number, a name) becomes a variable; where it was said with a noun ("pr 1748"), the value said
+   * alone ("approve 1760") is kept too, wanting a value of the same kind. Through Remember, the
+   * path everything the user teaches takes; it changes nothing that runs (a Run is guarded by its
+   * effects whoever's reading led to it).
+   */
+  private async rememberCommand(act: Expr, ancestry: Expr[]): Promise<void> {
+    const remember = this.primitives.get("Remember");
+    const args = isHead(act, "Run") ? positional(act)[1] : undefined;
+    // What the user said that the command came from: the expression just before it.
+    const said = ancestry.slice(1).find((x) => isCall(x) && !this.primitives.has(x.head) && !STRUCTURAL_NAMES.has(x.head));
+    if (this.mode !== "Doing" || !remember || !isCall(said) || !isHead(args, "Args")) return;
+    const bare: Call = { ...said, args: said.args.filter((a) => a.name !== "agent") };
+    const vars = new Map<string, Expr>();
+    for (const a of positional(args))
+      if ((a.kind === "number" || a.kind === "string") && !vars.has(key(a)) && [...walk(bare)].some((y) => key(y) === key(a))) vars.set(key(a), v(`a${vars.size + 1}`));
+    const sub = (e: Expr) => mapExpr(e, (x) => vars.get(key(x)));
+    const run: Call = { ...(act as Call), args: (act as Call).args.filter((a) => a.name === undefined) };
+    const becomes = sub(run);
+    const keep = async (pattern: Expr, wants?: Expr) => {
+      if (!isCall(pattern) || this.store.readingsOn(pattern.head).some((r) => key(r.pattern) === key(pattern) && r.becomes !== undefined && key(r.becomes) === key(becomes))) return;
+      try {
+        await remember.run([c("Rewrite", pattern, becomes, ...(wants ? ([["wants", wants]] as [string, Expr][]) : []))], this.world);
+      } catch {
+        // Not something to keep; the command still ran.
+      }
+    };
+    await keep(sub(bare));
+    for (const [k, x] of vars) {
+      // The thing the value was said with ("pr 1748": the pr), taken out for the value alone.
+      const holder = [...walk(bare)].find((y) => y !== bare && isCall(y) && y.args.some((a) => key(a.value) === k));
+      if (!holder) continue;
+      const alone = mapExpr(bare, (y) => (key(y) === key(holder) ? x : undefined));
+      // The kind it wants is the role it filled there, a kind of its own ("pr 1748": a number).
+      const filled = isCall(holder) ? holder.args.find((a) => key(a.value) === k)?.name : undefined;
+      const kind = filled ? filled[0].toUpperCase() + filled.slice(1) : undefined;
+      await keep(sub(alone), kind && this.store.has(kind) ? c("IsA", x, c(kind)) : undefined);
+    }
   }
 
   /**
@@ -681,6 +727,14 @@ export class Evaluator {
         ["result", result],
         ...(checked !== undefined ? ([["checked", { kind: "boolean", value: checked, pos: { line: 0, column: 0 } }]] as [string, Expr][]) : []),
       );
+      // Held to reading, it failed: the claim that it only reads may be what failed it (a command
+      // that needs the network cannot reach it held). Running it unheld is offered, its effects
+      // unknown; a yes runs it as it is (design section 20: the claim was made true, and was wrong).
+      if (held && checked === false && this.mode === "Doing") {
+        const ancestry = this.ancestry(act);
+        this.conversation.proposal = { act, ancestry, untrusted: this.untrustedReadings(ancestry), turn: this.conversation.turnIndex };
+        return { ...this.out(), said: [outcome, c("Offer", act, ["effects", c("UnknownEffects")], ["unheld", { kind: "boolean", value: true, pos: { line: 0, column: 0 } }])], acts: [act], reachedAct: true, checksPassed: 0 };
+      }
       // Say is the act itself: what it says is what the turn says, not a report about saying.
       if (effects.includes("Speaks")) return { ...this.out(), said: args, acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
       return { ...this.out(), said: [outcome], acts: [act], reachedAct: true, checksPassed: checked ? 1 : 0 };
