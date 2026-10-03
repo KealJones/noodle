@@ -188,6 +188,8 @@ export function gist(e: Expr): Expr {
  */
 export function matchFeatures(m: SoftMatch): Map<string, number> {
   return new Map([
+    // Being matched with slack at all: an exact reading of the same request is the better evidence.
+    ["Match:Scored", -1],
     ["Match:Uncovered", m.features.patternCovered - 1],
     ["Match:Unexplained", -m.features.requestUnmatched],
     ["Match:Distance", -m.features.kindDistance],
