@@ -237,7 +237,12 @@ export async function learnOpenApi(
   const apiFrom = c("ApiDoc", s(name));
   forms.unshift(c("Pack", ["name", s(`openapi-${name}`)], ["version", s(typeof info.version === "string" ? info.version : "unknown")], ["from", apiFrom]));
   const api = `${encodeLemma(name) ?? "Service"}#Api`;
-  const apiClaims: Expr[] = [c("IsA", c("Api"))];
+  // An API (the core's kind), called by the name it was imported as, a sense of that word (so
+  // "what can you do with github" names it), and reached through the program that speaks to it.
+  const apiClaims: Expr[] = [c("IsA", c("Api")), c("Name", s(name)), c("ServedBy", c(names.word(cli.command[0])))];
+  const apiWord = names.word(name);
+  forms.push(c("Concept", c(apiWord), ...(store.facts(apiWord, "Lemma").length ? [] : [c("Lemma", s(name.toLowerCase()))]), c("Sense", c(api)), ...(store.facts(apiWord, "Category").length ? [] : [c("Category", c("Thing"))]), ["from", apiFrom]));
+  apiClaims.push(c("SenseOf", c(apiWord)));
   if (typeof info.title === "string") apiClaims.push(c("Said", block(info.title, apiFrom, "text/plain")));
   for (const sv of Array.isArray(doc.servers) ? doc.servers : []) if (isObj(sv) && typeof sv.url === "string") apiClaims.push(c("Server", s(sv.url)));
   forms.push(c("Concept", c(api), ...apiClaims, ["from", apiFrom]));
@@ -273,7 +278,7 @@ export async function learnOpenApi(
     const summary = typeof op.summary === "string" ? op.summary.trim() : "";
     const from = c("ApiDoc", s(name), s(id));
     const concept = names.other(`openapi:${name}:${id}`, encodeLemma(id));
-    const claims: Expr[] = [c("IsA", c("Operation")), c("OperationOf", c(api)), c("OperationId", s(id)), c("Method", s(method.toUpperCase())), c("Endpoint", s(path))];
+    const claims: Expr[] = [c("IsA", c("Operation")), c("PartOf", c(api)), c("Name", s(id)), c("OperationId", s(id)), c("Method", s(method.toUpperCase())), c("Endpoint", s(path))];
     if (summary) claims.push(c("Said", block(summary, from, "text/plain")));
     if (typeof op.description === "string" && op.description.trim()) claims.push(c("Said", block(op.description.trim(), from)));
     if (op.deprecated === true) claims.push(c("Deprecated"));
@@ -289,7 +294,7 @@ export async function learnOpenApi(
       if (p.in === "path" && fills.has(p.name)) continue;
       vars.set(p.name, varName(p.name));
       const role = `${concept}#${encodeLemma(p.name.replace(/_/g, " ")) ?? "Parameter"}`;
-      const pc: Expr[] = [c("IsA", c("Parameter")), c("ParameterOf", c(concept)), c("Field", s(p.name)), c("In", s(p.in))];
+      const pc: Expr[] = [c("IsA", c("Parameter")), c("PartOf", c(concept)), c("Name", s(p.name)), c("Field", s(p.name)), c("In", s(p.in))];
       if (p.required) pc.push(c("Required"));
       if (p.type) pc.push(c("Type", s(p.type)));
       if (p.enum) pc.push(c("OneOf", ...p.enum.map(s)));

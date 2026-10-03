@@ -1,5 +1,8 @@
 // The kill test (design section 29; PLAN.md phases 1 and 4).
 //   node scripts/killtest.mjs [file]        (default ~/.noodle/experiment/killtest.ncon)
+//   node scripts/killtest.mjs --draft       (~/.noodle/experiment/killtest-draft.ncon: an agent's
+//                                            unreviewed draft of Keal's file; every number is
+//                                            labelled as such, and is not the kill test)
 //
 // Always: stage 0's parse line. The in-domain development prompts (labelled acts or constraint, on
 // the development side of ~/.noodle/experiment/split.json, never the holdout) are heard with
@@ -88,7 +91,11 @@ const { Weights } = await import(join(dist, "runtime", "score.js"));
   packed.close();
 }
 
-const file = process.argv[2] ?? join(homedir(), ".noodle", "experiment", "killtest.ncon");
+const args = process.argv.slice(2);
+const draft = args.includes("--draft");
+const file = args.find((a) => !a.startsWith("--")) ?? join(homedir(), ".noodle", "experiment", draft ? "killtest-draft.ncon" : "killtest.ncon");
+// A draft's numbers are each said as such, so they cannot be mistaken for the test's.
+const label = draft ? "[UNREVIEWED DRAFT, not the kill test] " : "";
 if (!existsSync(file)) {
   console.log(`\nno kill test file at ${file} (Keal's hand-written reductions; format in docs/killtest.md): representability and convergence not run`);
   process.exit(0);
@@ -107,21 +114,23 @@ const requests = [];
 for (const f of store.factsWithHead("Reduction")) {
   const reduction = positional(f.claim)[0];
   const expects = store.facts(f.subject, "Expects").map((x) => positional(x.claim)[0]);
-  if (expects.length) requests.push({ id: f.subject, reduction, expects: isCall(expects[0]) ? expects[0].head : undefined });
+  if (expects.length) requests.push({ id: f.subject, reduction, expects: isCall(expects[0]) ? expects[0].head : undefined, also: expects.filter(isCall).map((x) => x.head) });
   else docs.push({ id: f.subject, reduction });
 }
 
 const outside = (e) => [...walk(e)].filter((x) => isCall(x) && !coreNames.has(x.head) && !STRUCTURAL_NAMES.has(x.head) && !glossary.has(x.head)).map((x) => x.head);
 const all = [...docs, ...requests];
 const expressible = all.filter((r) => outside(r.reduction).length === 0);
-console.log(`documentation reductions: ${docs.length}, request reductions: ${requests.length}`);
-console.log(`representable: ${expressible.length}/${all.length} (${((100 * expressible.length) / Math.max(1, all.length)).toFixed(1)}%; stop under 70%)`);
+if (draft) console.log(`\n${label}reductions drafted by an agent from ${file}; Keal has not reviewed them (docs/killtest-review.md)`);
+console.log(`${label}documentation reductions: ${docs.length}, request reductions: ${requests.length}`);
+console.log(`${label}representable: ${expressible.length}/${all.length} (${((100 * expressible.length) / Math.max(1, all.length)).toFixed(1)}%; stop under 70%)`);
 for (const r of all) {
   const o = [...new Set(outside(r.reduction))];
   if (o.length) console.log(`  ${r.id}: outside the vocabulary: ${o.join(", ")}`);
 }
 
 let right = 0;
+let rightAny = 0;
 for (const q of requests) {
   const ranked = docs
     .map((d) => ({ id: d.id, m: softMatch(store, d.reduction, q.reduction) }))
@@ -129,6 +138,10 @@ for (const q of requests) {
     .sort((a, b) => b.m.score - a.m.score);
   const top = ranked[0]?.id;
   if (top && top === q.expects) right++;
+  if (top && q.also.includes(top)) rightAny++;
   console.log(`  ${q.id}: expects ${q.expects}, top ${top ?? "none"}${ranked[0] ? ` (${ranked[0].m.score.toFixed(2)})` : ""}${top === q.expects ? "" : "  <-- miss"}`);
 }
-console.log(`convergence (top-1): ${right}/${requests.length} (${((100 * right) / Math.max(1, requests.length)).toFixed(1)}%; stop under 60%)`);
+// A request that means several acts may list each with Expects; the first is the one scored, and
+// reaching any of them is printed beside it, for information only.
+if (requests.some((q) => q.also.length > 1)) console.log(`${label}top-1 is any of the request's Expects (information, not the test): ${rightAny}/${requests.length} (${((100 * rightAny) / Math.max(1, requests.length)).toFixed(1)}%)`);
+console.log(`${label}convergence (top-1): ${right}/${requests.length} (${((100 * right) / Math.max(1, requests.length)).toFixed(1)}%; stop under 60%)`);

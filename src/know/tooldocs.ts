@@ -305,6 +305,7 @@ export async function learnTool(
   const names = new Names(store);
   const from = c("ToolDoc", s(program));
   const forms: Expr[] = [c("Pack", ["name", s(`tool-${program}`)], ["version", s("local")], ["from", from])];
+  const optionTexts = new Set<string>();
   const commands: string[] = [];
   const skipped: string[] = [];
   // The tool's own terms first, so its summaries are heard with them ("Show commit logs").
@@ -319,7 +320,8 @@ export async function learnTool(
   const toolWord = names.word(program);
   if (!store.lookup(program).some((h) => store.facts(h.concept).some((f) => isSeedPart(f.meta.from, "function-words")))) {
     const toolFrom = c("ToolDoc", s(program), s("NAME"));
-    const claims: Expr[] = [c("IsA", c("Program"))];
+    // A tool (the core's kind of what is learned to use), called by its name.
+    const claims: Expr[] = [c("IsA", c("Tool")), c("Name", s(program))];
     if (!store.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
     if (!store.facts(toolWord, "Category").length)
       claims.push(c("Category", c("Thing")), c("Category", c("Manner"), c("Modifies", ["side", c("Right")], ["category", c("Act")], ["role", c("Instrument")])));
@@ -368,7 +370,8 @@ export async function learnTool(
     // One sense per command: "view" in "gh pr view" and in "gh repo view" are two commands.
     const sense = `${word}#${encodeLemma(path.slice(0, -1).join(" ") || program) ?? "Tool"}Command`;
     // A command is something done: its sense is a verb sense (what the chart weighs its act entry by).
-    const senseClaims: Expr[] = [c("SenseOf", c(word)), c("IsA", c("Program")), c("PartOfSpeech", c("PartOfSpeechVerb"))];
+    // It is one of the tool's commands, called by its command line's words.
+    const senseClaims: Expr[] = [c("SenseOf", c(word)), c("IsA", c("Command")), c("PartOf", c(toolWord)), c("Name", s(path.join(" "))), c("PartOfSpeech", c("PartOfSpeechVerb"))];
     if (summary) {
       const id = "b_" + createHash("sha256").update(summary).digest("hex").slice(0, 16);
       forms.push(c("Block", ["id", s(id)], ["media", s("text/plain")], ["body", s(summary)], ["from", pageFrom]));
@@ -460,6 +463,13 @@ export async function learnTool(
     // command is done to, adds the flag ("Approve pull request": approve the pr runs it with
     // --approve). What it changes is unknown unless the command and the option both only show.
     for (const o of optionsOf(world.store, doc)) {
+      // Each option is one of the command's, called by its flag, with what its page says of it.
+      const optionFrom = c("ToolDoc", s(path.join("-")), s(o.flag));
+      const id = "b_" + createHash("sha256").update(o.text).digest("hex").slice(0, 16);
+      if (!optionTexts.has(id)) forms.push(c("Block", ["id", s(id)], ["media", s("text/plain")], ["body", s(o.text)], ["from", optionFrom]));
+      optionTexts.add(id);
+      const option = names.other(`option:${path.join(" ")} ${o.flag}`, `${encodeLemma(o.flag) ?? "Flag"}Option`);
+      forms.push(c("Concept", c(option), c("IsA", c("Option")), c("PartOf", c(sense)), c("Name", s(o.flag)), c("Said", c("Block", s(id))), ["from", optionFrom]));
       if (o.value) continue;
       const ou = await understand?.(o.text);
       if (!ou?.heard) continue;

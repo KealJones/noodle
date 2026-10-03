@@ -275,6 +275,22 @@ Reading(on=Wikipedia(), mode=Speaking(), pattern=Wikipedia(), becomes="Wikipedia
 Reading(on=Wiktionary(), mode=Speaking(), pattern=Wiktionary(), becomes="Wiktionary")
 Reading(on=Wikidata(), mode=Speaking(), pattern=Wikidata(), becomes="Wikidata")
 Reading(on=Web(), mode=Speaking(), pattern=Web(), becomes="the web")
+Reading(on=ChatGPT(), mode=Speaking(), pattern=ChatGPT(), becomes="ChatGPT")
+Reading(on=WordNet(), mode=Speaking(), pattern=WordNet(), becomes="WordNet")
+Reading(on=VerbNet(), mode=Speaking(), pattern=VerbNet(), becomes="VerbNet")
+Reading(on=ToolDoc(), mode=Speaking(), pattern=ToolDoc(), becomes="the manual pages and help of the tools on this machine")
+
+// What the graph holds of a kind, or of what a thing is made of: each member by its name, with
+// what it says of itself; past the first few, how many more there are.
+Reading(on=Members(), mode=Speaking(), pattern=Outcome(Question($p, about=$x), result=$r), wants=IsA($r, Members()), becomes=$r)
+Reading(on=Members(), mode=Speaking(), pattern=Outcome(Question($p), result=$r), wants=IsA($r, Members()), becomes=$r)
+Reading(on=Members(), mode=Speaking(), pattern=Members($a), becomes=List($a))
+Reading(on=Members(), mode=Speaking(), pattern=Members($a, $b), becomes=List($a, $b))
+Reading(on=Member(), mode=Speaking(), pattern=Member($x), becomes=$x)
+Reading(on=Member(), mode=Speaking(), pattern=Member($x, name=$n), becomes=Code($n))
+Reading(on=Member(), mode=Speaking(), pattern=Member($x, said=$b), becomes=Paragraph($x, ": ", $b))
+Reading(on=Member(), mode=Speaking(), pattern=Member($x, name=$n, said=$b), becomes=Paragraph(Code($n), ": ", $b))
+Reading(on=More(), mode=Speaking(), pattern=More($n), becomes=Paragraph("and ", $n, " more"))
 Reading(on=Offer(), mode=Speaking(), pattern=Offer(Know($q)),
   becomes=Paragraph("I don't know that. I can look it up online. Go ahead?"))
 
@@ -385,7 +401,8 @@ Fact(Conversation(), Medium(Markdown()))
 
 Concept(Markdown(), IsA(Medium()),
   Escapes("\\"), Escapes("*"), Escapes("_"), Escapes("~"), Escapes("`"), Escapes("#"), Escapes(">"),
-  Escapes("["), Escapes("]"), Escapes("<"), Escapes("|"))
+  Escapes("["), Escapes("]"), Escapes("<"), Escapes("|"),
+  Media("text/markdown"))
 
 Reading(on=Document(), mode=Speaking(), pattern=Print(Document($a, $b), medium=Markdown()),
   becomes=Printed(Print($a, medium=Markdown()), "\n\n", Print($b, medium=Markdown())))

@@ -75,6 +75,12 @@ test("each operation is a concept with its parameters as roles, its effects from
   assert.match(text, /becomes=Run\("svc", Args\("call", "-X", "GET", Joined\("shelves\/\{owner\}\/notes\/", \$note_id\)\)\), effects=All\(Reads\(\), SendsOutside\(\)\)/);
   // Nothing the description says names any service in code: the from is the description's.
   assert.match(text, /from=ApiDoc\("invented", "reviews\/submit"\)/);
+  // One hierarchy: the API is a sense of its name's word, served by its program; each operation
+  // is part of it, each parameter part of its operation, each called by its own name.
+  assert.match(text, /Concept\(Invented\(\), Lemma\("invented"\), Sense\(Invented#Api\(\)\), Category\(Thing\(\)\)/);
+  assert.match(text, /IsA\(Api\(\)\), Name\("invented"\), ServedBy\(Svc\(\)\)/);
+  assert.match(text, /IsA\(Operation\(\)\), PartOf\(Invented#Api\(\)\), Name\("reviews\/submit"\)/);
+  assert.match(text, /IsA\(Parameter\(\)\), PartOf\([A-Za-z#]+\(\)\), Name\("event"\)/);
 });
 
 test("a pattern is the summary's act, done to its kind of thing however that thing is said", () => {

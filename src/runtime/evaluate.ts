@@ -5,7 +5,7 @@
 // says is handed to Say as structure (Outcome, Offer, Echo, the reasons it is stuck); the words
 // are the seed's.
 
-import { type Call, type Expr, c, isCall, isHead, key, positional, rewrite as mapExpr, role, s, v, walk } from "./expr.js";
+import { type Call, type Expr, c, isCall, isHead, key, n, positional, rewrite as mapExpr, role, s, v, walk } from "./expr.js";
 import type { Conversation, StandingRule } from "./conversation.js";
 import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
@@ -813,6 +813,10 @@ export class Evaluator {
     // own documentation says it does: the summary its page gave the sense its reading came from.
     const doc = this.documentation(p);
     if (doc) return { ...this.out(), said: [c("Outcome", lf, ["result", c("Found", doc.said, ["from", doc.from])])], reachedAct: true };
+    // A question about a kind ("what tools do you know") or about what a thing can do ("what can
+    // git do") is answered by what the graph holds: the kind's members, or the thing's parts.
+    const members = this.members(p);
+    if (members) return { ...this.out(), said: [c("Outcome", lf, ["result", members])], reachedAct: true };
     // Nothing here answers it: the need is knowledge, and Know is the one door to it (runtime.md
     // 11b, phase 2; 14). The question's words are the query. In Suppose it answers from the cache
     // only; a lookup that would go out counts as reaching an answer. A question whose words name
@@ -882,6 +886,20 @@ export class Evaluator {
       // A source that fails is no answer, not an error to show.
     }
     focus.log.push({ what: `focus: "${this.said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
+    // Where the page is the answer, what it says under a heading that names what was asked (the
+    // question's own words its title does not have: "history" of a page titled "Git") answers
+    // better than its opening. Reading the whole page is a lookup in the world, within the budget.
+    if (k?.url && about === "thing") {
+      const title = k.title.toLowerCase();
+      const asked = words.split(/\s+/).filter((w) => w.length > 2 && !title.includes(w.toLowerCase().slice(0, Math.max(3, w.length - 2))));
+      const used = focus.lookups.get("World") ?? 0;
+      if (asked.length && used < this.budget("World", "lookups")) {
+        focus.lookups.set("World", used + 1);
+        const part = await know.look(k, asked).catch(() => undefined);
+        focus.log.push({ what: `focus: what "${k.title}" says of "${asked.join(" ")}", by its headings`, candidates: part ? [{ label: part.title, features: [], score: 0 }] : [], winner: part ? 0 : -1 });
+        if (part) return { ...this.out(), said: [this.found(lf, part)], reachedAct: true };
+      }
+    }
     if (k) return { ...this.out(), said: [this.found(lf, k)], reachedAct: true };
     return this.stuck(lf);
   }
@@ -922,7 +940,9 @@ export class Evaluator {
   }
 
   private found(lf: Expr, k: { block: string; title: string; url: string; source: string }): Expr {
-    return c("Outcome", lf, ["result", c("Found", c("Block", s(k.block)), ["title", s(k.title)], ["to", s(k.url)], ["from", c(k.source)])]);
+    // A source with no address (an answer in its own words) is named, not linked.
+    const at: [string, Expr][] = k.url ? [["title", s(k.title)], ["to", s(k.url)]] : [];
+    return c("Outcome", lf, ["result", c("Found", c("Block", s(k.block)), ...at, ["from", c(k.source)])]);
   }
 
   private asksExplanation(): boolean {
@@ -983,6 +1003,83 @@ export class Evaluator {
       }
     }
     return undefined;
+  }
+
+  /**
+   * What the graph holds that answers a question about a kind or about what a thing is made of.
+   * The kind is a concept said beside the gap ("what tools do you know": Be(Gap(), Tool())), and
+   * is every concept its word is ("source" is the core's KnowledgeSource too); its members are
+   * what is said to be of it, by IsA, down to those with no members of their own. A thing the
+   * question names elsewhere ("what can git do": Can(agent=Git(), theme=Do(theme=Gap()))) is
+   * answered by its parts (PartOf it or one of its senses) that say what they are; with a kind
+   * too, by those of its parts of that kind. Each is said by its name and what it says of itself.
+   * Nothing goes out for it, so it counts in Suppose too.
+   */
+  // A long list is said as its first few and how many more (a list is spoken pairwise, by depth).
+  private members(p: Expr, shown = 15): Expr | undefined {
+    const besideGap = new Set<string>();
+    for (const y of walk(p))
+      if (isCall(y) && positional(y).some((x) => isHead(x, "Gap")))
+        for (const x of positional(y)) if (isCall(x) && !x.args.length && x.head !== "Gap") besideGap.add(x.head);
+    if (![...walk(p)].some((y) => isHead(y, "Gap"))) return undefined;
+    const own = (h: string) => !STRUCTURAL_NAMES.has(h) && !this.primitives.has(h) && !this.store.facts(h).some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed");
+    // Said beside someone in the conversation, the gap is about them ("who are you"), not a kind.
+    if ([...besideGap].some((k) => k in PARTICIPANT)) return undefined;
+    const kinds = [...besideGap];
+    const anchors = [...new Set([...walk(p)].flatMap((y) => (isCall(y) && !y.args.length && own(y.head) && !besideGap.has(y.head) ? [y.head] : [])))];
+    if (!kinds.length && !anchors.length) return undefined;
+    // What is said to be of a concept, or part of it. The core's own meanings are what everything
+    // bottoms out in, not things held to list ("someone" is said of people there, not learned).
+    const core = key(c("Seed", s("core")));
+    const subjects = (concept: string, head: string) =>
+      this.store
+        .factsNaming(concept)
+        .filter((f) => isHead(f.claim, head) && isHead(positional(f.claim as Call)[0], concept) && key(f.meta.from) !== core)
+        .map((f) => f.subject);
+    // The kind's members: every concept its word names, and what is of it, by IsA, to the leaves.
+    // Of more than one kind (someone, and a president), of each of them.
+    let found: string[] | undefined;
+    for (const k of kinds) {
+      const seen = new Set<string>();
+      const leaves = new Set<string>();
+      let frontier = [k, ...this.store.facts(k, "Lemma").flatMap((f) => { const l = positional(f.claim as Call)[0]; return l?.kind === "string" ? this.store.lookup(l.value).filter((h) => h.text === l.value).map((h) => h.concept) : []; })];
+      for (let d = 0; frontier.length && d < 4; d++) {
+        const next: string[] = [];
+        for (const x of frontier) {
+          if (seen.has(x)) continue;
+          seen.add(x);
+          const below = subjects(x, "IsA");
+          if (!below.length && d > 0) leaves.add(x);
+          next.push(...below);
+        }
+        frontier = next;
+      }
+      found = found ? found.filter((m) => leaves.has(m)) : [...leaves];
+    }
+    // The thing's parts: what is PartOf it or of one of its senses.
+    if (anchors.length) {
+      const wholes = anchors.flatMap((a) => [a, ...this.store.facts(a, "Sense").flatMap((f) => { const x = positional(f.claim as Call)[0]; return isCall(x) ? [x.head] : []; })]);
+      const parts = new Set(wholes.flatMap((w) => subjects(w, "PartOf")));
+      found = found ? found.filter((m) => parts.has(m)) : [...parts].filter((m) => this.store.facts(m, "Said").length);
+    }
+    if (process.env.DBG) console.error("members", JSON.stringify(p, (k, v) => (k === "pos" ? undefined : v)), kinds, anchors, found);
+    if (!found?.length) return undefined;
+    const first = (m: string, head: string) => positional(this.store.facts(m, head)[0]?.claim as Call ?? c(head))[0];
+    const items = found
+      .map((m) => {
+        // A sense is said by its word; its own name (a command line, an operation's id) where it has one.
+        const word = first(m, "SenseOf");
+        const name = first(m, "Name");
+        const said = first(m, "Said");
+        const roles: [string, Expr][] = [];
+        if (name) roles.push(["name", name]);
+        if (said) roles.push(["said", said]);
+        return { sort: name?.kind === "string" ? name.value : isCall(word) ? word.head : m, expr: c("Member", isCall(word) ? c(word.head) : c(m), ...roles) };
+      })
+      .sort((a, b) => a.sort.localeCompare(b.sort));
+    const out: Expr[] = items.slice(0, shown).map((x) => x.expr);
+    if (items.length > shown) out.push(c("More", n(items.length - shown)));
+    return c("Members", ...out);
   }
 
   /** Whether the thing beside the gap is a referent that only points (no kind, no name said). */

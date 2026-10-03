@@ -8,10 +8,10 @@
 // Offline, it never does: what the graph holds and what was kept are all it has.
 
 import { createHash } from "node:crypto";
-import { type Call, type Expr, c, isCall, positional, role, s } from "../expr.js";
+import { type Call, type Expr, c, isCall, isHead, n, positional, role, s } from "../expr.js";
 import type { Store } from "../store.js";
-import { type Learned, Learner, type Recalled, topicName } from "./learn.js";
-import { type Found, type SearchResult, page, webSearch, wikidata, wikidataClaims, wikipedia, wikipediaTopic, wiktionary } from "./sources.js";
+import { type Learned, Learner, type Recalled, sourceOf, topicName } from "./learn.js";
+import { type Found, type PageDoc, type SearchResult, page, pageDoc, webSearch, wikidata, wikidataClaims, wikipedia, wikipediaTopic, wiktionary } from "./sources.js";
 
 export interface Knowledge {
   block: string;
@@ -23,12 +23,21 @@ export interface Knowledge {
 /** How long an answer stays fresh, in days (a fact on a source, here its starting value). */
 const FRESH_DAYS = 30;
 
+/** How long a source that did not answer is left alone, in milliseconds. */
+const QUIET_MS = 10 * 60 * 1000;
+
 export interface KnowOptions {
   /** Never go out: answer from the graph and what was kept. */
   offline?: boolean;
+  /**
+   * The last source, asked a question in its own words and answering in its own (ChatGPT,
+   * through the program the config names: Run, held as sending outside). Absent, it is not asked.
+   */
+  chatgpt?: (question: string) => Promise<string | undefined>;
 }
 
 export class Know {
+  private quietUntil = 0;
   readonly learner: Learner;
   /** What learning found, for the report (fact counts per page). */
   readonly learned: Learned[] = [];
@@ -92,8 +101,8 @@ export class Know {
   }
 
   private keep(kind: string, q: string, f: Found): Knowledge {
-    const from: Expr = c(f.source, s(f.url));
-    const block = this.store.addBlock(f.text, "text/plain", from);
+    const from = sourceOf(f);
+    const block = this.store.addBlock(f.text, f.media ?? "text/plain", from);
     this.store.addFact(
       "Know",
       c("Found", s(this.keyOf(kind, q)), c("Block", s(block.id)), ["source", c(f.source)], ["title", s(f.title)], ["to", s(f.url)], ["at", s(this.now().toISOString())]),
@@ -122,7 +131,30 @@ export class Know {
       await this.understand(found).catch(() => undefined);
       return k;
     }
-    return undefined;
+    // Before giving up, the last source: it answers the question itself, so what it says is about it.
+    return this.ask(question, topic);
+  }
+
+  /**
+   * ChatGPT's answer to a question (the last source, trust level 4): kept as content from it, and
+   * understood into facts like any page, about what the question is about. What it says is a
+   * proposal at most: it never grants or sets a rule (design section 20).
+   */
+  async ask(question: string, topic?: string): Promise<Knowledge | undefined> {
+    const have = this.cached("ask", question);
+    if (have || this.opts.offline || !this.opts.chatgpt) return have;
+    // A source that did not answer is not asked again for a while: each try waits on it (gptb
+    // waits for ChatGPT's page), and a turn should not pay that for every question.
+    if (this.quietUntil > this.now().getTime()) return undefined;
+    const text = (await this.opts.chatgpt(question).catch(() => undefined))?.trim();
+    if (!text) {
+      this.quietUntil = this.now().getTime() + QUIET_MS;
+      return undefined;
+    }
+    const found: Found = { text, title: topic ?? question, url: "", source: "ChatGPT", media: "text/markdown" };
+    const k = this.keep("ask", question, found);
+    await this.understand(found).catch(() => undefined);
+    return k;
   }
 
   /**
@@ -145,6 +177,70 @@ export class Know {
     const inTopic = (t: string) => words.some((w) => stem(w) === stem(t) || w.startsWith(stem(t)) || t.startsWith(stem(w)));
     const named = words.filter((w) => title.some((t) => stem(w) === stem(t) || w.startsWith(stem(t)) || t.startsWith(stem(w)))).length;
     return title.length > 0 && title.every(inTopic) && named * 2 >= words.length;
+  }
+
+  /**
+   * What a page says of something specific (design section 21): the page read into structure,
+   * its parts kept as facts on what it is about (Section(heading, level=, Paragraph(Block)...,
+   * Item(Block)..., Row(...)..., Link(text, to=)..., Fields(Field(name)..., to=, method=)...)),
+   * and the part whose heading names the most of the words asked about, where one does: a heading
+   * word and an asked word that look up to the same concept ("Climate" for "climate"). Its words
+   * are the answer, not the page's opening. Offline, only a page kept before is looked in.
+   */
+  async look(k: Knowledge, words: string[]): Promise<Knowledge | undefined> {
+    if (!k.url || !words.length) return undefined;
+    const topic = topicName({ title: k.title });
+    const from: Expr = c(k.source, s(k.url));
+    if (!this.store.facts(topic, "Section").length) {
+      const doc = this.opts.offline ? undefined : await pageDoc(k.url).catch(() => undefined);
+      if (!doc) return undefined;
+      this.keepPage(topic, doc, from);
+    }
+    const concepts = (text: string) => new Set(text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean).flatMap((w) => this.store.lookup(w).map((h) => h.concept)));
+    const asked = new Set(words.flatMap((w) => [...concepts(w)]));
+    let best: { f: Call; n: number } | undefined;
+    for (const f of this.store.facts(topic, "Section")) {
+      const heading = positional(f.claim as Call)[0];
+      if (heading?.kind !== "string") continue;
+      const n = [...concepts(heading.value)].filter((x) => asked.has(x)).length;
+      if (n && (!best || n > best.n)) best = { f: f.claim as Call, n };
+    }
+    if (!best) return undefined;
+    const paras = positional(best.f)
+      .filter((x) => isHead(x, "Paragraph") || isHead(x, "Item"))
+      .map((x) => positional(x as Call)[0])
+      .flatMap((b) => {
+        const id = isCall(b) ? positional(b)[0] : undefined;
+        const body = id?.kind === "string" ? this.store.block(id.value)?.body : undefined;
+        return body ? [body] : [];
+      });
+    let text = "";
+    for (const p of paras) {
+      if (text && text.length + p.length > 900) break;
+      text += (text ? "\n\n" : "") + p;
+    }
+    if (!text) return undefined;
+    const heading = (positional(best.f)[0] as { value: string }).value;
+    const anchor = role(best.f, "anchor");
+    const block = this.store.addBlock(text, "text/plain", from);
+    return { block: block.id, title: `${k.title}: ${heading}`, url: anchor?.kind === "string" ? `${k.url.split("#")[0]}#${anchor.value}` : k.url, source: k.source };
+  }
+
+  /** A page's parts, kept as facts on what it is about, each paragraph and item as a block. */
+  private keepPage(topic: string, doc: PageDoc, from: Expr): void {
+    const blockOf = (text: string) => c("Block", s(this.store.addBlock(text, "text/plain", from).id));
+    for (const p of doc.parts) {
+      const parts: Expr[] = [
+        ...p.paragraphs.map((x) => c("Paragraph", blockOf(x))),
+        ...p.items.map((x) => c("Item", blockOf(x))),
+        ...p.rows.map((r) => c("Row", ...r.map((x) => s(x)))),
+        ...p.links.slice(0, 50).map((l) => c("Link", s(l.text), ["to", s(l.to)])),
+        ...p.forms.map((f) => c("Fields", ...f.fields.map((x) => c("Field", s(x))), ["to", s(f.to)], ["method", s(f.method)])),
+      ];
+      const roles: [string, Expr][] = [["level", n(p.level)]];
+      if (p.anchor) roles.push(["anchor", s(p.anchor)]);
+      this.store.addFact(topic, c("Section", s(p.heading), ...parts, ...roles), from);
+    }
   }
 
   /** What a word means, from a dictionary. */
