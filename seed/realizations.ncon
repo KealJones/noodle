@@ -38,6 +38,8 @@ Reading(on=Run(), mode=Speaking(), pattern=CommandLine($p, $args), becomes=Parag
 Reading(on=Run(), mode=Speaking(), pattern=CommandLine($p, Args()), becomes=$p)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
 Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
+Reading(on=Run(), mode=Speaking(), pattern=Joined($a), becomes=$a)
+Reading(on=Run(), mode=Speaking(), pattern=Joined($a, $b), becomes=Paragraph($a, Joined($b)))
 
 // Putting into and taking out of a holder.
 Reading(on=Store(), mode=Speaking(), pattern=Store($h, $x), becomes=Paragraph("add ", $x, " to ", $h))
