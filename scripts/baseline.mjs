@@ -15,16 +15,17 @@
 // split's key: project directory and day), so no prompt is scored by a model that saw it or its
 // conversation.
 //
-// Not run here: the slot filler and the salience ranker need typed argument and referent gold
-// (files, branches, refs against a fixture), which the exploratory labels do not have (their
-// targets are prose); they run on the experiment's gold (testing.md section 5.1) once it exists.
-import { execFileSync } from "node:child_process";
+// The models are in scripts/baselines/lib/models.mjs, shared with the decide baselines
+// (scripts/baselines/*.mjs), which add the slot filler (scripts/baselines/lib/slots.mjs). Not run
+// here: the slot filler and the salience ranker need typed argument and referent gold (files,
+// branches, refs against a fixture), which the exploratory labels do not have (their targets are
+// prose); they run on the experiment's gold (testing.md section 5.1).
 import { join } from "node:path";
 import { devLabels, fold } from "./devset.mjs";
+import { Bm25, commandsOf, featurizer, knn, logistic, nameMatch as matchNames, pagesOf, tokens, wordnetOf } from "./baselines/lib/models.mjs";
 
 const dist = join(import.meta.dirname, "..", "dist");
 const { packedStore } = await import(join(dist, "assistant", "index.js"));
-const { isCall, positional } = await import(join(dist, "runtime", "expr.js"));
 
 const labels = devLabels({ maxWords: 150 }).filter((l) => !l.tooLong);
 const key = (a) => `${a.program ?? ""} ${a.sub ?? ""}`.trim();
@@ -37,121 +38,17 @@ const items = labels.map((l) => ({
   fold: fold(l.row),
 }));
 
-// The learned commands: every reading from a tool's documentation that becomes Run.
+// The learned commands (every reading from a tool's documentation that becomes Run), their man
+// pages, and WordNet expansion, from the same store Noodle uses (scripts/baselines/lib/models.mjs).
 const store = packedStore();
-const commands = new Map();
-for (const f of store.factsWithHead("Usage")) {
-  const usage = positional(f.claim)[1];
-  if (!isCall(usage)) continue;
-  const words = [];
-  for (const x of positional(usage)) {
-    if (x.kind !== "string") break;
-    words.push(x.value);
-  }
-  if (words.length >= 2) commands.set(words.slice(1).join(" "), { program: words[0], sub: words.slice(1).join("-") });
-}
-const actOf = (a) => `${a.program} ${a.sub}`;
-
-// ---- text
-
-const tokens = (t) => t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1);
-const wnCache = new Map();
-/** A word's WordNet synonyms and direct hypernyms, as single words. */
-function wordnet(w) {
-  let out = wnCache.get(w);
-  if (out) return out;
-  out = new Set();
-  const lemmas = (concept) => store.facts(concept, "Lemma").map((f) => positional(f.claim)[0]?.value).filter((x) => typeof x === "string" && !/\s/.test(x));
-  for (const hit of store.lookup(w))
-    for (const sf of store.facts(hit.concept, "Sense")) {
-      const sense = positional(sf.claim)[0]?.head;
-      if (!sense) continue;
-      const synsets = [sense, ...store.facts(sense, "IsA").map((f) => positional(f.claim)[0]?.head).filter(Boolean)];
-      for (const sy of synsets)
-        for (const m of store.facts(sy, "SenseOf")) for (const l of lemmas(positional(m.claim)[0]?.head)) if (l.toLowerCase() !== w) out.add(l.toLowerCase());
-    }
-  wnCache.set(w, out);
-  return out;
-}
-const expand = (toks) => [...toks, ...[...new Set(toks)].flatMap((w) => [...wordnet(w)])];
-
-function manPage(program, sub) {
-  try {
-    const raw = execFileSync("man", ["-P", "cat", `${program}-${sub}`], { encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "ignore"], maxBuffer: 16 << 20 });
-    return raw.replace(/.\x08/g, "");
-  } catch {
-    return "";
-  }
-}
-
-class Bm25 {
-  constructor(docs, k1 = 1.2, b = 0.75) {
-    this.docs = docs.map((d) => {
-      const tf = new Map();
-      for (const w of d.toks) tf.set(w, (tf.get(w) ?? 0) + 1);
-      return { id: d.id, tf, len: d.toks.length };
-    });
-    this.avg = this.docs.reduce((n, d) => n + d.len, 0) / Math.max(1, this.docs.length);
-    this.df = new Map();
-    for (const d of this.docs) for (const w of d.tf.keys()) this.df.set(w, (this.df.get(w) ?? 0) + 1);
-    Object.assign(this, { k1, b });
-  }
-  idf(w) {
-    const n = this.df.get(w) ?? 0;
-    return Math.log(1 + (this.docs.length - n + 0.5) / (n + 0.5));
-  }
-  rank(q) {
-    const qs = [...new Set(q)];
-    return this.docs
-      .map((d) => {
-        let s = 0;
-        for (const w of qs) {
-          const f = d.tf.get(w);
-          if (f) s += (this.idf(w) * f * (this.k1 + 1)) / (f + this.k1 * (1 - this.b + (this.b * d.len) / this.avg));
-        }
-        return { id: d.id, s };
-      })
-      .sort((a, z) => z.s - a.s);
-  }
-}
-
-class Tfidf {
-  constructor(docs) {
-    this.df = new Map();
-    for (const d of docs) for (const w of new Set(d)) this.df.set(w, (this.df.get(w) ?? 0) + 1);
-    this.n = docs.length;
-  }
-  vec(toks) {
-    const tf = new Map();
-    for (const w of toks) tf.set(w, (tf.get(w) ?? 0) + 1);
-    const v = new Map();
-    let norm = 0;
-    for (const [w, f] of tf) {
-      const x = (1 + Math.log(f)) * Math.log((this.n + 1) / ((this.df.get(w) ?? 0) + 1));
-      if (x > 0) v.set(w, x), (norm += x * x);
-    }
-    norm = Math.sqrt(norm) || 1;
-    for (const [w, x] of v) v.set(w, x / norm);
-    return v;
-  }
-}
-const cosine = (a, b) => {
-  let s = 0;
-  for (const [w, x] of a.size < b.size ? a : b) s += x * ((a.size < b.size ? b : a).get(w) ?? 0);
-  return s;
-};
+const commands = commandsOf(store);
+const expand = wordnetOf(store);
 
 // ---- baselines; each returns, per item, the ordered act keys it predicts
 
-function nameMatch(it) {
-  const toks = it.text.toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean);
-  const got = [];
-  for (let i = 0; i < toks.length; i++)
-    for (const [name, act] of commands) if (name.split(" ").every((p, k) => toks[i + k] === p)) got.push(actOf(act));
-  return [...new Set(got)];
-}
+const nameMatch = (it) => matchNames(it.text, commands);
 
-const pages = [...commands.values()].map((act) => ({ id: actOf(act), text: `${act.program} ${act.sub.replace(/-/g, " ")} ${manPage(act.program, act.sub)}` }));
+const pages = pagesOf(commands);
 const pagesFound = pages.filter((p) => p.text.split(/\s+/).length > 20).length;
 
 /** Picks the threshold over training scores that maximizes accuracy (top act right, or nothing on none). */
@@ -180,76 +77,20 @@ function bm25Baseline(wn, always = false) {
 }
 
 function knnBaseline() {
-  return items.map((it) => {
-    const train = items.filter((x) => x.fold !== it.fold);
-    const tf = new Tfidf(train.map((x) => tokens(x.text)));
-    const q = tf.vec(tokens(it.text));
-    let best;
-    for (const x of train) {
-      const s = cosine(q, tf.vec(tokens(x.text)));
-      if (!best || s > best.s) best = { s, x };
-    }
-    return { got: best ? best.x.want : [] };
-  });
+  return items.map((it) => ({ got: knn(items.filter((x) => x.fold !== it.fold))(it.text) }));
 }
 
-/** One-vs-rest logistic regression, sparse features, plain SGD with L2. */
+/** One-vs-rest logistic regression on the words (models.mjs logistic), by fold. */
 function classifierBaseline({ man = false, wn = false }) {
-  const prep = (t) => (wn ? expand(tokens(t)) : tokens(t));
-  const pageTf = man ? new Tfidf(pages.map((p) => prep(p.text))) : undefined;
-  const pageVecs = man ? pages.map((p) => ({ id: p.id, v: pageTf.vec(prep(p.text)) })) : [];
-  const feats = items.map((it) => {
-    const f = new Map();
-    for (const w of new Set(prep(it.text))) f.set(`w:${w}`, 1);
-    if (man) {
-      const q = pageTf.vec(prep(it.text));
-      for (const p of pageVecs) {
-        const s = cosine(q, p.v);
-        if (s > 0) f.set(`m:${p.id}`, s * 5);
-      }
-    }
-    f.set("bias", 1);
-    return f;
-  });
+  const feat = featurizer({ pages, man, expand: wn ? expand : undefined });
+  const feats = items.map((it) => feat(it.text));
+  const wants = items.map((it) => it.want);
   const out = new Array(items.length);
-  for (let fold = 0; fold < 5; fold++) {
-    const train = items.map((x, k) => k).filter((k) => items[k].fold !== fold);
-    const classes = [...new Set(train.flatMap((k) => items[k].want))];
-    const models = classes.map((cl) => {
-      const w = new Map();
-      for (let epoch = 0; epoch < 15; epoch++) {
-        const rate = 0.5 / (1 + epoch);
-        for (const k of shuffled(train, epoch + fold * 31)) {
-          const y = items[k].want.includes(cl) ? 1 : 0;
-          let z = 0;
-          for (const [name, x] of feats[k]) z += (w.get(name) ?? 0) * x;
-          const g = 1 / (1 + Math.exp(-z)) - y;
-          for (const [name, x] of feats[k]) w.set(name, (w.get(name) ?? 0) * (1 - rate * 1e-4) - rate * g * x);
-        }
-      }
-      return { cl, w };
-    });
-    for (let k = 0; k < items.length; k++) {
-      if (items[k].fold !== fold) continue;
-      const probs = models.map(({ cl, w }) => {
-        let z = 0;
-        for (const [name, x] of feats[k]) z += (w.get(name) ?? 0) * x;
-        return { cl, p: 1 / (1 + Math.exp(-z)) };
-      });
-      out[k] = { got: probs.filter((x) => x.p >= 0.5).sort((a, b) => b.p - a.p).map((x) => x.cl) };
-    }
+  for (let f = 0; f < 5; f++) {
+    const predict = logistic(feats, wants, items.map((x, k) => k).filter((k) => items[k].fold !== f), f * 31);
+    for (let k = 0; k < items.length; k++) if (items[k].fold === f) out[k] = { got: predict(feats[k]) };
   }
   return out;
-}
-function shuffled(xs, seed) {
-  const a = [...xs];
-  let s = seed + 1;
-  for (let i = a.length - 1; i > 0; i--) {
-    s = (s * 1103515245 + 12345) % 2147483648;
-    const j = s % (i + 1);
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 // ---- scoring, as scripts/acts.mjs scores Noodle

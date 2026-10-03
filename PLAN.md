@@ -153,8 +153,16 @@ be reached in about four months, the domain widens to files in general now.
 
 Run as far as it goes without new labels: `pnpm pilot`, results in `docs/pilot.md` (2026-10-03). The
 planned n (243) is reached in about two months at the measured rates, so the domain does not need
-to widen for n; but A+ trained cannot run yet (no trainer), end state cannot be measured on the
-exploratory labels, and with the effect the pilot measured no n reaches go.
+to widen for n; but end state cannot be measured on the exploratory labels, and with the effect the
+pilot measured no n reaches go.
+
+The pieces the pilot found missing (2026-10-03): `pnpm train` (the perceptron for A+ trained,
+testing.md section 8), the slot-filler baselines decide needs (`scripts/baselines/`, testing.md
+section 7), and typed arguments in `pnpm label` (testing.md section 5.1). First training run, 512
+training prompts, cross-validated by conversation: act items exact 2.4% before, 1.2% after; no-act
+items 90.4% to 98.5%. The readings the chart keeps reach the gold acts on only 3% of act items, so
+the weights can only learn not to act: the bottleneck is which readings exist, not how they are
+weighed.
 
 ## Phase 6: stage 2 (the deciding run)
 
