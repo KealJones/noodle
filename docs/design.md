@@ -969,7 +969,7 @@ Every fact carries a **trust level** from its source:
 1. the user in the conversation, the home instruction file, and the config file;
 2. the project's instruction file;
 3. the project's `AGENTS.md`, READMEs, help text;
-4. the web and other fetched pages.
+4. the web and other fetched pages, and ChatGPT.
 
 - **Only level 1 grants permissions or lifts guards.** Level 2 sets standing rules for its project.
 - **Readings from levels 3 and 4 are proposals**: they may not rewrite into a guarded effect class,
@@ -1032,7 +1032,7 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("commit", Senses())
             4. save it with provenance and trust; return it
                  |
   Live sources: Senses (Wikidata) · Claims (Wikidata) · Dictionary (Wiktionary)
-                · Pages (sister projects) · Query (SPARQL) · Web
+                · Pages (sister projects) · Query (SPARQL) · Web · ChatGPT (last)
                  |
   Fetch (inside Know only): cached per URL, throttled, retrying, one polite user agent
 ```
@@ -1071,6 +1071,20 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("commit", Senses())
   answer, the things the question names are learned about (their own pages and claims) and it is
   asked once more; the page is the answer last. With `know: "offline"` in the config, Know never
   goes out and answers from the graph and what it kept.
+- **Pages as structure.** Where a page is the answer and the question has words its title does
+  not ("what is the history of git", answered by the page "Git"), the whole page is read into
+  structure, as a manual page is: its parts under each heading, with their paragraphs, list items,
+  table rows, links and forms, kept as `Section(...)` facts on what the page is about. The part
+  whose heading names a word of the question (a heading word that looks up to the same concept)
+  is the answer, not the page's opening.
+- **ChatGPT, last.** When no other source answers, Know asks ChatGPT, through the program the
+  config names (`gptb` by default, which speaks to chatgpt.com in the user's own browser): Run of
+  it with the question, guarded as sending outside like any lookup, and where another gptb holds
+  the browser, gptb's server on this machine. It is a source at level 4: its reply is kept as
+  content from it (markdown, printed as written) and understood into facts like any page, may
+  propose readings, and never grants or sets a rule. Every reply that leans on it says so ("From
+  ChatGPT:"). `chatgpt: false` in the config turns it off; the learn loop asks it (`Know.ask`)
+  when a step has nothing else to go on.
 
 ## 22. The base graph
 
@@ -1173,6 +1187,22 @@ is tracked alongside accuracy.
   placeholder nothing in the request fills stays a variable, so the act is unworked rather than
   guessed. Effects come from the HTTP method (GET reads and sends outside; POST, PUT and PATCH
   publish; DELETE deletes); Run can hold none of them, so every operation is offered first.
+- **One hierarchy for what is learned to use.** The core has the kinds (built-ins.md section 1's
+  test: a chess engine, a shop's API and a dictionary are learned the same way): a `Tool` (a
+  program on this machine), its `Command`s and their `Option`s, an `Api` and its `Operation`s and
+  their `Parameter`s, and a `KnowledgeSource` (Wikipedia, Wikidata, Wiktionary, the web, a tool's
+  own pages, WordNet, VerbNet, ChatGPT). Each learned thing is `IsA` its kind, `PartOf` what it
+  belongs to (a command of its tool, an option of its command, an operation of its API), and
+  called by its `Name` ("git add", an operation's id); an API is `ServedBy` the program that
+  speaks to it, and its name is a word ("github"). Questions about them are answered from these
+  facts, never looked up: a kind said beside the question's gap ("what tools do you know", "what
+  sources do you use") by its members, every concept its word is counted (the core's
+  `KnowledgeSource` is said "source"); a thing the question names elsewhere ("what can git do",
+  "what can you do with github") by its parts that say what they are, each with its name and its
+  summary. The core's own meanings are not members to list ("who" is someone, not people).
+- **A browser is learned, not built.** A browser driver on the PATH (agent-browser) is a tool like
+  any other, learned from its help; its commands' effects are what their summaries say, and what
+  they do not say is unknown, so opening, clicking and typing are offered before they run.
 
 **Code is language.** The assistant reads, understands, changes and writes code as it does English:
 code becomes concepts (what a function takes, gives and does), changes are readings over them, and
