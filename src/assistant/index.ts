@@ -6,7 +6,8 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import type { Call } from "../runtime/expr.js";
+import { type Call, type Expr, isCall } from "../runtime/expr.js";
+import { chatgptServer } from "../runtime/know/sources.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
@@ -87,6 +88,38 @@ export interface Config {
   replay?: boolean;
   /** Keep what corrections teach in ~/.noodle/learned.ncon (the chat and the endpoints turn it on). */
   learn?: boolean;
+  /**
+   * Ask ChatGPT when no other source answers (design section 21), through the program that
+   * speaks to it in the user's browser: the command line before the question (["gptb"] by
+   * default), or false to never ask it. Asking sends the question outside, so it is guarded as
+   * any lookup is (the SendsOutside grant).
+   */
+  chatgpt?: boolean | string[];
+  /** How long ChatGPT may take to answer, in milliseconds (120000). */
+  chatgptTimeoutMs?: number;
+}
+
+/**
+ * ChatGPT, asked through Run of the configured program with the question as its last argument;
+ * where that cannot reach the browser (another gptb holds it), through gptb's local server. Its
+ * reply is its output.
+ */
+function chatgptAsker(config: Config, world: World): ((question: string) => Promise<string | undefined>) | undefined {
+  if (config.chatgpt === false || !config.know || config.know === "offline") return undefined;
+  const [program, ...args] = Array.isArray(config.chatgpt) && config.chatgpt.length ? config.chatgpt : ["gptb"];
+  // A config that lists the programs Run may start, without this one, does not ask it at all.
+  if (world.programs && !world.programs.has(program)) return undefined;
+  const timeoutMs = config.chatgptTimeoutMs ?? 120000;
+  const run = PRIMITIVES.get("Run")!;
+  const str = (x: string): Expr => ({ kind: "string", value: x, pos: P0 });
+  return async (question) => {
+    const ran = await run.run([str(program), { kind: "call", head: "Args", args: [...args, question].map((x) => ({ value: str(x) })), pos: P0 }], { ...world, timeoutMs }).catch(() => undefined);
+    const exit = ran && isCall(ran) ? ran.args.find((a) => a.name === "exit")?.value : undefined;
+    const out = ran && isCall(ran) ? ran.args.find((a) => a.name === "output")?.value : undefined;
+    const id = isCall(out) ? out.args[0]?.value : undefined;
+    const text = exit?.kind === "number" && exit.value === 0 && id?.kind === "string" ? world.store.block(id.value)?.body : undefined;
+    return text?.trim() ? text : chatgptServer(question, 7778, timeoutMs);
+  };
 }
 
 export function readConfig(path = process.env.NOODLE_CONFIG ?? join(homedir(), ".noodle", "config.json")): Config {
@@ -107,7 +140,7 @@ export function createSession(store: Store, root: string, config: Config = {}, o
   };
   // Know, the door to outside knowledge, where the channel turns it on; whether it may go out is
   // the SendsOutside grant.
-  if (config.know) world.know = new Know(store, world.now, { offline: config.know === "offline" });
+  if (config.know) world.know = new Know(store, world.now, { offline: config.know === "offline", chatgpt: chatgptAsker(config, world) });
   // Readings from documentation the user has confirmed, kept as facts (runtime.md 13).
   const confirmed = new Set(
     store

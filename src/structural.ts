@@ -128,7 +128,16 @@ export const STRUCTURAL = {
       "Topic", "Heard",
       // A program learned on demand from its documentation (design section 25).
       "Learned",
+      // The last source Know asks, through the program the config names (design section 21).
+      "ChatGPT",
+      // A page read into structure: what a section holds beside paragraphs and items (Section,
+      // Paragraph and Item are a manual page's too).
+      "Row", "Link", "Fields", "Field",
     ],
+  },
+  members: {
+    why: "a question about a kind, or about what a thing can do, is answered from the graph: the kind's members, or the thing's parts (PartOf), each said with what it says of itself (design section 25)",
+    names: ["PartOf", "Members", "Member", "More"],
   },
   primitives: {
     why: "the only code that touches the world (built-ins.md section 2)",

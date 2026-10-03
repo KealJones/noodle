@@ -97,6 +97,10 @@ test("a program with only help is learned from it: commands, a number its noun t
   // "View a ticket" only shows something: held to reading. "Close a ticket" is unknown.
   assert.match(r.text, /pattern=View\(theme=Ticket\(number=\$x\)\),\s*becomes=Run\("pq", Args\("ticket", "view", \$x\)\),\s*effects=Reads\(\)/);
   assert.match(r.text, /pattern=Close\(theme=Ticket\(number=\$x\)\),\s*becomes=Run\("pq", Args\("ticket", "close", \$x\)\),\s*effects=UnknownEffects\(\)/);
+  // One hierarchy: the program is a tool, each command one of its, each option one of the command's.
+  assert.match(r.text, /Pq\(\),\s*Lemma\("pq"\),\s*IsA\(Tool\(\)\),\s*Name\("pq"\)/);
+  assert.match(r.text, /IsA\(Command\(\)\),\s*PartOf\(Pq\(\)\),\s*Name\("pq ticket review"\)/);
+  assert.match(r.text, /IsA\(Option\(\)\),\s*PartOf\(Review#PqTicketCommand\(\)\),\s*Name\("--approve"\)/);
   store.load(r.text);
 
   const sess = createSession(store, tmpdir());

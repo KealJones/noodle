@@ -111,7 +111,7 @@ export class Learner {
    */
   topic(f: Found): string {
     const name = topicName(f);
-    const from = c(f.source, s(f.url));
+    const from = sourceOf(f);
     if (this.store.facts(name).length) return name;
     const h = hear(this.store, f.title, { names: [] });
     const known = (i: number) => h.candidates[i].some((x) => x.source === "Exact" || x.source === "Inflected" || x.source === "Stretched");
@@ -140,7 +140,7 @@ export class Learner {
   /** Understand what was found, and the claims on its entity: facts on its topic. */
   learn(f: Found, claims: Claim[] = []): Learned {
     const topic = this.topic(f);
-    const from = c(f.source, s(f.url));
+    const from = sourceOf(f);
     const out: Learned = { topic, facts: [], dropped: { opening: 0, claims: 0 } };
     const block = this.store.addBlock(f.text, "text/plain", from);
     this.store.addFact(topic, c("Said", c("Block", s(block.id))), from);
@@ -295,8 +295,13 @@ export class Learner {
   }
 }
 
+/** Where what was found came from: the source, and its address where it has one. */
+export function sourceOf(f: Found): Expr {
+  return f.url ? c(f.source, s(f.url)) : c(f.source);
+}
+
 /** The concept a page is about, named from its title. */
-export function topicName(f: Found): string {
+export function topicName(f: Pick<Found, "title">): string {
   return `${encode(f.title) ?? "Page"}#Topic`;
 }
 
