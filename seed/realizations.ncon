@@ -105,6 +105,15 @@ Reading(on=Offer(), mode=Speaking(), pattern=Offer($a, effects=UnknownEffects())
 Reading(on=Offer(), mode=Speaking(), pattern=Offer(Sequence($a, $b)),
   becomes=Document(Paragraph("I can do these, in order:"), List($a, $b), Paragraph("Go ahead?")))
 Reading(on=List(), mode=Speaking(), pattern=List($a, Sequence($b, $c)), becomes=List($a, $b, $c))
+// A command held to reading that failed, offered again without holding it.
+Reading(on=Offer(), mode=Speaking(), pattern=Offer($a, effects=UnknownEffects(), unheld=true),
+  becomes=Paragraph("Held to reading, it failed. I can ", $a, " without holding it, but I don't know what it changes. Go ahead?"))
+// Learning a program from its help runs it (held to reading), so it is offered; what was learned
+// from a program's documentation is said.
+Reading(on=Help(), mode=Speaking(), pattern=Read(Help($p)),
+  becomes=Paragraph("learn ", Code($p), " from its help (", Code(CommandLine($p, Args("--help"))), ", run held to reading)"))
+Reading(on=Learned(), mode=Speaking(), pattern=Learned($p, from=ManPage()), becomes=Paragraph("I learned ", Code($p), " from its manual page."))
+Reading(on=Learned(), mode=Speaking(), pattern=Learned($p, from=Help()), becomes=Paragraph("I learned ", Code($p), " from its help."))
 
 // Teaching: the echo before a taught rewrite is kept, and what it says after.
 Reading(on=Offer(), mode=Speaking(), pattern=Offer(Remember(Rewrite($w, $d))),

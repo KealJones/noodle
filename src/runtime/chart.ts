@@ -17,6 +17,8 @@ export interface TakesSpec {
   head?: string | string[];
   /** A kind of role the argument's head word must mark (Marks facts on it): a spatial slot. */
   marks?: string;
+  /** A kind the argument must be (its word, or what its shape says it is: a numeral is a number). */
+  kind?: string;
   optional: boolean;
 }
 
@@ -287,6 +289,11 @@ export class Chart {
    * destination is a path, so it fills a path; "without" marks none and fills no spatial slot).
    */
   private headFits(t: TakesSpec, arg: Edge): boolean {
+    if (t.kind) {
+      const kind = t.kind;
+      const heads = [arg.word, isCall(arg.expr) ? arg.expr.head : undefined].filter((x): x is string => !!x);
+      if (!heads.some((h) => h === kind || this.store.kinds(h).has(kind))) return false;
+    }
     if (!t.head && !t.marks) return true;
     if (!isCall(arg.expr)) return false;
     const heads = [arg.word, arg.expr.head].filter((x): x is string => !!x);
@@ -648,7 +655,7 @@ export function entriesOf(store: Store, concept: string) {
       const side = (headOf(role(sub, "side")) ?? "Right") as "Left" | "Right";
       const category = headOf(role(sub, "category")) ?? "Any";
       if (sub.head === "Takes")
-        takes.push({ side, category, role: headOf(role(sub, "role")), head: headsOf(role(sub, "head")), marks: headOf(role(sub, "marks")), optional: boolOf(role(sub, "optional")) });
+        takes.push({ side, category, role: headOf(role(sub, "role")), head: headsOf(role(sub, "head")), marks: headOf(role(sub, "marks")), kind: headOf(role(sub, "kind")), optional: boolOf(role(sub, "optional")) });
       else if (sub.head === "Modifies") modifies.push({ side, category, role: headOf(role(sub, "role")) });
       else if (sub.head === "FillsGap") fillsGap = category;
     }
@@ -671,7 +678,7 @@ const corrected = (x: Candidate) => !!x.concept && (x.source === "SpellDistance"
  * A word taken where an entry asks for that very word ("cause" takes "to" and an act) fits the
  * entry better than the same words put together another way (runtime.md 8.1, ShapeFit).
  */
-const named = (t: TakesSpec): Features => (t.head || t.marks ? new Map([["ShapeFit:Head", 1]]) : new Map());
+const named = (t: TakesSpec): Features => (t.head || t.marks || t.kind ? new Map([["ShapeFit:Head", 1]]) : new Map());
 
 function argCount(e: Expr, path: number[]): number {
   let x = e;

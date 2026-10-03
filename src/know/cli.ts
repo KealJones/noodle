@@ -5,7 +5,7 @@
 //   pnpm import verbnet ~/.noodle/sources/verbnet/verbnet3.4
 //   pnpm import frames ~/.noodle/sources/english-wordnet-2025.xml.gz   (after wordnet: its verb frames)
 //   pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz
-//   pnpm import tool git       (from the local man pages)
+//   pnpm import tool git       (from the local man pages, or where there are none, its --help)
 //   pnpm import definitions [count] [verb|all]   (the imported senses' definitions, understood)
 //   pnpm import openapi <description.json> <name> --cli "gh api" --method -X --field -f --typed-field -F --fills owner,repo
 

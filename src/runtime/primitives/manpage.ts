@@ -347,10 +347,13 @@ export function readManPage(world: World, source: Call): Expr {
         .map((t) => (t as { raw: string }).raw.trim())
         .join(" ");
       // The page's own separator between the names and the summary is a spaced, escaped hyphen.
-      const cut = raw.indexOf(" \\- ");
+      // Some pages (gh's) write a plain hyphen instead.
+      const escaped = raw.indexOf(" \\- ");
+      const plain = escaped < 0 ? / - /.exec(raw)?.index ?? -1 : -1;
+      const cut = escaped >= 0 ? escaped : plain;
       if (cut >= 0) {
         const command = fillText(raw.slice(0, cut)).split(",")[0].trim();
-        const summary = fillText(raw.slice(cut + 4));
+        const summary = fillText(raw.slice(cut + (escaped >= 0 ? 4 : 3)));
         if (summary) head.push(["summary", build.block(summary)]);
         if (command) head.push(["command", s(command)]);
       }
