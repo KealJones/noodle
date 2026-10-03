@@ -70,6 +70,8 @@ export function freeze({ id, root, commit, repo, seedDir, packsDir, weightsText,
   const rules = quoteRules(design);
   const weightsHeader = F.packHeader(weightsText);
   if (weightsText && weightsHeader.name !== "learned-weights") throw new Error("the weights must be a learned-weights pack");
+  // The scored experiment runs with the tutor off (design section 17): nothing ChatGPT's picks taught is frozen.
+  if (/from=ChatGPT\(Tutor\(\)\)/.test(weightsText ?? "")) throw new Error("the weights hold one the tutor taught (from=ChatGPT(Tutor())); the scored experiment runs with the tutor off");
   mkdirSync(join(dir, "packs"), { recursive: true });
   const packs = existsSync(packsDir)
     ? readdirSync(packsDir).filter((f) => f.endsWith(".ncon")).sort(F.packOrder).map((f) => {
@@ -90,6 +92,7 @@ export function freeze({ id, root, commit, repo, seedDir, packsDir, weightsText,
     turn: DEFAULT_TURN,
     seed: F.seedHashes(seedDir).map((s) => ({ ...s, entries: counts.get(s.part) ?? 0 })),
     packs,
+    tutor: "off",
     weights: { file: "weights.ncon", hash: F.sha256(weights), count: (weights.match(/Weight\(/g) ?? []).length, from: weightsHeader.from ?? "Correction" },
     confirmations: { file: "confirmed.json", hash: F.sha256(confirmedText), count: [...confirmed].length },
     gold: GOLD,
@@ -163,7 +166,7 @@ function main() {
     const { Weights } = await import(join(dist, "runtime", "score.js"));
     // The learned weights and the confirmations are read from the store as it is; nothing is loaded into it.
     const store = existsSync(STORE) ? new Store(STORE) : new Store();
-    const weightsText = opt("--weights") ? readFileSync(opt("--weights"), "utf8") : new Weights(store).toNcon();
+    const weightsText = opt("--weights") ? readFileSync(opt("--weights"), "utf8") : new Weights(store, false).toNcon();
     const confirmed = store.facts("Confirmation", "Confirmed").flatMap((f) => (f.claim.args[0]?.value?.kind === "string" ? [f.claim.args[0].value.value] : []));
     const pilotPath = join(F.EXPERIMENT, "pilot.json");
     const pilot = existsSync(pilotPath) ? JSON.parse(readFileSync(pilotPath, "utf8")) : null;

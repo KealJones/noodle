@@ -435,6 +435,16 @@ export class Store {
     });
   }
 
+  /** Facts added at runtime (learned, taught, proposed), in no pack, whatever their status but Retracted. */
+  factsAdded(): FactItem[] {
+    return (this.db.prepare("SELECT id, json, status FROM items WHERE kind = 'fact' AND pack IS NULL AND status != 'Retracted' ORDER BY id").all() as { id: number; json: string; status: Status }[]).map((r) => {
+      const item = fromJson(r.json) as FactItem;
+      item.meta.id = r.id;
+      item.meta.status = r.status;
+      return item;
+    });
+  }
+
   block(id: string): BlockItem | undefined {
     const b = this.cached(this.cache.blocks, id, () => this.rows<BlockItem>("block", id)[0] ?? null);
     return b ?? undefined;

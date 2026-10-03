@@ -550,6 +550,9 @@ only route to the world (section 11b).
   documentation and web readings wait only if they would run something effectful.
 - **The replay gate**: a learned change that would change the top reading of any hand-checked replay
   item is kept only if the affected replays still pass (`testing.md`, section 4).
+- **The tutor's update** (design section 17): ChatGPT's pick moves the weights one step at
+  `tutorRate` of the cap, kept apart (from `ChatGPT(Tutor())`), through the replay gate, never on
+  a feature the user taught; with `"tutor": false` those weights are not used.
 
 ## 16. Performance
 

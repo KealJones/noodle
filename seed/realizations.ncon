@@ -88,6 +88,10 @@ Reading(on=Choices(), mode=Speaking(), pattern=Choices($x),
 Reading(on=Choice(), mode=Speaking(), pattern=Choice(Sequence($a, $b)), becomes=Document(Choice($a), Choice($b)))
 Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, $a), becomes=Paragraph($n, ". ", $a))
 Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, Sequence($a, $b)), becomes=Paragraph($n, ". ", $a, ", then ", $b))
+Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, $a, by=$who), becomes=Paragraph($n, ". ", $a, " (", $who, "'s pick)"))
+Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, Sequence($a, $b), by=$who), becomes=Paragraph($n, ". ", $a, ", then ", $b, " (", $who, "'s pick)"))
+Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, $a, suggested=$who), becomes=Paragraph($n, ". ", $a, " (", $who, "'s suggestion)"))
+Reading(on=Tutored(), mode=Speaking(), pattern=Tutored($who, $a), becomes=Paragraph($who, " thought you meant: ", $a, "."))
 Reading(on=Taught(), mode=Speaking(), pattern=Taught($a), becomes=Paragraph("Got it: for that I'll ", $a, " from now on."))
 Reading(on=BlockedBy(), mode=Speaking(), pattern=BlockedBy($a, $rule, from=$src),
   becomes=Paragraph("I didn't ", $a, ": ", $rule, " (", $src, ")."))
