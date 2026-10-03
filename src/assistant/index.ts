@@ -18,6 +18,8 @@ import type { Assistant, ChatMessage } from "../serve/assistant.js";
 import { ReplayGate } from "./replay.js";
 import { Know } from "../runtime/know/know.js";
 import { learnTool } from "../know/tooldocs.js";
+import { FrozenSystem } from "./frozen.js";
+import type { Weights } from "../runtime/score.js";
 
 export interface AssistantOptions {
   /** The workspace every primitive is confined to. */
@@ -28,6 +30,11 @@ export interface AssistantOptions {
 /** The store: one SQLite file, imported into once, queried as it is used (ncon.md section 9). */
 export const STORE = process.env.NOODLE_STORE ?? join(homedir(), ".noodle", "store.db");
 export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "packs");
+/**
+ * A frozen system to run instead of the working one (design section 29; pnpm freeze): its store is
+ * built from the frozen copies, and it refuses to start if anything differs from its manifest.
+ */
+export const FROZEN = process.env.NOODLE_FROZEN;
 
 /**
  * The durable store with the seed and every pack in ~/.noodle/packs/ in it (pnpm run import). A part or
@@ -35,6 +42,7 @@ export const PACKS = process.env.NOODLE_PACKS ?? join(homedir(), ".noodle", "pac
  * What was learned and taught is in the same database, kept across sessions.
  */
 export function packedStore(dir = PACKS, path = STORE): Store {
+  if (FROZEN) return new FrozenSystem(FROZEN).store("A+");
   if (path !== ":memory:") mkdirSync(join(path, ".."), { recursive: true });
   const store = seededStore(undefined, path);
   if (existsSync(dir)) {
@@ -94,7 +102,15 @@ export function readConfig(path = process.env.NOODLE_CONFIG ?? join(homedir(), "
   return JSON.parse(readFileSync(path, "utf8")) as Config;
 }
 
-export function createSession(store: Store, root: string, config: Config = {}, onSay?: (doc: unknown) => void): Session {
+/** What the experiment's arms set (design section 29): the weights, and the confirmations of the variant. */
+export interface SessionArm {
+  weights?: Weights;
+  confirmed?: Iterable<string>;
+}
+
+export function createSession(store: Store, root: string, config: Config = {}, onSay?: (doc: unknown) => void, arm: SessionArm = {}): Session {
+  // A frozen system learns nothing: what it is, is what was frozen.
+  if (FROZEN) config = { ...config, learn: false, replay: false };
   const world: World = {
     root,
     store,
@@ -110,6 +126,7 @@ export function createSession(store: Store, root: string, config: Config = {}, o
   if (config.know) world.know = new Know(store, world.now, { offline: config.know === "offline" });
   // Readings from documentation the user has confirmed, kept as facts (runtime.md 13).
   const confirmed = new Set(
+    arm.confirmed ??
     store
       .facts("Confirmation", "Confirmed")
       .map((f) => (f.claim as Call).args[0]?.value)
@@ -122,7 +139,7 @@ export function createSession(store: Store, root: string, config: Config = {}, o
     const claim: Call = { kind: "call", head: "Confirmed", args: [{ value: { kind: "string", value: k, pos: { line: 0, column: 0 } } }], pos: { line: 0, column: 0 } };
     store.addFact("Confirmation", claim, { kind: "call", head: "User", args: [], pos: { line: 0, column: 0 } });
   };
-  const session = new Session(store, PRIMITIVES, world);
+  const session = new Session(store, PRIMITIVES, world, undefined, arm.weights);
   // A program a request names that the graph does not know is learned from its documentation
   // (design section 25), understood over the words the store has, and loaded. Where the channel
   // keeps what it learns, the tool's pack is kept with the others, so it is there after a restart.
