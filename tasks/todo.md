@@ -30,3 +30,13 @@
   keeping the answer as a learned command for that step, reusable anywhere; or learning the step
   from a man page. Everything from=User, trust 1; acts that change things are still offered until
   granted.
+- **Try, offer, learn: the built-in loop for anything not known with high confidence** (build right
+  after CLI learning lands, together with teaching procedures). Keal: it figures out what it
+  could do on its own (every command on the machine learned with what it does, from man pages or
+  --help), offers the closest candidate as "Can I run `exact command`?"; on "no, that's not
+  right" it offers its next candidates as a numbered list (pick a number), or takes the right
+  answer from the user. Not only for commands: any reading or act chosen without high
+  confidence goes through the same offer, pick or correct loop. What the user confirms or
+  corrects raises confidence (the learned weights and a reading from=User), so the same ask is
+  done directly next time, and it carries over to new asks through the concepts it shares
+  (concept reuse), not as a stored phrase.
