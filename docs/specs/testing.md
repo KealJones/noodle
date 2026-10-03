@@ -265,6 +265,28 @@ cost ratio, the update cap, k, the stage-two width, the rewrite budget).
 
 - The scorer refuses to score confirmatory items unless the loaded system's hashes match
   `freeze.json`.
+- `pnpm freeze [--id ID] [--weights FILE]` writes `~/.noodle/experiment/frozen/<id>/`: `freeze.json`,
+  a copy of every pack (classified by its source: `ToolDoc` and `ApiDoc` packs are the documentation
+  readings of arm A+, the rest imports), `weights.ncon` (the trained weights; by default the learned
+  weights in the store) and `confirmed.json` (Keal's confirmations, for the variant reported beside).
+  The manifest also holds the runtime's commit, version and source hash, the turn's settings, each
+  seed part's hash and count, the gold format version, the mapping from gold to acts, the go and stop
+  rules quoted from design section 29, and n, the margin and alpha from the pilot
+  (`~/.noodle/experiment/pilot.json`, `{"n", "margin", "alpha", "at"}`), null until the pilot writes it.
+  It refuses on a dirty tree or a failing seed check and never overwrites a freeze; it writes
+  `docs/frozen-<id>.md` to publish.
+- `NOODLE_FROZEN=<id>` runs the frozen system (its stores are built in the frozen directory from the
+  copies) and refuses to start if anything differs; a frozen system learns nothing.
+- `pnpm decide [--frozen ID]` runs the arms (A, A+ zero-shot, A+ trained, and the confirmed
+  variant) and the baselines in `scripts/baselines/` (each module's default export is
+  `{ name, role: "name-match" | "trained" | ..., predict(item) }`, returning `{ program, argv }`
+  acts) on the confirmatory set, each item as a dry run in a sandbox cloned from its fixture, and
+  applies the go rule as frozen: the floor by an exact binomial test, superiority over command-name
+  match and non-inferiority to the best trained classifier by paired bootstrap over conversations,
+  Holm over the three, and the coverage condition. It refuses, saying why, when nothing is frozen,
+  the checkout or anything else differs from the manifest, n is not set or not reached (with how
+  many more are needed), or a baseline the go rule needs is missing. Results go to
+  `~/.noodle/experiment/decided/`.
 - Development continues on a separate version that is never the one scored.
 - The freeze, the gold format and the mapping of expectations onto it are published before any
   confirmatory item is scored.
