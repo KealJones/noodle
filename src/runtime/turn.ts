@@ -402,7 +402,8 @@ export class Session {
     said.unshift(...due);
     const spoken = said.map((x) => this.inWords(x, words, allSteps));
     record.said = spoken;
-    const out = spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean).join("\n\n");
+    // Two things that come out in the same words are said once.
+    const out = [...new Set(spoken.map((x) => this.speaker.say(x, this.medium)).filter(Boolean))].join("\n\n");
     conv.turns.push({ index: conv.turnIndex, who: "Self", text: out, heard: [], lf: [], said: spoken, reasons: [], tone: [], asides: [] });
     if (rerun !== undefined) {
       const again = await this.turn(rerun, opts);
