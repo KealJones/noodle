@@ -5,7 +5,7 @@
 // restart) are not replayed, so nothing runs twice.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { type Call, type Expr, isCall } from "../runtime/expr.js";
 import { chatgptServer } from "../runtime/know/sources.js";
 import { homedir } from "node:os";
@@ -49,12 +49,29 @@ export function packedStore(dir = PACKS, path = STORE, keep: (file: string) => b
   if (existsSync(dir)) {
     const order = (f: string) => (f.startsWith("oewn") ? 0 : f.startsWith("verbnet") ? 1 : f.startsWith("wiktionary") ? 2 : 3);
     const present = new Set<string>();
+    // A pack file unchanged since it was loaded (the same size and time, and its pack still in
+    // the store) is not read again: with hundreds of tool packs, reading and hashing each one
+    // every start is most of the start.
+    const stampsPath = path === ":memory:" ? undefined : `${path}.packs.json`;
+    const stamps: Record<string, { size: number; mtime: number; name?: string }> =
+      stampsPath && existsSync(stampsPath) ? JSON.parse(readFileSync(stampsPath, "utf8")) : {};
+    const loaded = new Set(store.packNames());
+    const next: typeof stamps = {};
     for (const f of readdirSync(dir).filter((x) => x.endsWith(".ncon") && keep(x)).sort((a, b) => order(a) - order(b) || a.localeCompare(b))) {
+      const st = statSync(join(dir, f));
+      const was = stamps[f];
+      if (was && was.size === st.size && was.mtime === st.mtimeMs && was.name && loaded.has(was.name)) {
+        present.add(was.name);
+        next[f] = was;
+        continue;
+      }
       const text = readFileSync(join(dir, f), "utf8");
       const name = /Pack\(\s*name\s*=\s*"([^"]*)"/.exec(text)?.[1];
       if (name) present.add(name);
       store.load(text);
+      next[f] = { size: st.size, mtime: st.mtimeMs, name };
     }
+    if (stampsPath) writeFileSync(stampsPath, JSON.stringify(next));
     // What earlier versions kept beside the store (learned weights, taught words) is not a pack
     // from the directory, and stays.
     for (const old of ["learned.ncon", "taught.ncon"]) {
