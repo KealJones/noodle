@@ -7,11 +7,17 @@ const why = process.argv.includes("--why");
 const config = readConfig();
 const session = createSession(packedStore(), process.env.NOODLE_ROOT ?? config.root ?? process.cwd(), { ...config, learn: config.learn ?? true, know: config.know ?? true });
 const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "> " });
+// Every line is queued and answered in order, one turn at a time: lines typed (or piped) while a
+// turn is still working are kept, not dropped, and the chat ends only when they are all answered.
+const queue: string[] = [];
 let closed = false;
-rl.on("close", () => (closed = true));
-rl.prompt();
-for await (const line of rl) {
-  if (line.trim()) {
+let busy = false;
+const next = async () => {
+  if (busy) return;
+  busy = true;
+  while (queue.length) {
+    const line = queue.shift()!;
+    if (!line.trim()) continue;
     const { text, record } = await session.turn(line);
     console.log(text);
     if (why && record.times)
@@ -22,5 +28,16 @@ for await (const line of rl) {
         r.candidates.slice(0, Number(process.env.NOODLE_WHY ?? 4)).forEach((cand, i) => console.log(`    ${i === r.winner ? "*" : " "} ${cand.score.toFixed(2)} ${cand.label}`));
       }
   }
-  if (!closed) rl.prompt();
-}
+  busy = false;
+  if (closed) process.exit(0);
+  rl.prompt();
+};
+rl.on("line", (line) => {
+  queue.push(line);
+  void next();
+});
+rl.on("close", () => {
+  closed = true;
+  if (!busy) process.exit(0);
+});
+rl.prompt();
