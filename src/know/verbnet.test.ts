@@ -107,3 +107,33 @@ test("subclasses inherit frames; results are the culmination, and what stops hol
     assert.ok(readings(w).includes("Cause(agent=$agent, result=Become(HasLocation($theme, $destination)))"), readings(w).join("\n"));
   }
 });
+
+// A plural object whose members the semantics names (Patient_I, Patient_J: "connect the
+// computers") is taken as the two said as one, And(first, second).
+const MIX = `<?xml version="1.0" encoding="UTF-8"?>
+<VNCLASS ID="mix-22.1">
+  <MEMBERS><MEMBER name="mix"/></MEMBERS>
+  <THEMROLES/>
+  <FRAMES>
+    <FRAME>
+      <DESCRIPTION primary="NP V NP" secondary="Simple Reciprocal Transitive"/>
+      <SYNTAX><NP value="Agent"/><VERB/><NP value="Patient"><SYNRESTRS><SYNRESTR Value="+" type="plural"/></SYNRESTRS></NP></SYNTAX>
+      <SEMANTICS>
+        <PRED value="do"><ARGS><ARG type="Event" value="e2"/><ARG type="ThemRole" value="Agent"/></ARGS></PRED>
+        <PRED value="together"><ARGS><ARG type="Event" value="e3"/><ARG type="ThemRole" value="Patient_I"/><ARG type="ThemRole" value="Patient_J"/></ARGS></PRED>
+        <PRED value="cause"><ARGS><ARG type="Event" value="e2"/><ARG type="Event" value="e3"/></ARGS></PRED>
+      </SEMANTICS>
+    </FRAME>
+  </FRAMES>
+  <SUBCLASSES/>
+</VNCLASS>`;
+
+test("a plural object's members named in the semantics are the two said as one", () => {
+  const store = seededStore();
+  const r = importVerbNet([{ name: "mix-22.1.xml", xml: MIX }], store, { version: "3.4" });
+  assert.equal(r.frames, 1);
+  store.load(r.text);
+  const [reading] = store.readingsOn("Mix");
+  assert.equal(key(reading.pattern), "Mix(agent=$agent, patient=And($patientI, $patientJ))");
+  assert.equal(key(reading.becomes!), "Cause(agent=$agent, result=Become(Together($patientI, $patientJ)))");
+});

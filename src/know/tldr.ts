@@ -299,6 +299,11 @@ export async function learnTldr(
       const claims: Expr[] = [c("IsA", c("Tool")), c("Name", s(program))];
       const command = english ? lex.lookup("command").find((h) => lex.facts(h.concept, "IsA").some((f) => isHead(positional(f.claim as Call)[0], "Program")))?.concept : undefined;
       if (command) claims.push(c("Words", c(word), c(command)), c("Category", c("Noun")));
+      // One more sense of the word, its newest, a noun (as tooldocs says it): which is meant is the score's.
+      if (english) {
+        claims.push(c("PartOfSpeech", c("PartOfSpeechNoun")));
+        forms.push(c("Concept", c(word), c("Sense", c(toolWord)), ["from", pageFrom]));
+      }
       if (!english && !lex.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
       if (!lex.facts(toolWord, "Category").length)
         claims.push(c("Category", c("Thing")), c("Category", c("Manner"), c("Modifies", ["side", c("Right")], ["category", c("Act")], ["role", c("Instrument")])));

@@ -87,6 +87,9 @@ Reading(on=Say(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x
 Reading(on=Read(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x))), becomes=Read($x))
 // Asking to be told something is asking what it is ("tell me your name": what is your name).
 Reading(on=Question(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Question(Be(Gap(), $x), about=Gap()))
+// Being told or shown the answer to a question is asking it ("show me what's in the readme",
+// "tell me who wrote it").
+Reading(on=Question(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=Question($q, about=$a)))), becomes=Question($q, about=$a))
 Reading(on=Question(), pattern=Directive(Question($q, about=$a)), becomes=Question($q, about=$a))
 
 // The assistant saying something: Say.
@@ -95,6 +98,8 @@ Reading(on=Say(), pattern=Answer(agent=Addressee(), theme=$x), becomes=Say($x), 
 
 // The assistant coming to know or see something: Read it.
 Reading(on=Read(), pattern=Cause(result=Become(Know(experiencer=Addressee(), theme=$x))), becomes=Read($x))
+// The assistant bringing itself to know something (finding it, finding it out) is reading it.
+Reading(on=Read(), pattern=Cause(agent=Addressee(), result=Become(Know(experiencer=Addressee(), theme=$x))), becomes=Read($x))
 Reading(on=Read(), pattern=See(experiencer=Addressee(), stimulus=$x), becomes=Read($x))
 Reading(on=Read(), pattern=Try(theme=See(experiencer=Addressee(), stimulus=$x)), becomes=Read($x))
 
