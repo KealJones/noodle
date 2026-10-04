@@ -186,7 +186,8 @@ export function readHelp(world: World, source: Call): Expr {
     parts = parseHelp(text, args);
   }
   if (!parts.usages.length && !parts.sections.some((x) => x.items.length)) throw new Error(`${args.join(" ")} printed no help`);
-  const block = (t: string) => blockRef(world.store.addBlock(t, "text/plain", SELF).id);
+  // The help is the program's own documentation, kept as its source.
+  const block = (t: string) => blockRef(world.store.addBlock(t, "text/plain", c("ToolDoc", s(args[0] ?? program), s("--help"))).id);
   const usages = parseSynopsis(parts.usages.map(marked).join("\n"));
   const head: [string, Expr][] = [["name", s(args.join("-"))], ["command", s(args.join(" "))]];
   if (parts.summary) head.push(["summary", block(parts.summary)]);
