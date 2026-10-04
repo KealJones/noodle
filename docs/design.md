@@ -1422,7 +1422,11 @@ layout.
 goes: markdown for the chat and `.md` files, plain text for commit messages and terminals that do not
 render markdown. Each medium is a set of seed realizations of the document heads (about 20 for
 markdown, about 10 for plain text); the medium is a fact on the destination, never a guess from the
-words. In markdown:
+words. Realizations compose: a wrapper says only the wrapping and each child says itself. A child
+that says itself as a clause is put in a sentence by its wrapper (`Sentence(x)`: a capital first
+letter and a period, unless the clause is a block), and a paragraph holding a block (a code block,
+a list) is split around it when it is printed, so no realization nests a child's structure for
+wording or layout. Which documents are blocks is a fact on them (`IsA(BlockLevel())`). In markdown:
 
 - **Content never becomes markup by accident.** Text from a block, a name or the user's words is
   escaped where it would otherwise be read as a mark (`\*`), or printed as code.

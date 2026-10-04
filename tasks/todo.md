@@ -8,15 +8,17 @@
 - **Concepts by folder.** Seed laid out one folder per concept (its lexicon entry, readings and
   realizations together), each item tagged with its seed part, collected into the part packs by a
   build step; seed counting and the protected-base check read the tag instead of the file.
-- **Realizations compose, the rest of the way** (tasks/lessons.md, "Realizations compose"). Done
-  for Run: Run says itself as "run `x`", Ran (what it gave) says itself, the Outcome says its
-  result through Either(result, fallback), and the Offer, Echo, BlockedBy and Outcome patterns
-  that reached into Run are gone. Still nested: Outcome(Read(..), result=File/Have/Be/Page),
-  Outcome(Question(..), result=Found/At), Outcome(Store/Remove/Schedule ..). Each result should
-  say itself; what is missing is a printer head for a sentence (capitalize a clause and end it
-  with a period, unless it is a block), so a result that says itself as a clause can be put in a
-  sentence by its wrapper. A child that needs block layout inside a paragraph (a code block) is
-  the printer's to split, not a pattern's.
+- **Realizations compose, what is left** (tasks/lessons.md, "Realizations compose"). Built: the
+  Sentence head, the printer splitting a paragraph around a block, and results, moments, rules and
+  remembered claims that say themselves (seed/CHANGES.md, 2026-10-03). Still reaching into a
+  child: the Store and Remove outcomes ("Added milk to your basket"), because the act names the
+  holder in the user's words ("my basket") and only the result has the thing it resolved to; they
+  can go once the act said back carries its resolved referents. The Schedule outcome and the
+  scheduled item ("I'll remind you at 3 PM to x", "x, at 3 PM") have two wordings of Scheduled,
+  and Say(Quote(..)) is still matched through. Echo(Directive) and the three Echo(BlockedBy(..,
+  Constraint ..)) say a rule in the user's voice ("you said not to push") where the rule says
+  itself in the assistant's ("I won't push"): a head for voice would let the rule say itself in
+  both. Offer(Remember(Rewrite)) keeps its own order ("when you say x, you mean y").
 - **Benchmark against published models** (after the plan is built). GSM8K first (exact numbers,
   scores published from small Qwens to frontier models), then BFCL (tool definitions imported the
   way man pages are), then SimpleQA. Keal's method: run once with learning on (Noodle researches

@@ -27,8 +27,8 @@ test("questions about a computation are answered by working it out", async () =>
     ["what is 5 squared", "5 squared is 25."],
     ["what's 2^10", "2 to the power of 10 is 1024."],
     ["what is two plus three", "2 plus 3 is 5."],
-    ["what is the square root of 81", "the square root of 81 is 9."],
-    ["what is the cube root of 27", "the cube root of 27 is 3."],
+    ["what is the square root of 81", "The square root of 81 is 9."],
+    ["what is the cube root of 27", "The cube root of 27 is 3."],
     ["what is the remainder of 17 divided by 5", "17 mod 5 is 2."],
   ];
   for (const [ask, answer] of cases) assert.equal((await s.turn(ask)).text, answer, ask);
@@ -37,7 +37,7 @@ test("questions about a computation are answered by working it out", async () =>
 test("a computation said on its own is worked out too", async () => {
   const s = session();
   assert.equal((await s.turn("17 * 23")).text, "17 times 23 is 391.");
-  assert.equal((await s.turn("square root of 81")).text, "the square root of 81 is 9.");
+  assert.equal((await s.turn("square root of 81")).text, "The square root of 81 is 9.");
 });
 
 test("what cannot be worked out is said, not guessed", async () => {
