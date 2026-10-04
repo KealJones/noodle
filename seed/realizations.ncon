@@ -97,6 +97,12 @@ Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, $a, by=$who), becomes=P
 Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, Sequence($a, $b), by=$who), becomes=Paragraph($n, ". ", $a, ", then ", $b, " (", $who, "'s pick)"))
 Reading(on=Choice(), mode=Speaking(), pattern=Choice($n, $a, suggested=$who), becomes=Paragraph($n, ". ", $a, " (", $who, "'s suggestion)"))
 Reading(on=Tutored(), mode=Speaking(), pattern=Tutored($who, $a), becomes=Paragraph($who, " thought you meant: ", $a, "."))
+// A command ChatGPT suggested for a message nothing could work out: offered as its command line,
+// for a yes, a number, or the right command instead (design section 17).
+Reading(on=Suggested(), mode=Speaking(), pattern=Suggested($who, $a),
+  becomes=Document(Paragraph("I couldn't work that out myself. ", $who, " suggests: ", $a, "."), Paragraph("Say yes to keep it for this, or give me the right command in backticks.")))
+// A question ChatGPT asked that nothing here answered, relayed as its: the reply goes back to it.
+Reading(on=Asks(), mode=Speaking(), pattern=Asks($who, $q), becomes=Paragraph($who, " asks: ", $q))
 Reading(on=Taught(), mode=Speaking(), pattern=Taught($a), becomes=Paragraph("Got it: for that I'll ", $a, " from now on."))
 Reading(on=BlockedBy(), mode=Speaking(), pattern=BlockedBy($a, $rule, from=$src),
   becomes=Paragraph("I didn't ", $a, ": ", $rule, " (", $src, ")."))

@@ -13,6 +13,8 @@ import type { ChoicePoint } from "./score.js";
 export interface FocusRecord {
   lookups: Map<string, number>;
   log: ChoicePoint[];
+  /** The names in the workspace this turn found (Focus, phase 1). */
+  workspace?: string[];
 }
 
 export interface StandingRule {

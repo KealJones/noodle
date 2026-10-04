@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -7,7 +9,7 @@ import { createSession } from "../../assistant/index.js";
 import { c, key } from "../expr.js";
 import { seededStore } from "../seed.js";
 import { Know } from "./know.js";
-import { readHtml } from "./sources.js";
+import { chatgptServer, readHtml } from "./sources.js";
 
 // Nothing here touches the network or runs a program: pages are given as text, ChatGPT is a
 // function standing in for the program the config names, and the tools are invented.
@@ -53,21 +55,51 @@ Fact(Zorbia#Topic(), Section("History", level=2))
   assert.equal(await know.look(k, ["population"]), undefined);
 });
 
-test("ChatGPT is the last source: its reply is kept as markdown from it, once, and never offline", async () => {
-  const st = seededStore();
-  const asked: string[] = [];
-  const chatgpt = async (q: string) => (asked.push(q), "A **glorp** is an invented thing.");
-  const know = new Know(st, () => new Date(0), { chatgpt });
-  const k = await know.ask("what is a glorp", "glorp");
-  assert.equal(k?.source, "ChatGPT");
-  assert.equal(k?.url, "");
-  const b = st.block(k!.block)!;
-  assert.equal(b.media, "text/markdown");
-  assert.equal(key(b.meta.from), "ChatGPT()");
-  await know.ask("what is a glorp", "glorp");
-  assert.deepEqual(asked, ["what is a glorp"]);
-  assert.equal(await new Know(st, () => new Date(0), { chatgpt, offline: true }).ask("what is a frob"), undefined);
-  assert.deepEqual(asked, ["what is a glorp"]);
+test("Noodle has one chat with ChatGPT: each message extends it through gptb serve, kept in the store, and a chat that cannot go on starts afresh", async () => {
+  // A fake gptb serve: it records each messages array, and fails once when told to.
+  const calls: { role: string; content: string }[][] = [];
+  let failNext = false;
+  const server = createServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const messages = JSON.parse(body).messages;
+    calls.push(messages);
+    if (failNext && messages.length > 2) {
+      res.writeHead(500).end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ choices: [{ message: { role: "assistant", content: `reply ${calls.length}` } }] }));
+  });
+  await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
+  const port = (server.address() as AddressInfo).port;
+  try {
+    const st = seededStore();
+    const chatgpt = (m: string | { role: "system" | "user" | "assistant"; content: string }[]) => chatgptServer(m, port, 5000);
+    const know = new Know(st, () => new Date(0), { chatgpt });
+    assert.equal(await know.converse("rules", "first"), "reply 1");
+    assert.equal(await know.converse("rules", "second"), "reply 2");
+    assert.deepEqual(calls[0], [{ role: "system", content: "rules" }, { role: "user", content: "first" }]);
+    // The second call extends the first: the same messages, its reply, then the new message.
+    assert.deepEqual(calls[1].slice(0, 2), calls[0]);
+    assert.deepEqual(calls[1].slice(2), [{ role: "assistant", content: "reply 1" }, { role: "user", content: "second" }]);
+    // Kept in the store, from ChatGPT: a new Know (a restart) goes on with the same chat.
+    assert.equal(st.facts("ChatGPT", "Exchange").length, 2);
+    assert.equal(key(st.facts("ChatGPT", "Exchange")[0].meta.from), "ChatGPT()");
+    await new Know(st, () => new Date(0), { chatgpt }).converse("rules", "third");
+    assert.deepEqual(calls[2].slice(0, 4), calls[1]);
+    // Where the chat cannot be continued, a new one starts with the rules and the message alone.
+    failNext = true;
+    assert.equal(await know.converse("rules", "fourth"), "reply 5");
+    assert.deepEqual(calls[4], [{ role: "system", content: "rules" }, { role: "user", content: "fourth" }]);
+    failNext = false;
+    await know.converse("rules", "fifth");
+    assert.deepEqual(calls[5], [{ role: "system", content: "rules" }, { role: "user", content: "fourth" }, { role: "assistant", content: "reply 5" }, { role: "user", content: "fifth" }]);
+    // Offline, nothing is asked.
+    assert.equal(await new Know(st, () => new Date(0), { chatgpt, offline: true }).converse("rules", "sixth"), undefined);
+    assert.equal(calls.length, 6);
+  } finally {
+    server.close();
+  }
 });
 
 test("what a tool can do and what tools there are are answered from the graph, not looked up", async () => {
