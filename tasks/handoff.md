@@ -178,3 +178,5 @@ play frames want a game); (3) weights: reaching an act is rewarded, so command r
 everyday senses; tune with corrections and the trainer, not by hand. Napkin designed a lazy lexicon
 too but never built it. Worth carrying from Napkin: Pursue (try candidates hypothetically, keep the
 route that worked), recall and consolidation of past conversation, the agenda of things to learn.
+
+See docs/learnings.md for everything this round taught, gathered for the next iteration.
