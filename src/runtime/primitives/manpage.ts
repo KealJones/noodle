@@ -349,11 +349,12 @@ export function readManPage(world: World, source: Call): Expr {
   const name = str(args[0], "a ManPage's name");
   const sec = args[1] === undefined ? undefined : args[1].kind === "number" ? String(args[1].value) : str(args[1], "a ManPage's section");
   const page = findPage(world, name, sec);
-  const tree = page.endsWith(".gz")
-    ? run(world, "mandoc", ["-T", "tree"], gunzipSync(fs.readFileSync(page)))
-    : run(world, "mandoc", ["-T", "tree", page]);
-  const { root, section } = parseTree(tree);
-  mdocFlags(root);
+  const roff = page.endsWith(".gz") ? gunzipSync(fs.readFileSync(page)) : fs.readFileSync(page);
+  let { root, section } = parseTree(run(world, "mandoc", ["-T", "tree"], roff));
+  // A page written in mdoc (the BSD utilities': kill, ls) is read as mandoc writes it in man(7),
+  // the language the rest of this reads.
+  if (!root.kids.some((k) => k.kind === "block" && k.name === "SH") && root.kids.some((k) => k.kind === "block" && k.name === "Sh"))
+    ({ root, section } = parseTree(run(world, "mandoc", ["-T", "tree"], Buffer.from(run(world, "mandoc", ["-T", "man"], roff)))));
   const build = new Builder(world, c("ToolDoc", s(name)));
 
   const head: [string, Expr][] = [["name", s(name)]];

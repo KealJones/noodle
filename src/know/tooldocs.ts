@@ -170,6 +170,8 @@ async function learnTerms(program: string, refs: { name: string; section: number
 /** An option of a command, from its page's items: "-a, --approve", "-b, --body <string>". */
 interface OptionDoc {
   flag: string;
+  /** Its other names ("--message" beside "-m <msg>"). */
+  aliases: string[];
   /** The placeholder of the value it takes, if it takes one. */
   value?: string;
   text: string;
@@ -186,19 +188,21 @@ function optionsOf(store: Store, page: Expr): OptionDoc[] {
     const text = firstParagraph(store, it);
     if (!term.startsWith("-") || !text) continue;
     const flags: string[] = [];
+    const aliases: string[] = [];
     let value: string | undefined;
     for (const tok of term.split(/[\s,]+/).filter(Boolean)) {
       if (tok.startsWith("-") && !value) {
         const [f, val] = tok.split("=");
         flags.push(f.replace(/\[|\]/g, ""));
         if (val) value = val.replace(/[<>[\]]/g, "");
-      } else if (!value) value = tok.replace(/[<>[\]]/g, "");
+      } else if (tok.startsWith("-")) aliases.push(tok.split("=")[0].replace(/\[|\]/g, ""));
+      else if (!value) value = tok.replace(/[<>[\]]/g, "");
     }
     // The long form is the one a command line can be read by.
     const flag = flags.sort((a, b2) => b2.length - a.length)[0];
     if (!flag || !/^--?[A-Za-z0-9][\w-]*$/.test(flag) || seen.has(flag)) continue;
     seen.add(flag);
-    out.push({ flag, value: value || undefined, text });
+    out.push({ flag, aliases: [...flags.filter((f) => f !== flag), ...aliases].filter((f) => /^--?[A-Za-z0-9][\w-]*$/.test(f)), value: value || undefined, text });
   }
   return out;
 }
@@ -240,6 +244,8 @@ function core(e: Expr): Expr {
 }
 
 const OBJECT = "$object";
+/** What an act says, in words (core.ncon): what an option that takes what is said takes. */
+const MESSAGE = "Message";
 
 
 /** A heard phrase with the thing a group's commands are done to taken out of it. */
@@ -428,10 +434,16 @@ export async function learnTool(
     // first (design sections 13 and 20).
     if (group) for (const o of objects) reading(word, c(word, ["theme", o.pattern]), run(path, ...(o.x ? [v("x")] : [])), pageFrom, effects);
     else {
-      reading(word, c(word), run(path), pageFrom, effects);
+      // A command line that needs an argument (a placeholder its synopsis does not make optional)
+      // is not run without one: told to do it with nothing named, its slot is left open (a Gap),
+      // and the act is stuck on it and asks for it. A page with no synopsis read says nothing of
+      // how it is run, so it gives no reading that runs it bare.
+      const needed = usage ? requiredPlaceholder(usage) : undefined;
+      if (usage) reading(word, c(word), needed ? run(path, c("Gap", s(needed))) : run(path), pageFrom, effects);
       // A command line that takes a positional argument (a placeholder in its synopsis, not an
-      // option's value) takes what the act is done to: "add a.txt" runs git add a.txt.
-      if (usage && takesPlaceholder(usage) && !own) reading(word, c(word, ["theme", v("x")]), run(path, v("x")), pageFrom, effects);
+      // option's value) takes what the act is done to: "add a.txt" runs git add a.txt; a program
+      // of its own that needs one, too ("kill 1234").
+      if (usage && takesPlaceholder(usage) && (!own || needed)) reading(word, c(word, ["theme", v("x")]), run(path, v("x")), pageFrom, effects);
     }
     // Said the way its summary says it ("add a comment to the pr"): the summary as heard, with what
     // the group's commands are done to taken out and put back as any of its forms.
@@ -469,8 +481,24 @@ export async function learnTool(
       if (!optionTexts.has(id)) forms.push(c("Block", ["id", s(id)], ["media", s("text/plain")], ["body", s(o.text)], ["from", optionFrom]));
       optionTexts.add(id);
       const option = names.other(`option:${path.join(" ")} ${o.flag}`, `${encodeLemma(o.flag) ?? "Flag"}Option`);
-      forms.push(c("Concept", c(option), c("IsA", c("Option")), c("PartOf", c(sense)), c("Name", s(o.flag)), c("Said", c("Block", s(id))), ["from", optionFrom]));
-      if (o.value) continue;
+      forms.push(c("Concept", c(option), c("IsA", c("Option")), c("PartOf", c(sense)), c("Name", s(o.flag)), ...o.aliases.map((a) => c("Name", s(a))), c("Said", c("Block", s(id))), ["from", optionFrom]));
+      if (o.value) {
+        // An option whose value is text, by the words its page names the value with (its
+        // placeholder, its flag: "--body <text>", "-m <msg>, --message=<msg>"), takes what the act
+        // says (the message role, seed/function-words.ncon 11c): "comment on pr 1748 saying looks
+        // good" runs it with the words said as its value.
+        // A flag names its value only when it is one word ("--message"; "--reuse-message" reuses a commit's).
+        const kinds = [o.value, ...[o.flag, ...o.aliases].filter((f) => !f.replace(/^-+/, "").includes("-"))].map(kindOf).filter((k): k is string => !!k);
+        if (!kinds.some((k) => k === MESSAGE || (lex.kindDistance(k, MESSAGE) ?? Infinity) <= 1)) continue;
+        const said = v("said");
+        const optFrom = c("ToolDoc", s(path.join("-")), s(o.flag));
+        if (group) for (const ob of objects) reading(word, c(word, ["theme", ob.pattern], ["message", said]), run(path, ...(ob.x ? [v("x")] : []), s(o.flag), said), optFrom, effects);
+        else {
+          reading(word, c(word, ["message", said]), run(path, s(o.flag), said), optFrom, effects);
+          if (usage && takesPlaceholder(usage) && !own) reading(word, c(word, ["theme", v("x")], ["message", said]), run(path, v("x"), s(o.flag), said), optFrom, effects);
+        }
+        continue;
+      }
       const ou = await understand?.(o.text);
       if (!ou?.heard) continue;
       const optFrom = c("ToolDoc", s(path.join("-")), s(o.flag));
@@ -571,6 +599,27 @@ const lowerFirst = (x: string) => x[0].toLowerCase() + x.slice(1);
 
 function isSeedPart(from: Expr, part: string): boolean {
   return isCall(from) && from.head === "Seed" && positional(from)[0]?.kind === "string" && (positional(from)[0] as { value: string }).value === part;
+}
+
+/** The first placeholder a usage line needs (not inside an optional part or an option), its name without "...". */
+function requiredPlaceholder(u: Call): string | undefined {
+  const visit = (e: Expr): string | undefined => {
+    if (!isCall(e) || e.head === "Optional" || e.head === "Option") return undefined;
+    if (e.head === "Placeholder") {
+      const t = positional(e)[0];
+      return t?.kind === "string" ? t.value.replace(/\s*\.\.\.$/, "") : undefined;
+    }
+    for (const a of e.args) {
+      const r = visit(a.value);
+      if (r) return r;
+    }
+    return undefined;
+  };
+  for (const x of positional(u)) {
+    const r = visit(x);
+    if (r) return r;
+  }
+  return undefined;
 }
 
 function takesPlaceholder(u: Call): boolean {
