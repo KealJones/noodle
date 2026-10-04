@@ -15,7 +15,7 @@ import { Names } from "./names.js";
 import { categoriesFor } from "./wordnet.js";
 
 /** Wiktionary's inflection tags to the form features the seed's lexical rules know. */
-function feature(tags: string[]): string | undefined {
+export function feature(tags: string[]): string | undefined {
   const has = (t: string) => tags.includes(t);
   if (has("obsolete") || has("archaic") || has("misspelling") || has("nonstandard") || has("dialectal")) return undefined;
   if (has("participle") && has("past")) return "PastParticiple";

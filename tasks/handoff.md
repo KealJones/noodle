@@ -94,8 +94,8 @@ hosts, and that is fine.
 
 ### Progress (keep this current)
 
-- [ ] 1a. Know.word(lemma): fetch one word (Kaikki, then Wiktionary REST), return its entry.
-- [ ] 1b. Importer for one word's entry into N-Con forms (src/know/word.ts), reusing the seed's
+- [x] 1a. Know.word(lemma): fetch one word (Kaikki, then Wiktionary REST), return its entry. Done: sources.ts wordEntry, know.ts word() (yeet 0.6 s, 37 facts; unknown words remembered as NotFound on Lexicon).
+- [x] 1b. Importer for one word's entry into N-Con forms (src/know/word.ts), reusing the seed's
       part-of-speech to category mapping (categoriesFor in src/know/wordnet.ts) and Names.
 - [ ] 1c. Session.turn pre-pass: unknown tokens looked up and imported before the chart; budgeted
       (Focus), never in Suppose, only with SendsOutside granted and Know online.
