@@ -180,6 +180,11 @@ export class Evaluator {
     if (!prim) {
       const reply = c("Reply", a);
       if (this.canSay(reply)) return { ...this.out(), said: [reply], reachedAct: true };
+      // A slot of the act nothing filled (a command's argument nobody named) leaves it stuck on
+      // that slot, and what it needs is said: it is not run without it.
+      const gap = [...walk(a)].find((y) => isHead(y, "Gap") && positional(y).length > 0);
+      // Asking for it is the answer to the request (as with an act that has no inverse).
+      if (gap) return { ...this.stuck(a, c("NeedUnmet", gap, ["for", a])), reachedAct: true };
       return this.stuck(a, c("NoReading", a));
     }
     const o = await this.call(prim.p, prim.args, a);

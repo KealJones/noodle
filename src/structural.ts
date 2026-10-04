@@ -38,6 +38,8 @@ export const STRUCTURAL = {
       "Marks",
       // The categories (built-ins.md section 4.2; Mark from the seed draft).
       "Noun", "Thing", "Act", "Clause", "Relation", "Property", "Manner", "Mark",
+      // Words as said, any run of them, which only a slot taking the words said (asSaid) takes.
+      "Verbatim", "AsSaid",
       // Seed draft: an entry's wrapper, the gap filler in heard expressions, the correction and
       // aside marks, role filling in lexical rules and readings, and Indent (runtime.md 3.2).
       "Wraps", "Heads", "Gap", "Segment", "Corrects", "Aside", "WithRoles", "Indent",
@@ -118,6 +120,8 @@ export const STRUCTURAL = {
       // An act kept for later (Schedule) whose time has come, said at the start of a turn.
       "Due",
       "Print", "Medium", "Printed", "Escaped", "Escapes", "Fenced", "Repeated", "Uppercase", "Capitalized",
+      // A command line's argument, written so a shell reads it back as one.
+      "ShellQuoted",
       "Block", "Min", "Pad",
       // A child said as itself where it has words of its own, else the wrapper's fallback: what
       // lets a wrapper say only the wrapping ("Done: ...") and a child say itself (a command's run).

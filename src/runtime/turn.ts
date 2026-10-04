@@ -350,6 +350,9 @@ export class Session {
       }
     }
     if (choices.length && !opts.dry) this.last = choices[choices.length - 1];
+    // An offer waits for its answer too: a yes or a no, or the right command for it (in backticks,
+    // or a flag of the command offered), kept as the user's correction.
+    if (!opts.dry && !this.waiting && choices.length && said.some((x) => isHead(x, "Offer"))) this.waiting = { turn: record.index, text, options: [], from: this.last };
 
     if (!said.length && !anything && text.trim()) said.push(c("Unworked", s(text.trim())));
     // Being stuck is said once, about the whole message, however many parts of it were stuck.
@@ -515,9 +518,19 @@ export class Session {
     record.reasons.push(choice(kept ? "weights updated" : "weights update vetoed by the replay gate", [...before.keys()].map((k) => ({ label: k, features: [], score: this.weights.get(k) })), -1));
   }
 
-  /** The acts a reading does: its calls to primitives that are not pure, where it reached an act. */
+  /**
+   * The acts a reading does: its calls to primitives that are not pure, where it reached an act.
+   * One with a slot nothing filled (a Gap) is not done: it asks for what fills it.
+   */
   private actsOf(r: Reading): Call[] {
-    return ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...walkCalls(lf)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure));
+    // Roles left on a primitive call are input it does not take ("saying ..." on a command): what
+    // is in them is not an act of its own.
+    const calls = function* (e: Expr, prims: ReadonlyMap<string, Primitive>): Generator<Call> {
+      if (!isCall(e)) return;
+      yield e;
+      for (const a of e.args) if (a.name === undefined || !prims.has(e.head)) yield* calls(a.value, prims);
+    };
+    return ((r.features.get("ReachedAct") ?? 0) > 0 ? r.lfs : []).flatMap((lf) => [...calls(lf, this.primitives)].filter((x) => this.primitives.has(x.head) && !this.primitives.get(x.head)!.pure && ![...walkCalls(x)].some((y) => y.head === "Gap")));
   }
 
   /** Acts as a key: what each is given (roles left on a call are input it does not take). */
@@ -652,7 +665,8 @@ export class Session {
    */
   private async typed(text: string, w: Waiting, conv: Conversation): Promise<{ said: Expr[]; rerun?: string } | undefined> {
     const code = /`([^`]+)`/.exec(text)?.[1];
-    const argv = code ? commandLine(code) : [];
+    if (!code) return this.flagged(text, w, conv);
+    const argv = commandLine(code);
     const read = this.primitives.get("Read");
     if (!argv.length || !read) return undefined;
     try {
@@ -676,6 +690,48 @@ export class Session {
     const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", [], w.text, (x) => this.canSay(x));
     // What the step before printed is what "it" is, there: a value said is not.
     const lesson = await ev.teach(meaning, act, open && isHead(theme, "Output") ? c("IsA", v("it"), c("Output")) : undefined);
+    if (!lesson) return undefined;
+    conv.focus.log.push({ what: `taught: ${key(lesson.pattern)} is ${key(lesson.becomes)}`, candidates: [], winner: -1 });
+    return { said: [c("Taught", act)], rerun: w.text };
+  }
+
+  /**
+   * Flags of the command offered, named instead of a whole command line ("no, use --squash"): the
+   * command offered with them is what was meant, kept as the user's correction, and the request
+   * read again. Only a flag the command's documentation lists for it counts: the command's
+   * options are what can be added to it.
+   */
+  private async flagged(text: string, w: Waiting, conv: Conversation): Promise<{ said: Expr[]; rerun?: string } | undefined> {
+    const flags = commandLine(text).map((x) => x.replace(/[.,;!?]+$/, "")).filter((x) => /^--?[A-Za-z][\w-]*(=\S+)?$/.test(x));
+    const runs = w.from ? this.actsOf(w.from.winner) : [];
+    const run = runs.length === 1 && isHead(runs[0], "Run") ? runs[0] : undefined;
+    if (!flags.length || !run || !w.from) return undefined;
+    const [program, argList] = positional(run);
+    const args = isCall(argList) ? positional(argList) : [];
+    // The command, by its words (the program and the words before any value), and the options its
+    // documentation gives it.
+    const words = [program, ...args].map((x) => (x?.kind === "string" ? x.value : ""));
+    const options = new Set<string>();
+    for (const st of w.from.winner.steps)
+      for (const f of this.store.facts(st.owner, "Sense")) {
+        const sense = positional(f.claim as Call)[0];
+        if (!isCall(sense)) continue;
+        const name = this.store.facts(sense.head, "Name").map((x) => positional(x.claim as Call)[0]).find((x) => x?.kind === "string");
+        if (name?.kind !== "string" || name.value !== words.slice(0, name.value.split(" ").length).join(" ")) continue;
+        for (const part of this.store.factsNaming(sense.head))
+          if (isHead(part.claim, "PartOf") && this.store.facts(part.subject, "IsA").some((x) => isHead(positional(x.claim as Call)[0], "Option")))
+            for (const n0 of this.store.facts(part.subject, "Name")) {
+              const n1 = positional(n0.claim as Call)[0];
+              if (n1?.kind === "string") options.add(n1.value);
+            }
+      }
+    const given = flags.filter((x) => options.has(x.split("=")[0]) && !args.some((a) => a.kind === "string" && a.value === x));
+    if (!given.length || given.length < flags.length) return undefined;
+    const said = this.meaningOf(w.from.winner, conv);
+    if (!said) return undefined;
+    const act = c("Run", program, c("Args", ...args, ...given.map((x) => s(x))));
+    const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", [], w.text, (x) => this.canSay(x));
+    const lesson = await ev.teach(said, act);
     if (!lesson) return undefined;
     conv.focus.log.push({ what: `taught: ${key(lesson.pattern)} is ${key(lesson.becomes)}`, candidates: [], winner: -1 });
     return { said: [c("Taught", act)], rerun: w.text };

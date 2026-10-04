@@ -72,3 +72,24 @@ Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("frobs")), effects=Unk
   const s = createSession(store, root(), {});
   assert.match((await s.turn("zorch the frob")).text, /I can run `echo frobs`/);
 });
+
+test("\"when I say X, Y\" teaches the same as \"X means Y\"", async () => {
+  const store = seededStore();
+  store.load(words);
+  const s = createSession(store, root(), {});
+  assert.match((await s.turn("when I say zap 42, blip 42 and bloop it")).text, /^So when you say "zap 42", you mean "blip 42 and bloop it"\?/);
+  assert.match((await s.turn("yes")).text, /in place of 42/);
+  assert.match((await s.turn("zap 7")).text, /Give me its command in backticks/);
+});
+
+test("a command that needs an argument is not run without one: it asks for it", async () => {
+  const store = seededStore();
+  store.load(`${words}
+Concept(Zip(), Lemma("zip"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme(), optional=true)))
+Reading(on=Zip(), pattern=Zip(), becomes=Run("echo", Args(Gap("pid"))), effects=UnknownEffects(), from=ToolDoc("zip", "NAME"))
+Reading(on=Zip(), pattern=Zip(theme=$x), becomes=Run("echo", Args($x)), effects=UnknownEffects(), from=ToolDoc("zip", "NAME"))
+`);
+  const s = createSession(store, root(), {});
+  assert.equal((await s.turn("zip")).text, "To run `echo pid`, I need to know which pid.");
+  assert.match((await s.turn("zip 12")).text, /I can run `echo 12`/);
+});

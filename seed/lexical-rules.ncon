@@ -47,6 +47,12 @@ Reading(on=PastParticiple(), pattern=Act($e), becomes=Property($e))
 Reading(on=Gerund(), pattern=Act($e), becomes=Thing($e))
 Reading(on=Gerund(), pattern=Act($e), becomes=Property($e))
 
+// The progressive: a form of "be" and a gerund is the act going on, its subject the one doing it
+// ("what is listening on port 3000", "which process is using it").
+Concept(Progressive())
+Reading(on=Gerund(), pattern=Act($e), becomes=Property(Progressive($e)))
+Reading(on=Be(), pattern=Be(attribute=Progressive($e), agent=$x), becomes=WithRoles($e, agent=$x))
+
 // ---------------------------------------------------------------------------------------------
 // Tense marks the time index (logical-form.md section 3.3).
 
