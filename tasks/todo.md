@@ -91,10 +91,13 @@
   folder to what reading "." gives); "find" in a summary still comes out as Store (its get frame and
   its discover frame tie, and the first wins).
 - **Speed with every tool loaded** (blocks installing tools-all and the new tldr pack, both in
-  ~/.noodle/packs-pending). With all 1,857 tools and tldr loaded, versus was unchanged but turns
-  got slow: git status 5.4 s (was about 1), "what does jq do" 18 s and went to ChatGPT instead of
-  its man page, "what does the tar command do" 32 s and listed options instead of the summary.
-  versus does not measure time: add per-turn time to it, index Describes facts by their concepts
-  so the scored match looks only at descriptions that share one, and keep "what does X do"
-  answered from the program's own page when X is named as a program or only names one. Then
-  reinstall.
+  ~/.noodle/packs-pending). Done in part: versus and `--why` time each turn by stage; the scored
+  match's index, SameAs classes and kind distances are kept until what they come from changes (a
+  command's output no longer rebuilds them), and a description that cannot reach the threshold is
+  not aligned. With everything loaded versus's median turn is 0.21 s (0.15 s without; it was
+  3.0 s and 1.15 s), its slowest 7.8 s (Know); "what does jq do" and "what does the tar command
+  do" answer from the man page. Left: some sub-second turns are still 2 to 3 times slower with
+  everything loaded (the scored match's pool grows with the descriptions that share a common
+  concept: an index of which heads are kin would make it sublinear); "what does tar do" is still
+  the substance (the word "tar" has no program sense, only "tar command" names it); the chart's
+  ties kept for jq turned versus 76 into a numbered question (git show me / git show).

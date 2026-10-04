@@ -184,6 +184,10 @@ the server" are never ruled out.
 For each span and category, only the top k edges by stage-one score are kept (k from 4 to 8; fixed
 after measuring chart size on real prompts, design section 8). Pruning happens as spans complete, so
 ambiguity is cut at every level. The oracle recall at k (how often the gold survives) is reported.
+Pruning does not cut between equals: an edge that scores the same as the worst kept is kept beside
+it, up to 2k, and so is a cover tied with the last of the top covers (section 4.7), up to twice
+their number; otherwise which of two equal readings survives is the order they were made in (a
+word with many equal senses, "does" as a doe, crowded out "does" as the auxiliary).
 
 ### 4.5 Out of scope (reported, not parsed)
 
@@ -255,6 +259,13 @@ roles.
   Candidates are the best four, for a directive's act, each step of a plan, or what a question
   asks of (the question becomes a directive to do the act), against Describes facts (a command's
   summary, each option's description, a task's) and the user's readings that come to an act.
+- **Only what can fit is aligned**: the descriptions are indexed by the concepts they name, and a
+  request is matched only against those sharing one with it. Of those, a description is not
+  aligned when even explaining all it can of the request (each request node whose head is kin to
+  one of its heads, or the same value, or under what may fill one of its variables) it could not
+  reach the threshold: every cost of a match only lowers its score while no weight on them is
+  negative, so the bound is exact, and is not used otherwise. The index, the SameAs classes and
+  kind distances are kept until the facts they are worked out from change, not on every write.
 
 The alignment is exact search for trees under 30 nodes (requests and descriptions are small) and
 beam search above that.
@@ -291,7 +302,9 @@ Evaluating an expression rewrites it until it reaches primitives, which run (des
   produces an expression already seen on the same path is a cycle and stops there.
 - **The beam** keeps the best few alternatives at each node, ranked by their features plus
   `Unworked` (minus the expressions left that have readings of their own, none applied), so an
-  alternative that reads every word is not cut on a tie with one that leaves a word unread.
+  alternative that reads every word is not cut on a tie with one that leaves a word unread. A
+  concept said again directly inside itself counts once (an auxiliary repeats its verb: "what does
+  jq do" is Do(Do(theme=Gap()), agent=...)).
 - **Unworked is a value**: an expression no reading applies to stays as it is, and the turn records
   why (no sense, no reading, need not met; design section 23). It is never replaced by a guess or a
   default (AGENTS.md rule 10).

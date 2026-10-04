@@ -5,6 +5,7 @@
 // says is handed to Say as structure (Outcome, Offer, Echo, the reasons it is stuck); the words
 // are the seed's.
 
+import { stopwatch } from "./stopwatch.js";
 import { type Call, type Expr, c, isCall, isHead, key, n, positional, rewrite as mapExpr, role, s, v, walk } from "./expr.js";
 import type { Conversation, StandingRule } from "./conversation.js";
 import { match } from "./match.js";
@@ -913,7 +914,7 @@ export class Evaluator {
     // What the graph learned answers first (Know, step 1): facts on what the question names, from
     // the pages and claims they came from. Nothing goes out for it, so it counts in Suppose too;
     // a page kept about what it names is only words looked up before, and does not (below).
-    const recalled = know.recall(p);
+    const recalled = stopwatch.time("Know", () => know.recall(p));
     if (recalled && recalled.via !== "Page") return { ...this.out(), said: [this.recalled(lf, recalled)], reachedAct: true };
     // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
     // explanation is found by the whole question, a description by the thing it is about.
@@ -946,7 +947,7 @@ export class Evaluator {
     if (!cached) focus.lookups.set("World", used + 1);
     let k: Awaited<ReturnType<typeof know.answer>>;
     try {
-      k = cached ?? (await know.answer(said, words, about));
+      k = cached ?? (await stopwatch.time("Know", () => know.answer(said, words, about)));
       // What was found was understood as it was kept: the graph may answer now. Where it does
       // not, and the question is about a thing, what the question names is learned about (its
       // own page and claims), and the graph asked again; failing that, the page is the answer.
@@ -954,7 +955,7 @@ export class Evaluator {
       // one of them is not an answer to a question about something else ("a synonym for happy").
       // Each thing learned about is a lookup in the world, within the turn's budget.
       const facts = (vias: string[]) => {
-        const r = know.recall(p);
+        const r = stopwatch.time("Know", () => know.recall(p));
         return r && vias.includes(r.via) ? r : undefined;
       };
       let again = k && !cached ? facts(["Relation", "Description"]) : undefined;
@@ -964,7 +965,7 @@ export class Evaluator {
           const n = focus.lookups.get("World") ?? 0;
           if (n >= this.budget("World", "lookups")) break;
           focus.lookups.set("World", n + 1);
-          const got = await know.learnAbout(w);
+          const got = await stopwatch.time("Know", () => know.learnAbout(w));
           focus.log.push({ what: `focus: what "${w}" is, from the world`, candidates: got ? [{ label: w, features: [], score: 0 }] : [], winner: got ? 0 : -1 });
           learned = got || learned;
         }
@@ -990,7 +991,7 @@ export class Evaluator {
       const used = focus.lookups.get("World") ?? 0;
       if (asked.length && used < this.budget("World", "lookups")) {
         focus.lookups.set("World", used + 1);
-        const part = await know.look(k, asked).catch(() => undefined);
+        const part = await stopwatch.time("Know", () => know.look(k!, asked)).catch(() => undefined);
         focus.log.push({ what: `focus: what "${k.title}" says of "${asked.join(" ")}", by its headings`, candidates: part ? [{ label: part.title, features: [], score: 0 }] : [], winner: part ? 0 : -1 });
         if (part) return { ...this.out(), said: [this.found(lf, part)], reachedAct: true };
       }
@@ -1077,27 +1078,60 @@ export class Evaluator {
   }
 
   /**
-   * What a command's documentation says of it, when the question is about the command: a call to
-   * Run standing beside the gap in the question's proposition, and nothing else ("what does git
-   * commit do": Do(agent=Run("git", Args("commit")), theme=Gap())), reached by a reading from a page of documentation. What
-   * the page says is the summary the same page gave its word's sense (Said).
+   * What a command's documentation says of it, when the question is about the command alone: the
+   * proposition is an act, the gap and one thing, and nothing else ("what does git commit do":
+   * Do(agent=Run("git", Args("commit")), theme=Gap())); the act may be said again inside itself,
+   * as an auxiliary says it ("what does the tar command do": Do(Do(theme=Gap()), agent=...)). The
+   * thing is a command a reading from a page of documentation reached, or a program named as one
+   * (a concept, or a referent of that kind). What the page says is the summary it gave the
+   * program's sense (Said); a program with no page of its own says what its other documentation
+   * gave it.
    */
-  private documentation(p: Expr): { said: Expr; from: Expr } | undefined {
-    // The question asks of the command alone: the proposition is the command and the gap, and
-    // nothing else ("what branch am i on" asks of the speaker too, and is not answered by it).
-    if (!isCall(p) || p.args.length !== 2 || !p.args.some((a) => isHead(a.value, "Gap"))) return undefined;
-    for (const a of p.args) {
-      if (!isHead(a.value, "Run")) continue;
-      const step = this.steps.find((st) => key(st.after) === key(a.value) && this.trustLevel(st.from) >= 3);
-      if (!step) continue;
-      for (const f of this.store.facts(step.owner, "Sense")) {
-        const sense = positional(f.claim as Call)[0];
-        if (!isCall(sense) || key(f.meta.from) !== key(step.from)) continue;
-        const said = this.store.facts(sense.head, "Said").map((x) => positional(x.claim as Call)[0])[0];
-        if (said) return { said, from: step.from };
+  private documentation(p0: Expr): { said: Expr; from: Expr } | undefined {
+    // A question asked again inside itself is the same question.
+    let p = p0;
+    while (isCall(p) && p.head === "Question" && p.args.length === 1) p = p.args[0].value;
+    if (!isCall(p)) return undefined;
+    // "what branch am i on" asks of the speaker too, and is not answered by it.
+    const act = p.head;
+    const things: Expr[] = [];
+    let gap = false;
+    const visit = (x: Call) => {
+      for (const a of x.args) {
+        const v = a.value;
+        if (isCall(v) && v.head === "Gap") gap = true;
+        else if (isCall(v) && v.head === act) visit(v);
+        else things.push(v);
       }
+    };
+    visit(p);
+    if (!gap || things.length !== 1) return undefined;
+    const thing = isHead(things[0], "Ref") ? role(things[0], "kind") : things[0];
+    if (!isCall(thing)) return undefined;
+    const doc = (from: Expr) => this.trustLevel(from) >= 3;
+    const saidOf = (concept: string, page?: Expr) => {
+      for (const f of this.store.facts(concept, "Sense")) {
+        const sense = positional(f.claim as Call)[0];
+        if (!isCall(sense) || !doc(f.meta.from) || (page && key(f.meta.from) !== key(page))) continue;
+        const said = this.store.facts(sense.head, "Said").find((x) => key(x.meta.from) === key(f.meta.from));
+        if (said) return { said: positional(said.claim as Call)[0], from: f.meta.from };
+      }
+      return undefined;
+    };
+    const own = (concept: string) => {
+      const said = this.store
+        .facts(concept, "Said")
+        .filter((x) => doc(x.meta.from))
+        .sort((a, b2) => this.trustLevel(a.meta.from) - this.trustLevel(b2.meta.from))[0];
+      return said && { said: positional(said.claim as Call)[0], from: said.meta.from };
+    };
+    if (thing.head === "Run") {
+      const step = this.steps.find((st) => key(st.after) === key(thing) && doc(st.from));
+      return step && (saidOf(step.owner, step.from) ?? saidOf(step.owner) ?? own(step.owner));
     }
-    return undefined;
+    // A program named as one: a concept documentation gave a summary, of a sense or of its own.
+    if (thing.args.length) return undefined;
+    return saidOf(thing.head) ?? own(thing.head);
   }
 
   /**

@@ -5,6 +5,7 @@
 // failing that, to an unaligned child at a cost; heads may differ at a cost that grows with their
 // kind distance. The features say how much of each side the alignment explains.
 
+import { stopwatch } from "./stopwatch.js";
 import { type Call, type Expr, isCall, isHead, isVar, key, positional, role, roles, walk } from "./expr.js";
 import { type Bindings, canonical } from "./match.js";
 import type { ReadingItem, Store } from "./store.js";
@@ -152,12 +153,100 @@ function markAll(e: Expr): Set<Expr> {
 }
 
 /**
+ * At most how much of a request a pattern can explain (an upper bound on 1 - requestUnmatched,
+ * below), worked out without aligning them: a node of the request is explained only by a node of
+ * the pattern whose head is its kin, or the same value, or by falling under what fills one of the
+ * pattern's variables (a value or a referent said where a slot takes one, or anything where any
+ * may fill it), or under a referent taken as its kind. A pattern that cannot explain enough of
+ * the request cannot score above the threshold, and is not aligned at all.
+ */
+export function explainable(store: Store, request0: Expr, w: Weigh, fills: Fills = () => true): (pattern: Expr) => number {
+  const request = gist(request0);
+  const nodes: { e: Expr; path: Expr[]; weight: number }[] = [];
+  const visit = (e: Expr, path: Expr[]) => {
+    if (isVar(e)) return;
+    nodes.push({ e, path, weight: w(e) });
+    if (isCall(e)) for (const a of e.args) visit(a.value, [...path, e]);
+  };
+  visit(request, []);
+  const total = nodes.reduce((n, x) => n + x.weight, 0) || 1;
+  const kin = kinship(store);
+  const kinOf = new Map<string, Map<string, boolean>>();
+  for (const n of nodes) if (isCall(n.e) && !kinOf.has(n.e.head)) kinOf.set(n.e.head, kin(n.e.head));
+  return (pattern0) => {
+    const { heads, values, slots } = shape(pattern0);
+    let can = 0;
+    for (const n of nodes) {
+      let own = false;
+      if (isCall(n.e)) {
+        const of = kinOf.get(n.e.head)!;
+        const rh = n.e.head;
+        for (const h of heads) {
+          let v = of.get(h);
+          if (v === undefined) of.set(h, (v = headDistance(store, h, rh) !== undefined));
+          if (v) {
+            own = true;
+            break;
+          }
+        }
+      } else own = values.has(key(n.e));
+      const under = !own && slots && [n.e, ...n.path].some((x) => fills(x) || referents.has(x));
+      if (own || under) can += n.weight;
+    }
+    return Math.min(1, can / total);
+  };
+}
+
+/** A pattern at its gist, worked out once: patterns are the store's, matched against many requests. */
+const patternGists = new WeakMap<Expr, Expr>();
+function patternGist(p: Expr): Expr {
+  let g = patternGists.get(p);
+  if (!g) patternGists.set(p, (g = gist(p)));
+  return g;
+}
+
+/** What a pattern holds, at its gist: its heads, its values, whether it has variables. Kept per pattern. */
+const shapes = new WeakMap<Expr, { heads: string[]; values: Set<string>; slots: boolean }>();
+function shape(pattern0: Expr) {
+  let out = shapes.get(pattern0);
+  if (out) return out;
+  const heads = new Set<string>();
+  const values = new Set<string>();
+  let slots = false;
+  for (const x of walk(patternGist(pattern0))) {
+    if (isVar(x)) slots = true;
+    else if (isCall(x)) heads.add(x.head);
+    else values.add(key(x));
+  }
+  out = { heads: [...heads], values, slots };
+  shapes.set(pattern0, out);
+  return out;
+}
+
+/**
+ * Which heads are kin (within the distance two heads may align at), by request head: kept across
+ * requests until the facts kinds are worked out from change.
+ */
+const kinships = new WeakMap<Store, { at: number; of: Map<string, Map<string, boolean>> }>();
+function kinship(store: Store): (head: string) => Map<string, boolean> {
+  const at = store.changedAt(["IsA", "Sense", "SenseOf", "PartOfSpeech", "SameAs"], true);
+  let k = kinships.get(store);
+  if (!k || k.at !== at) kinships.set(store, (k = { at, of: new Map() }));
+  const of = k.of;
+  return (head) => {
+    let m = of.get(head);
+    if (!m) of.set(head, (m = new Map()));
+    return m;
+  };
+}
+
+/**
  * Align a pattern (a documentation reading's reduction) to a request's reduction. Undefined when the
  * roots cannot align. The score is the pattern covered, minus the request left unexplained. Both
  * are taken at their gist first (below).
  */
 export function softMatch(store: Store, pattern0: Expr, request0: Expr, w: Weigh = () => 1, fills: Fills = () => true): SoftMatch | undefined {
-  const pattern = gist(pattern0);
+  const pattern = patternGist(pattern0);
   const request = gist(request0);
   // The roots align; failing that, either root may align below the other's (a request that wraps
   // the act in "I want", a description that wraps it in "cause"), and what is above stays
@@ -261,7 +350,13 @@ export function contentHeads(store: Store, e: Expr, structural: ReadonlySet<stri
  */
 export function describedActs(store: Store, structural: ReadonlySet<string>, acts: (e: Expr) => boolean): DescribedIndex {
   const have = indexes.get(store);
-  if (have && have.generation === store.generation) return have;
+  // What the index is worked out from: descriptions, senses, readings, and which concepts are one.
+  const at = store.changedAt(["Describes", "SenseOf", "SameAs"], true);
+  if (have && have.generation === at) return have;
+  return stopwatch.time("scored match index", () => indexDescribed(store, structural, acts));
+}
+
+function indexDescribed(store: Store, structural: ReadonlySet<string>, acts: (e: Expr) => boolean): DescribedIndex {
   const all: Described[] = [];
   for (const f of store.factsWithHead("Describes")) {
     const [sense, what] = positional(f.claim as Call);
@@ -288,7 +383,12 @@ export function describedActs(store: Store, structural: ReadonlySet<string>, act
   for (const r of store.readingsAdded())
     if (isHead(r.meta.from, "User") && r.becomes && acts(r.becomes)) all.push({ pattern: r.pattern, becomes: r.becomes, reading: r, heads: contentHeads(store, r.pattern, structural) });
   const byHead = new Map<string, Described[]>();
-  for (const d of all) for (const h of d.heads) byHead.set(h, [...(byHead.get(h) ?? []), d]);
+  for (const d of all)
+    for (const h of d.heads) {
+      const list = byHead.get(h);
+      if (list) list.push(d);
+      else byHead.set(h, [d]);
+    }
   // A concept weighs what it tells things apart by: the log of how few of the graph's readings
   // name it (its inverse document frequency there), so the scaffolding of change that every
   // reduction has ("cause to become") weighs little. Structure (a primitive, a connective) weighs
@@ -301,7 +401,7 @@ export function describedActs(store: Store, structural: ReadonlySet<string>, act
     if (structural.has(e.head)) return 0;
     return Math.log((readings + 1) / ((df.get(e.head) ?? 0) + 1));
   };
-  const out = { generation: store.generation, all, byHead, weigh };
+  const out = { generation: store.changedAt(["Describes", "SenseOf", "SameAs"], true), all, byHead, weigh };
   indexes.set(store, out);
   return out;
 }

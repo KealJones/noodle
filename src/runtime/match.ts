@@ -3,7 +3,7 @@
 // matching argument with that role, positional arguments match in order, and variables bind
 // consistently. Extra roled arguments in the expression are allowed and reported.
 
-import { type Call, type Expr, c, isCall, isVar, key, positional, roles, withRoles } from "./expr.js";
+import { type Call, type Expr, c, isCall, isVar, key, positional, roles, walk, withRoles } from "./expr.js";
 import type { Store } from "./store.js";
 
 export type Bindings = Map<string, Expr>;
@@ -24,19 +24,45 @@ export function sameHead(store: Store | undefined, a: string, b: string): boolea
 
 /** The canonical representative of a concept's SameAs class (ncon.md section 3.3). */
 export function canonical(store: Store, name: string): string {
-  const seen = new Set([name]);
-  const stack = [name];
-  while (stack.length) {
-    const x = stack.pop()!;
-    for (const f of [...store.facts(x, "SameAs"), ...store.factsNaming(x).filter((f) => isCall(f.claim) && f.claim.head === "SameAs")]) {
-      const other = f.subject === x ? positional(f.claim as Call)[0] : { kind: "call", head: f.subject, args: [], pos: f.claim.pos } as Expr;
-      if (isCall(other) && !seen.has(other.head)) {
-        seen.add(other.head);
-        stack.push(other.head);
-      }
+  return classes(store).get(name) ?? name;
+}
+
+/**
+ * Every SameAs class, worked out once from the SameAs facts and kept until one changes: each
+ * concept a SameAs fact names, to the first of its class by name.
+ */
+const sameAs = new WeakMap<Store, { at: number; of: Map<string, string> }>();
+function classes(store: Store): Map<string, string> {
+  const at = store.changedAt(["SameAs"]);
+  const have = sameAs.get(store);
+  if (have && have.at === at) return have.of;
+  const links = new Map<string, Set<string>>();
+  const link = (x: string, y: string) => {
+    if (x === y) return;
+    for (const [p, q] of [[x, y], [y, x]]) {
+      const l = links.get(p);
+      if (l) l.add(q);
+      else links.set(p, new Set([q]));
     }
+  };
+  for (const f of store.factsWithHead("SameAs"))
+    for (const x of walk(f.claim)) if (isCall(x) && x !== f.claim) link(f.subject, x.head);
+  const of = new Map<string, string>();
+  for (const start of links.keys()) {
+    if (of.has(start)) continue;
+    const seen = new Set([start]);
+    const stack = [start];
+    while (stack.length)
+      for (const y of links.get(stack.pop()!) ?? [])
+        if (!seen.has(y)) {
+          seen.add(y);
+          stack.push(y);
+        }
+    const first = [...seen].sort()[0];
+    for (const y of seen) of.set(y, first);
   }
-  return [...seen].sort()[0];
+  sameAs.set(store, { at, of });
+  return of;
 }
 
 export function match(pattern: Expr, expr: Expr, store?: Store, bindings: Bindings = new Map()): MatchResult | undefined {

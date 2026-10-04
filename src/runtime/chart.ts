@@ -558,10 +558,14 @@ export class Chart {
     const g = group(edge);
     const rivals = cell.filter((x) => group(x) === g);
     if (!same && rivals.length >= this.opts.k) {
+      // Nor does a span cut between equals: an edge as good as the worst kept is kept beside it,
+      // not lost for having been made later, up to twice the span's width.
       const worst = rivals.reduce((a, b2) => (b2.score < a.score ? b2 : a));
-      if (worst.score >= edge.score) return;
-      cell.splice(cell.indexOf(worst), 1);
-      sigs.delete(signature(worst));
+      if (worst.score > edge.score || (worst.score === edge.score && rivals.length >= 2 * this.opts.k)) return;
+      if (worst.score < edge.score) {
+        cell.splice(cell.indexOf(worst), 1);
+        sigs.delete(signature(worst));
+      }
     }
     if (same) cell.splice(cell.indexOf(same), 1);
     cell.push(edge);
@@ -669,15 +673,19 @@ export class Chart {
             options.push({ edges: [...cv.edges, top], skipped: cv.skipped, features, score: scoreOf(features, this.weights) });
           }
       const seen = new Set<string>();
-      best[i] = options
+      const ranked = options
         .sort((x, y) => y.score - x.score)
         .filter((cv) => {
           const sig = cv.edges.map((e) => `${e.category}:${key(e.expr)}`).join(" | ");
           if (seen.has(sig)) return false;
           seen.add(sig);
           return true;
-        })
-        .slice(0, this.opts.covers);
+        });
+      // The beam does not cut between equals: which of two covers that score the same is kept
+      // would be the order they were made in, so one tied with the last kept is kept too, up to
+      // twice the beam's width.
+      const last = ranked[this.opts.covers - 1]?.score;
+      best[i] = ranked.filter((cv, j) => j < this.opts.covers || (cv.score === last && j < 2 * this.opts.covers));
     }
     return best[to - from];
   }
