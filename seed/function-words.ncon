@@ -687,6 +687,26 @@ Reading(on=After(), pattern=After($x), becomes=After($x))
 Reading(on=Before(), pattern=Before($b, modifier=$a), becomes=Then($b, $a))
 Reading(on=After(), pattern=After($b, modifier=$a), becomes=Then($b, $a))
 
+// Words whose meaning is fixed by who says them, where and when (deixis): the speaker, here, this,
+// now, and the days counted from today. "since" and "until" with one end said have now as the
+// other. A question one of them is in is about here and now: it is worked out locally, or stuck
+// honestly, and never answered from the world's sources (design section 21).
+Fact(Speaker(), Deixis())
+Fact(I(), Deixis())
+Fact(Myself(), Deixis())
+Fact(My(), Deixis())
+Fact(We(), Deixis())
+Fact(Our(), Deixis())
+Fact(This(), Deixis())
+Fact(These(), Deixis())
+Fact(Here(), Deixis())
+Fact(Now(), Deixis())
+Fact(Today(), Deixis())
+Fact(Tomorrow(), Deixis())
+Fact(Yesterday(), Deixis())
+Fact(Since(), Deixis())
+Fact(Until(), Deixis())
+
 // =============================================================================================
 // 8. Conditions and reasons
 

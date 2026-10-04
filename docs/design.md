@@ -952,7 +952,9 @@ waits for its answer the same way: after it, the command in backticks, or a flag
 command's documentation lists for it ("no, use --squash": the offered command line with it), is
 kept as the user's correction and the request read again. A step of a
 request nothing does says so and waits for its command the same way; once given, the request is
-read again. A reading the user gave carries the Trust feature (level 1), once per derivation.
+read again. Where ChatGPT is on, a request or question that reaches nothing is first put to it
+(stuck, then ask how, section 21): a command it gives is offered for a yes and kept the same way.
+A reading the user gave carries the Trust feature (level 1), once per derivation.
 
 **Teaching procedures.** "kill 8080 means find the process on port 8080 and kill it" is echoed and
 confirmed as a taught rewrite; what was said is kept as heard (a Rewrite is not rewritten when it is
@@ -967,11 +969,12 @@ says when it is done (facts and a reading on the words, not a phrase).
 
 **ChatGPT as a tutor for choices.** Where a choice has no clear evidence path (the readings tie,
 or the top reading's probability is below `askBelow`), ChatGPT is asked before the user, through
-Know (`Know.ask`, gptb's server first; trust level 4): the request, the conversation's last turns,
-and the readings numbered and said as the numbered choice says them (never N-Con), asking it to
-start with exactly three lines, in order: `choice: N` (or `none`), `suggest: <the exact command in
-backticks, or none>` (for when no option is right but it knows the command), and `because: <one
-sentence>`. A reply that does not start so is ignored; prose after them is kept only as content.
+Know (`Know.converse`, in Noodle's one chat with it, section 21; trust level 4): the request, the
+conversation's last turns, and the readings numbered and said as the numbered choice says them
+(never N-Con), asking it to start with exactly four lines, in order: `choice: N` (or `none`),
+`suggest: <the exact command in backticks, or none>` (for when no option is right but it knows the
+command), `ask: <one question it needs answered, or none>` (answered here or relayed beside the
+numbered choice, section 21), and `because: <one sentence>`. A reply that does not start so is ignored; prose after them is kept only as content.
 A suggestion is a candidate as one the user typed would be, at trust 4: it joins the numbered
 choice, marked as ChatGPT's suggestion, and is never run or offered on its own; picked, it is
 kept as the command the user gave for the request. Its pick is a weak training signal: the perceptron's step toward it, at `tutorRate` (a
@@ -1138,14 +1141,59 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("commit", Senses())
   table rows, links and forms, kept as `Section(...)` facts on what the page is about. The part
   whose heading names a word of the question (a heading word that looks up to the same concept)
   is the answer, not the page's opening.
-- **ChatGPT, last.** When no other source answers, Know asks ChatGPT, through the program the
-  config names (`gptb` by default, which speaks to chatgpt.com in the user's own browser): Run of
-  it with the question, guarded as sending outside like any lookup, and where another gptb holds
-  the browser, gptb's server on this machine. It is a source at level 4: its reply is kept as
-  content from it (markdown, printed as written) and understood into facts like any page, may
-  propose readings, and never grants or sets a rule. Every reply that leans on it says so ("From
-  ChatGPT:"). `chatgpt: false` in the config turns it off; the learn loop asks it (`Know.ask`)
-  when a step has nothing else to go on.
+- **Local before outside.** A question about here is never sent to the world's sources: one
+  whose reading (any of its parts) holds a word whose meaning is fixed by who says it, where and
+  when (`Deixis()`, a fact on the word in the seed's function-word lexicon: I, my, we, our, this,
+  these, here, now, today, tomorrow, yesterday, since, until, and Speaker), a name in the
+  workspace that hearing found, or a referent that is something in play. A page about its words
+  ("File folder" for "this folder", "Date palm" for "the date tomorrow") does not answer it: it is
+  worked out locally or stuck honestly. The documentation of a command answers a question about
+  the command alone (the proposition is the command and the gap), not one that names it beside
+  something else ("what branch am i on").
+- **ChatGPT, last: stuck, then ask how.** ChatGPT is reached through the program the config names
+  (`gptb` by default, which speaks to chatgpt.com in the user's own browser): Run of it with the
+  question, guarded as sending outside like any lookup, and where another gptb holds the browser,
+  gptb's server on this machine. It is a source at level 4: its reply is kept as content from it
+  (markdown, printed as written), may propose readings, and never grants or sets a rule. Every
+  reply that leans on it says so ("From ChatGPT:"). Know's answer does not fall back to it. A
+  question or request that reaches nothing (no reading reaches an act or an answer), or whose
+  answer is a page that only shares words with it (its title brings words of its own, the test
+  Know's relevance check makes of a title), is put to ChatGPT through `Know.ask` in a fixed shape,
+  read strictly: `kind: command | answer | none`, `command:` the exact command in backticks to
+  run in the user's workspace (or none), `answer:` one or two sentences (or none), `ask:` one
+  question it needs answered to help (or none), `because:` one sentence, the kind naming what is
+  given. Never about a turn only about the conversation (an assent, a refusal, a pick by number, a
+  correction, read from its reading: Permit, a referent that is the proposal or the question, a
+  bare number, a correction signal): the conversation's own structure answers those, or nothing is
+  pending and it is stuck honestly. An answer to a request is not taken (words about doing it do
+  not do it), only a command. An answer is said as from ChatGPT, kept as content and
+  understood into facts like a page; it beats a page that only shares words, and a page about
+  what was asked is said without asking. A command is a candidate in the learn loop (section 17)
+  marked as ChatGPT's suggestion: offered as its exact command line, never run on its own; a yes
+  (or its number, or the right command in backticks) keeps it as the user's reading for what was
+  asked (a question taught a command is the request to run it), and the message is read again, so
+  the next similar ask goes straight to it. Where the command's own documentation says it only
+  reads (a reading from its manual page that claims only Reads), the reading kept claims Reads
+  too, and the command runs held to reading; otherwise it is offered as any act is. Of a question
+  about a participant that no source has, only a command is taken. A reply in any other shape, or
+  none, leaves what was found or the honest stuck line. `chatgpt: false` in the config turns it
+  off, and then nothing is asked: Noodle is measured with it off as well as on.
+- **Asked back.** Where ChatGPT gives nothing but asks a question (`ask:`, here or as a tutor),
+  Noodle first hears the question itself, by its own pipeline in Suppose on a copy of the
+  conversation (the conversation, the workspace and the graph; nothing goes out): answered there,
+  the answer goes back to ChatGPT with the message once more. Not answered, or asked again, the
+  question is the user's, said as ChatGPT's ("ChatGPT asks: ..."), and the user's reply (unless it
+  is a pick or a command in backticks) goes back to ChatGPT with what it was asking about. At most
+  one round trip of its own before the user is asked, and never more than two asks a turn.
+- **One chat.** Everything Noodle asks ChatGPT (the tutor's choices, how a stuck message is done,
+  what it asked back) is one persistent chat: the rules as its `system` message, then every
+  message and reply so far, kept in the store as `Exchange(Block(asked), Block(reply))` facts on
+  ChatGPT (from ChatGPT, so it survives restarts), then the new message, sent whole to gptb's
+  server, which continues the same chat where the history matches what it has seen. Each message
+  carries what it needs inline (the conversation's last turns, both sides; the message; the
+  options; what was asked back and answered). Only where the chat cannot be continued (no reply)
+  does a new one start, once, with the rules and the message alone. Through the program (no
+  server), the rules and the last message are one prompt.
 
 ## 22. The base graph
 
