@@ -7,10 +7,11 @@
 //   pnpm import wiktionary ~/.noodle/sources/kaikki-English.jsonl.gz
 //   pnpm import tool git       (from the local man pages, or where there are none, its --help)
 //   pnpm import definitions [count] [verb|all]   (the imported senses' definitions, understood)
+//   pnpm import tldr ~/.noodle/sources/tldr-pages.en.zip [common,osx] [v2.3] [--all]   (tldr-pages' examples as tasks)
 //   pnpm import openapi <description.json> <name> --cli "gh api" --method -X --field -f --typed-field -F --fills owner,repo
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -18,6 +19,7 @@ import { seededStore } from "../runtime/seed.js";
 import { PRIMITIVES } from "../runtime/primitives/index.js";
 import { learnTool } from "./tooldocs.js";
 import { learnOpenApi } from "./openapi.js";
+import { type TldrPage, learnTldr, parsePage } from "./tldr.js";
 import { importVerbNet } from "./verbnet.js";
 import { importWiktionary, importWiktionaryPhrases } from "./wiktionary.js";
 import { STORE, packedStore } from "../assistant/index.js";
@@ -174,6 +176,42 @@ if (source === "wordnet" && path) {
   const r = await learnOpenApi(doc, version, { command, method, field, typedField: opt("--typed-field"), fills: opt("--fills")?.split(",").filter(Boolean) }, store, words, (n, all) => n % 200 === 0 && console.error(`  ${n} of ${all} operations, ${Math.round((Date.now() - t0) / 1000)} s`));
   writeFileSync(join(PACKS, `openapi-${version}.ncon`), r.text);
   console.log(`openapi-${version}: ${r.operations} operations, ${r.understood} summaries understood, ${r.readings} readings, ${r.parameters} parameters, ${r.skipped.length} not understood -> ${join(PACKS, `openapi-${version}.ncon`)}`);
+} else if (source === "tldr" && path) {
+  // tldr-pages (CC BY 4.0): its English pages, from the release's zip or an unpacked folder, for
+  // the platforms named (common and this machine's by default). Each example's description is
+  // understood over the words the other packs give; what its command changes, over the tool packs.
+  const platforms = (version ?? ["common", process.platform === "darwin" ? "osx" : "linux"].join(",")).split(",");
+  let dir = path;
+  if (path.endsWith(".zip")) {
+    dir = join(dirname(path), basename(path, ".zip"));
+    mkdirSync(dir, { recursive: true });
+    execFileSync("unzip", ["-oq", path, "-d", dir]);
+  }
+  const root = existsSync(join(dir, "pages")) ? join(dir, "pages") : dir;
+  const PATHS = (process.env.PATH ?? "").split(":").filter(Boolean);
+  const onPath = (program: string) => PATHS.some((d) => existsSync(join(d, program)));
+  const pages: TldrPage[] = [];
+  for (const platform of platforms) {
+    const at = join(root, platform);
+    if (!existsSync(at)) throw new Error(`no ${platform} pages in ${root}`);
+    for (const f of readdirSync(at).filter((x) => x.endsWith(".md")).sort()) {
+      const p = parsePage(readFileSync(join(at, f), "utf8"), platform);
+      // Only what this machine can do: a page whose program is on the PATH (--all for every page).
+      const program = p?.name.split(/\s+/)[0];
+      if (p && (process.argv.includes("--all") || onPath(program!))) pages.push(p);
+    }
+  }
+  // What the tool packs say of commands, and the words without any tool's readings.
+  const known = packedStore(PACKS, undefined, (f) => f !== "tldr.ncon");
+  const words = packedStore(PACKS, `${STORE}.words`, (f) => !f.startsWith("tool-") && !f.startsWith("openapi-") && f !== "tldr.ncon");
+  const t0 = Date.now();
+  const r = await learnTldr(pages, store, words, known, process.argv.slice(5).find((a) => !a.startsWith("--")) ?? "local", (n, all) => n % 250 === 0 && console.error(`  ${n} of ${all} pages, ${Math.round((Date.now() - t0) / 1000)} s`));
+  writeFileSync(join(PACKS, "tldr.ncon"), r.text);
+  const why = new Map<string, number>();
+  for (const x of r.skipped) why.set(x.why, (why.get(x.why) ?? 0) + 1);
+  console.log(
+    `tldr (${platforms.join(", ")}): ${r.pages} pages, ${r.examples} examples, ${r.understood} descriptions understood, ${r.placed} of ${r.slots} slots placed in what they say, ${r.knownEffects} with their command's documented effects, ${r.skipped.length} left out (${[...why].map(([w, k]) => `${k} ${w}`).join(", ")}) -> ${join(PACKS, "tldr.ncon")}`,
+  );
 } else if (source === "definitions") {
   // Stage 0 (design section 6): the definitions of the first senses of the most common words, and
   // of every sense they need, understood into Expand readings on the senses. The words come from

@@ -7,7 +7,7 @@ import { type Call, type Expr, c, isCall, isHead, isVar, key, positional, role, 
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { type ReadingItem, type Store, readingKey } from "./store.js";
-import { contentHeads, type Described, describedActs, matchFeatures, softMatch } from "./softmatch.js";
+import { contentHeads, type Described, describedActs, isValue, matchFeatures, softMatch } from "./softmatch.js";
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
@@ -180,12 +180,14 @@ export class Rewriter {
     const threshold = this.threshold();
     const scored: { d: Described; f: Features; s: number; result: Expr }[] = [];
     for (const d of pool) {
-      const m = softMatch(this.store, d.pattern, x, index.weigh);
+      const m = softMatch(this.store, d.pattern, x, index.weigh, d.slots ? isValue : undefined);
       if (!m) continue;
       // What the reading wants of what fills it counts as it does for an exact match.
       const f = mergeFeatures(matchFeatures(m), this.wantFeatures(d.reading, m.bindings));
       const s = scoreOf(f, this.weights);
       if (s < threshold) continue;
+      // A slot the request did not fill is not guessed, and a match that leaves one open does not
+      // stand for the request: what it needs was not said (design section 23).
       const result = instantiate(d.becomes, m.bindings);
       if ([...walk(result)].some(isVar)) continue;
       scored.push({ d, f, s, result });

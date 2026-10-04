@@ -111,3 +111,18 @@ pnpm run import openapi ~/.noodle/sources/api.github.com.json github --cli "gh a
 This writes `openapi-github.ncon` (about 2 minutes; on 2026-10-03: 1,232 operations, 1,107
 summaries understood, 4,276 readings, 3,680 parameters). Its source is `ApiDoc(...)`, which the
 trust table does not list, so it is level 4: every operation is a proposal.
+
+## Tasks from tldr-pages
+
+tldr-pages (<https://github.com/tldr-pages/tldr>, CC BY 4.0) is downloaded once into
+`~/.noodle/sources/`: the English pages archive, `tldr-pages.en.zip`, from the release page
+(v2.3 on 2026-10-03, 3.4 MB). Import the tool packs first (`pnpm run import tools`), so an
+example of a command they know takes its documented effects. Then:
+
+```bash
+pnpm run import tldr ~/.noodle/sources/tldr-pages.en.zip common,osx v2.3
+```
+
+The platforms default to common and this machine's (osx on macOS, linux elsewhere). This writes
+`tldr.ncon`: each example a task (its description understood into `Describes`, its command line a
+reading with a slot for each placeholder), from `Tldr("<platform>/<page>", <n>)`, level 3.
