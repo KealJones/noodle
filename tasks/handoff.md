@@ -111,3 +111,13 @@ thing"). A subagent is writing docs/napkin-vs-noodle.md (how each parses, where 
 same inputs with failure causes, sizes and times, fit with Keal's goal, a recommendation). 1c
 (the hearing pre-pass) is paused until Keal decides; 1a and 1b are committed (0.49.0) and are
 small and reusable either way.
+
+### Comparison done (docs/napkin-vs-noodle.md)
+
+Recommendation: a small new core taking Noodle's learn/offer loop, guards, trust, --help learning,
+scored choice and per-word lookup, and Napkin's platform split (node and browser), packs plus a
+journal, behaviour in the graph, agenda and forgetting. Cheaper check first: finish 1c and 1d on a
+seed-only Noodle and run Keal's two passes; if the second pass matches the installed store's 39
+right, the lazy lexicon is proven and carries over. New safety bug found: a negated statement or a
+"without" becomes a stored rule with no confirmation ("you didnt pull it down" stored "I won't run
+git pull it"). Waiting on Keal's decision.
