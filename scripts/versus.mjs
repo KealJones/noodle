@@ -46,6 +46,14 @@ const skipNapkin = process.argv.includes("--noodle-only");
 const TUTOR_MODE = process.argv.find((a) => a.startsWith("--tutor="))?.slice("--tutor=".length);
 // --no-save: the report is printed only, and docs/versus.md is left as it is.
 const save = !process.argv.includes("--no-save");
+// --store=<path>: Noodle runs on that store itself, not a copy, so what it learns is kept (Keal's
+// two passes: a run that learns, then the same run again on what was kept).
+const STORE_ARG = process.argv.find((a) => a.startsWith("--store="))?.slice("--store=".length);
+// --json=<path>: every row (prompt, reply, verdict, time, stages, words looked up) written there.
+const JSON_OUT = process.argv.find((a) => a.startsWith("--json="))?.slice("--json=".length);
+// --learn: what the run learns is kept as the chat keeps it (a tool learned saved as a pack, weights
+// from corrections); without it, corrections do not save weights.
+const LEARN = process.argv.includes("--learn");
 
 // ---------------------------------------------------------------------------------------------
 // Dates the time prompts are judged against, from the clock at the run.
@@ -222,24 +230,26 @@ const branches = (root) => git(root, "branch", "--format=%(refname:short)").spli
 
 async function noodle() {
   const { createSession, packedStore, readConfig, STORE, PACKS } = await import(join(dist, "assistant", "index.js"));
-  const dir = mkdtempSync(join(tmpdir(), "versus-store-"));
-  const path = join(dir, "store.db");
+  const dir = STORE_ARG ? undefined : mkdtempSync(join(tmpdir(), "versus-store-"));
+  const path = STORE_ARG ?? join(dir, "store.db");
   // An instant copy where the file system can clone (APFS), so the run keeps nothing.
-  for (const ext of ["", "-wal"]) if (existsSync(STORE + ext)) copyFileSync(STORE + ext, path + ext, constants.COPYFILE_FICLONE);
+  if (dir) for (const ext of ["", "-wal"]) if (existsSync(STORE + ext)) copyFileSync(STORE + ext, path + ext, constants.COPYFILE_FICLONE);
   const store = packedStore(PACKS, path);
   const config = readConfig();
   return {
     name: "Noodle",
     session(root) {
       const tutor = TUTOR_MODE === undefined ? config.tutor : TUTOR_MODE !== "off";
-      const s = createSession(store, root, { ...config, know: config.know ?? true, learn: false, tutor });
+      const s = createSession(store, root, { ...config, know: config.know ?? true, learn: LEARN, tutor });
       if (TUTOR_MODE === "learned") s.tutor = undefined;
       return async (p) => {
         const r = await s.turn(p);
-        return { text: r.text, times: r.record.times };
+        // The words the lazy lexicon looked up this turn, with their times (the reasons log).
+        const words = r.record.reasons.map((x) => /^focus: the word "([^"]*)" looked up in the lexicon: (.*) \(([\d.]+) s\)$/.exec(x.what)).filter(Boolean).map((m) => ({ word: m[1], got: m[2], s: Number(m[3]) }));
+        return { text: r.text, times: r.record.times, words };
       };
     },
-    done: () => rmSync(dir, { recursive: true, force: true }),
+    done: () => dir && rmSync(dir, { recursive: true, force: true }),
   };
 }
 
@@ -317,7 +327,7 @@ for (const [title, items] of SESSIONS) {
     n += items.length;
     continue;
   }
-  const out = items.map((item) => ({ n: ++n, item, title, replies: {}, verdicts: {}, ms: {}, stages: {} }));
+  const out = items.map((item) => ({ n: ++n, item, title, replies: {}, verdicts: {}, ms: {}, stages: {}, words: {} }));
   for (const sys of systems) {
     if (sys.cached) {
       for (const row of out) {
@@ -338,6 +348,7 @@ for (const [title, items] of SESSIONS) {
         // Noodle says where the turn's time went, by stage (pnpm chat --why).
         if (reply && typeof reply === "object") {
           row.stages[sys.name] = reply.times;
+          row.words[sys.name] = reply.words;
           reply = reply.text;
         }
       } catch (err) {
@@ -382,6 +393,14 @@ for (const name of names) {
   const stages = (r) => [...(r.stages[name] ?? [])].filter(([k]) => k !== "total").sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k} ${secs(v)}`);
   md.push(`| ${name} | ${secs(median)} | ${secs(ms[ms.length - 1])} | ${rs.slice(0, 5).map((r) => `${r.n} ${cell(r.item.p)} (${[secs(r.ms[name]), ...stages(r)].join(", ")})`).join("; ")} |`);
 }
+// The lazy lexicon: words looked up in a dictionary before the chart, and how long that took.
+for (const name of names) {
+  const ws = rows.flatMap((r) => r.words[name] ?? []);
+  if (!ws.length) continue;
+  const turns = rows.filter((r) => r.words[name]?.length);
+  const wall = turns.map((r) => r.stages[name]?.get("words") ?? 0);
+  md.push("", `${name} looked up ${ws.length} words (${ws.filter((w) => w.got !== "not found").length} found) in ${turns.length} turns; time in lookups ${secs(wall.reduce((a, b) => a + b, 0))} in all, the slowest turn's ${secs(Math.max(...wall))}.`);
+}
 md.push("", "By session (RIGHT / HONEST / WRONG / ERROR):", "");
 md.push(`| session | ${names.join(" | ")} |`, `|---|${names.map(() => "---").join("|")}|`);
 for (const title of new Set(rows.map((r) => r.title))) {
@@ -397,4 +416,5 @@ const text = md.join("\n") + "\n";
 if (!only && save) writeFileSync(join(ROOT, "docs", "versus.md"), text);
 if (!only && save && systems.some((x) => x.name === "Napkin" && !x.cached))
   writeFileSync(NAPKIN_CACHE, JSON.stringify(Object.fromEntries(rows.map((r) => [r.n, { prompt: r.item.p, reply: r.replies.Napkin, verdict: r.verdicts.Napkin, ms: r.ms.Napkin }])), null, 1) + "\n");
+if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(rows.map((r) => ({ n: r.n, title: r.title, prompt: r.item.p, reply: r.replies.Noodle, verdict: r.verdicts.Noodle, ms: r.ms.Noodle, stages: Object.fromEntries(r.stages.Noodle ?? []), words: r.words.Noodle ?? [] })), null, 1) + "\n");
 console.log(text);

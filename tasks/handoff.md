@@ -97,10 +97,54 @@ hosts, and that is fine.
 - [x] 1a. Know.word(lemma): fetch one word (Kaikki, then Wiktionary REST), return its entry. Done: sources.ts wordEntry, know.ts word() (yeet 0.6 s, 37 facts; unknown words remembered as NotFound on Lexicon).
 - [x] 1b. Importer for one word's entry into N-Con forms (src/know/word.ts), reusing the seed's
       part-of-speech to category mapping (categoriesFor in src/know/wordnet.ts) and Names.
-- [ ] 1c. Session.turn pre-pass: unknown tokens looked up and imported before the chart; budgeted
-      (Focus), never in Suppose, only with SendsOutside granted and Know online.
-- [ ] 1d. Test on a seed-only store (no packs): two-pass versus, timings, lookups; unit test with a
-      fake fetch.
+- [x] 1c. Session.turn pre-pass (0.50.0): Session.hearLearning in turn.ts hears once, takes the
+      words nothing hears (hear.ts `unheard`: a letters-only token with an Unknown candidate, not
+      inside a Shape, SetAside or InPlay span), drops ones known missing, looks up at most
+      `Budget(Lexicon(), lookups=8)` (seed/policies.ncon) in parallel through Know.word, logs each
+      as `focus: the word "x" looked up in the lexicon: N facts (0.41 s)` (stage "words" in the
+      turn's times), and hears again if anything was learned. Skipped in dry runs, offline and
+      without the SendsOutside grant. Know takes `fetchWord` as an option (tests:
+      src/runtime/lexicon.test.ts, a fake dictionary). versus.mjs got `--store=<path>` (run on
+      that store, no copy), `--learn` (keep tool packs and weights) and `--json=<path>`.
+- [x] 1d. Measured 2026-10-04 on 0.50.0, ChatGPT off, Know online, NOODLE_PACKS an empty folder,
+      NOODLE_STORE a fresh file (`node scripts/versus.mjs --reuse-napkin --no-save
+      --store=<db> --json=<out>`, pass 1 with `--learn`):
+
+      | | R / H / W | median turn | p90 | lookups |
+      |---|---|---|---|---|
+      | seed only, no pre-pass (docs/napkin-vs-noodle.md) | 22 / 66 / 6 | 0.01 s | | 0 |
+      | seed only, pass 1 (learning) | 27 / 62 / 5 | 0.24 s | 3.7 s | 101 words (90 found) in 60 turns, 35.9 s in all, 0.42 s per word median, worst turn 4.9 s |
+      | seed only, pass 2 (same store) | 27 / 62 / 5 | 0.01 s | 0.08 s | 0 |
+      | installed full store, rerun on 0.50.0 | 39 / 50 / 5 | 0.50 s | 4.5 s | 19 (8 found) |
+
+      Pass 2 gave the same verdict on every prompt and fetched nothing. Cold start: the seed-only
+      store is 1.76 MB and builds in under 0.1 s; after pass 1 it is 7.05 MB (words plus Know's
+      pages), unchanged by pass 2. The only tool learned was tabs (a pack of 4.7 KB).
+      What the full store has and pass 2 lacks (16 prompts differ; 12 are full-store wins):
+      - **Multi-word idioms** (Wiktionary idioms pack): "what time is it" and "what day is it"
+        are `WhatTimeIsIt`, "my name is" is `MyNameIs`; seed-only reads `Be(It)` and is stuck.
+        Per word: Kaikki's entry for a word lists its derived terms and phrases; keep those whose
+        words are all in the prompt as `Words(...)`, or look up the prompt's 2 to 4 word spans
+        (Kaikki has a file per phrase) after the single words.
+      - **Verb frames and their bridge** (VerbNet): "show me the readme" is `Show(theme=Speaker)`
+        with no route to Read; the full store gets there through show's VerbNet class. Per word:
+        slice VerbNet into one small file per verb lemma (classes, frames, roles) served
+        statically, fetched the first time a verb is learned.
+      - **Tool docs** (the git pack): git log, commit, push, status and "what does git commit do"
+        are all stuck. In the versus workspace "git" is never unheard: hear's InPlay proposes
+        `.git` a spelling step away, so neither the pre-pass nor learnPrograms sees it, and
+        learnPrograms only takes tokens whose every candidate is Unknown. Per word: when an
+        unheard word is a program on the PATH, learn it from `--help` or its man page in the same
+        pre-pass (learning git's whole manual set is ~50 minutes, so per subcommand, on first
+        use: `git help log`).
+      - **Sense ranking** (WordNet sense order, wordfreq): "sam" learned from Kaikki as a rare verb
+        took "my name is sam" (`Directive(Sam)`); the full store lost that to the idiom. Per word:
+        keep the dictionary's sense order and the word's frequency (one number per word) as facts
+        with the entry, and weight rare senses down.
+      - Lowercase-only lookup misses proper nouns (france, italy, christmas, fahrenheit, lisa
+        were "not found"): try the capitalized title when the lowercase file is missing.
+      Seed-only beat the full store on "add 45 and 38" (no git reading to win) and "yes go ahead"
+      (no failed commit).
 - [ ] 2, 3, 4 as above.
 
 ### Paused 2026-10-04: deciding Noodle vs Napkin vs new
