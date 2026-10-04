@@ -135,3 +135,55 @@ test("a program a request names is learned on demand: offered when it needs runn
   const s3 = createSession(store, root);
   assert.equal((await s3.turn("close 13")).text, "I can run `pq ticket close 13`, but I don't know yet what it changes. Go ahead?");
 });
+
+// A command with an option whose value is text (invented): what the request says, quoted or after
+// "saying", is the option's value, as written.
+const NT = `#!/bin/sh
+case "$*" in
+  "--help") printf 'Work with notes.\\n\\nUSAGE\\n  nt <command> [flags]\\n\\nCOMMANDS\\n  ticket:     Work with tickets\\n' ;;
+  "ticket --help") printf 'Work with tickets.\\n\\nUSAGE\\n  nt ticket <command> [flags]\\n\\nCOMMANDS\\n  view:     View a ticket\\n  note:     Note a ticket\\n' ;;
+  "ticket view --help") printf 'View a ticket.\\n\\nUSAGE\\n  nt ticket view [<number>] [flags]\\n' ;;
+  "ticket note --help") printf 'Note a ticket.\\n\\nUSAGE\\n  nt ticket note [<number>] [flags]\\n\\nFLAGS\\n  -b, --body <text>   The note body text\\n  -R, --repo <repo>   Select another repository\\n  -p, --pin   Keep the note on top\\n' ;;
+  *) echo "nt: unknown $*" >&2; exit 2 ;;
+esac
+`;
+
+test("an option whose value is text takes what the request says, quoted or after saying, as written", { skip: !confined && "no confinement here" }, async () => {
+  const bin = fakeProgram();
+  writeFileSync(join(bin, "nt"), NT);
+  chmodSync(join(bin, "nt"), 0o755);
+  const extra = `${WORDS}
+Concept(Note(), Lemma("note"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Message(), Lemma("message"), IsA(Text()), Category(Noun()))
+`;
+  const words = seededStore();
+  words.load(extra);
+  const store = seededStore();
+  store.load(extra);
+  const world = { root: tmpdir(), store, now: () => new Date(), say() {}, ask() {} };
+  const r = await learnTool("nt", PRIMITIVES.get("Read")!, world, store, words);
+  // The text option takes the act's message; the repository option does not.
+  assert.match(r.text, /pattern=Note\(theme=Ticket\(number=\$x\), message=\$said\),\s*becomes=Run\("nt", Args\("ticket", "note", \$x, "--body", \$said\)\)/);
+  assert.doesNotMatch(r.text, /"--repo", \$said/);
+  store.load(r.text);
+  const offer = (cmd: string) => `I can run \`${cmd}\`, but I don't know yet what it changes. Go ahead?`;
+  assert.equal((await createSession(store, tmpdir()).turn("note ticket 12 saying looks good")).text, offer(`nt ticket note 12 --body "looks good"`));
+  assert.equal((await createSession(store, tmpdir()).turn("note ticket 12 with the message 'ship it'")).text, offer(`nt ticket note 12 --body "ship it"`));
+  assert.equal((await createSession(store, tmpdir()).turn("note ticket 12 “all done”")).text, offer(`nt ticket note 12 --body "all done"`));
+  // Without anything said, the command alone.
+  const s = createSession(store, tmpdir());
+  assert.equal((await s.turn("note ticket 12")).text, offer("nt ticket note 12"));
+  // A correction that names a flag of the command offered: the command with it, kept for next time.
+  const fixed = (await s.turn("no, use --pin")).text;
+  assert.match(fixed, /Got it: for that I'll run `nt ticket note 12 --pin`/);
+  assert.match(fixed, /I can run `nt ticket note 12 --pin`/);
+  assert.equal((await createSession(store, tmpdir()).turn("note ticket 13")).text, offer("nt ticket note 13 --pin"));
+  // A flag the command does not have is not a correction of it.
+  const t = createSession(store, tmpdir());
+  await t.turn("view ticket 3 saying hi");
+  assert.doesNotMatch((await t.turn("no, use --pin")).text, /--pin/);
+  // Or the whole command line, in backticks.
+  const u = createSession(store, tmpdir());
+  await u.turn("note ticket 14");
+  assert.match((await u.turn("no, `nt ticket note 14 --body done`")).text, /Got it: for that I'll run `nt ticket note 14 --body done`/);
+});

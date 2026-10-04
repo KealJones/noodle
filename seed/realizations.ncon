@@ -36,8 +36,10 @@ Concept(CommandLine())
 Reading(on=Run(), mode=Speaking(), pattern=Run($p, $args), becomes=Paragraph("run ", Code(CommandLine($p, $args))))
 Reading(on=Run(), mode=Speaking(), pattern=CommandLine($p, $args), becomes=Paragraph($p, " ", $args))
 Reading(on=Run(), mode=Speaking(), pattern=CommandLine($p, Args()), becomes=$p)
-Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=$a)
-Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph($a, " ", Args($b)))
+// Each argument is written so a shell reads it back as one ("looks good" in quotes).
+Reading(on=Run(), mode=Speaking(), pattern=Args($a), becomes=ShellQuoted($a))
+Reading(on=Run(), mode=Speaking(), pattern=Args($a, $b), becomes=Paragraph(ShellQuoted($a), " ", Args($b)))
+Reading(on=Run(), mode=Speaking(), pattern=Print(ShellQuoted($a), medium=$m), becomes=ShellQuoted($a))
 Reading(on=Run(), mode=Speaking(), pattern=Joined($a), becomes=$a)
 // What an earlier command printed, given to the next, said the way a shell would write it.
 Reading(on=Run(), mode=Speaking(), pattern=Output(Run($p, $args)), becomes=Paragraph("$(", CommandLine($p, $args), ")"))
@@ -76,6 +78,9 @@ Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet($n),
   becomes=Paragraph("I can't do that yet: I need to know ", $n, "."))
 Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet($n, for=$a),
   becomes=Paragraph("To ", $a, ", I need to know ", $n, "."))
+// A slot of an act nobody filled: which one it needs (a command's argument, by its synopsis' name).
+Reading(on=NeedUnmet(), mode=Speaking(), pattern=NeedUnmet(Gap($p), for=$a),
+  becomes=Paragraph("To ", $a, ", I need to know which ", $p, "."))
 Reading(on=NoSource(), mode=Speaking(), pattern=NoSource($q),
   becomes=Paragraph("I don't know ", $q, ", and I have nowhere to look it up."))
 Reading(on=NoPermission(), mode=Speaking(), pattern=NoPermission($a),
@@ -98,6 +103,8 @@ Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=$why),
 // A step nothing does is asked about in a paragraph of its own.
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NoReading($a)),
   becomes=Document(Paragraph("I couldn't work out \"", $x, "\"."), NoReading($a)))
+// An act stuck on a slot nobody filled says only what it needs.
+Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NeedUnmet(Gap($p), for=$a)), becomes=NeedUnmet(Gap($p), for=$a))
 Reading(on=Unworked(), mode=Speaking(), pattern=Unworked($x, because=NeedUnmet(Proposal())),
   becomes=Paragraph("There's nothing I'm waiting to do."))
 // A question about someone in the conversation the graph holds nothing on.

@@ -19,6 +19,11 @@ export interface TakesSpec {
   marks?: string;
   /** A kind the argument must be (its word, or what its shape says it is: a numeral is a number). */
   kind?: string;
+  /**
+   * The argument is taken as the words said, as written, not as what they mean: what follows
+   * "saying" is the words said. A quotation or a code span is its own words, without its marks.
+   */
+  asSaid?: boolean;
   optional: boolean;
 }
 
@@ -71,6 +76,8 @@ export interface Cover {
   score: number;
 }
 
+/** Words as said: a run of tokens only a slot taking the words said takes. */
+const VERBATIM = "Verbatim";
 const CATEGORY_HEADS = new Set(["Noun", "Thing", "Act", "Clause", "Relation", "Property", "Manner", "Mark"]);
 
 export interface ChartOptions {
@@ -267,6 +274,12 @@ export class Chart {
       // A name in the surroundings can follow a determiner, as a noun does: "the readme".
       if (cand.source === "InPlay")
         out.push(this.make({ start: cand.start, end: cand.end, category: "Noun", expr: cand.literal, word: cand.kind, features: new Map(features), step: "literal", back: [] }));
+      // A shape's kind says how its spans attach, as a word's entries do: a quotation after a noun
+      // names it. Only entries that take nothing: a literal has no arguments to fill.
+      if (cand.kind)
+        for (const en of this.entries(cand.kind).entries)
+          if (!en.takes.length && en.modifies.length)
+            out.push(this.make({ start: cand.start, end: cand.end, category: en.category, expr: cand.literal, modifies: en.modifies, word: cand.kind, features: new Map(features), step: "literal", back: [] }));
     }
     return out;
   }
@@ -312,6 +325,7 @@ export class Chart {
     if (!p || p.takes.side !== side || !this.complete(arg)) return undefined;
     if (p.takes.category !== "Any" && p.takes.category !== arg.category) return undefined;
     if (arg.category === "Mark" && p.takes.category !== "Mark") return undefined;
+    if (arg.category === VERBATIM && !p.takes.asSaid) return undefined;
     if (!this.headFits(p.takes, arg)) return undefined;
     // A gap may only be taken by an entry whose FillsGap says it can, and that entry's last argument
     // (the clause the displaced phrase came from) must have it.
@@ -319,7 +333,7 @@ export class Chart {
     if (head.acceptsGap && head.pending.length === 1 && arg.gap !== head.acceptsGap) return undefined;
     if (head.gap && arg.gap) return undefined;
     const isMark = p.takes.category === "Mark";
-    const expr = isMark ? head.expr : addArg(head.expr, p.path, p.takes.role, arg.expr);
+    const expr = isMark ? head.expr : addArg(head.expr, p.path, p.takes.role, p.takes.asSaid ? this.asSaid(arg) : arg.expr);
     const category = head.anyCategory && !isMark ? arg.category : head.category;
     return this.make({
       ...head,
@@ -335,6 +349,13 @@ export class Chart {
       step: "take",
       back: [head, arg],
     });
+  }
+
+  /** An argument as the words said: a literal (a quotation, a code span) as it is, else the span's text as written. */
+  private asSaid(arg: Edge): Expr {
+    if (arg.expr.kind === "string") return arg.expr;
+    const { text, tokens } = this.hearing;
+    return { kind: "string", value: text.slice(tokens[arg.start].start, tokens[arg.end - 1].end), pos: arg.expr.pos };
   }
 
   /** Modify: a complete modifier attaches to an adjacent complete edge of its category. */
@@ -364,7 +385,7 @@ export class Chart {
   private joinRight(j: Edge, right: Edge): Edge | undefined {
     if (j.category !== "join" || j.joinRight || !this.complete(right)) return undefined;
     if (j.joins !== "Any" && j.joins !== right.category) return undefined;
-    if (right.category === "Mark") return undefined;
+    if (right.category === "Mark" || right.category === VERBATIM) return undefined;
     return this.make({ ...j, end: right.end, joinRight: right, features: mergeFeatures(j.features, right.features), step: "joinright", back: [j, right] });
   }
 
@@ -425,6 +446,17 @@ export class Chart {
       step: "gap",
       back: [e],
     });
+  }
+
+  private said?: boolean;
+  /** Whether a word in the segment has a slot that takes the words said. */
+  private takesSaid(): boolean {
+    if (this.said === undefined) {
+      this.said = false;
+      for (let i = this.from; i < this.to && !this.said; i++)
+        for (const x of this.hearing.candidates[i]) if (x.concept && this.entries(x.concept).entries.some((en) => en.takes.some((t) => t.asSaid))) this.said = true;
+    }
+    return this.said;
   }
 
   private noise(token: number): boolean {
@@ -540,6 +572,13 @@ export class Chart {
         const e = s + len;
         const agenda: Edge[] = [];
         for (const cand of this.hearing.candidates[s]) if (cand.end === e) for (const w of this.wordEdges(cand)) this.add(s, e, w, agenda);
+        // Words as said: any run of them is what a slot taking the words said may take ("saying
+        // looks good"), whether or not they make a phrase. Only where a word here has such a slot.
+        if (s > from && this.takesSaid()) {
+          const { text, tokens } = this.hearing;
+          const features: Features = new Map([["WordsUsed", len]]);
+          this.add(s, e, this.make({ start: s, end: e, category: VERBATIM, expr: { kind: "string", value: text.slice(tokens[s].start, tokens[e - 1].end), pos: { line: 0, column: 0 } }, features, step: "verbatim", back: [] }), agenda);
+        }
         for (let m = s + 1; m < e; m++) {
           for (const a of this.cell(s, m))
             for (const b2 of this.cell(m, e)) for (const x of this.combine(a, b2)) this.add(s, e, x, agenda);
@@ -601,7 +640,7 @@ export class Chart {
       if (!t) {
         // Mood and fragment variants (segment rules) are chosen per edge, after the cover
         // (Chart.variants), so they do not multiply the covers.
-        t = this.cell(s, e).filter((x) => this.complete(x) && x.category !== "Mark" && !x.gap);
+        t = this.cell(s, e).filter((x) => this.complete(x) && x.category !== "Mark" && x.category !== VERBATIM && !x.gap);
         tops.set(k, t);
       }
       return t;
@@ -655,7 +694,7 @@ export function entriesOf(store: Store, concept: string) {
       const side = (headOf(role(sub, "side")) ?? "Right") as "Left" | "Right";
       const category = headOf(role(sub, "category")) ?? "Any";
       if (sub.head === "Takes")
-        takes.push({ side, category, role: headOf(role(sub, "role")), head: headsOf(role(sub, "head")), marks: headOf(role(sub, "marks")), kind: headOf(role(sub, "kind")), optional: boolOf(role(sub, "optional")) });
+        takes.push({ side, category, role: headOf(role(sub, "role")), head: headsOf(role(sub, "head")), marks: headOf(role(sub, "marks")), kind: headOf(role(sub, "kind")), asSaid: boolOf(role(sub, "asSaid")) || undefined, optional: boolOf(role(sub, "optional")) });
       else if (sub.head === "Modifies") modifies.push({ side, category, role: headOf(role(sub, "role")) });
       else if (sub.head === "FillsGap") fillsGap = category;
     }

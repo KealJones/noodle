@@ -215,6 +215,7 @@ Concept(Side(), Lemma("side"), Frame(Thing()))
 
 Concept(Document(), Lemma("document"), Frame(Thing()))
 Concept(Text(), Lemma("text"), Frame(Thing()))                            // a run of words, as content
+Concept(Message(), Lemma("message"), Frame(Thing()))                      // what an act says, in words (a role)
 Concept(Paragraph(), Lemma("paragraph"), Frame(Thing()))
 Concept(Heading(), Lemma("heading"), Frame(Thing(), level=Number()))
 Concept(List(), Lemma("list"), Frame(Thing()))

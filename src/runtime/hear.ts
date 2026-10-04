@@ -184,6 +184,8 @@ export function inflections(store: Store, word: string): { base: string; feature
 }
 
 export interface Hearing {
+  /** The text heard, after setting aside: what the tokens' offsets are into. */
+  text: string;
   tokens: Token[];
   candidates: Candidate[][];
   aside: SetAside[];
@@ -298,7 +300,7 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
     const own = candidates[i].filter((x) => x.end === i + 1);
     if (!own.length || own.every((x) => x.source === "SpellDistance" || x.source === "CaseMatch")) add({ start: i, end: i + 1, literal: str(tok.text), features: [], source: "Unknown", distance: 0 });
   });
-  return { tokens, candidates, aside };
+  return { text, tokens, candidates, aside };
 }
 
 /** The concepts said as words in order, by their first word (read once per store, then kept). */
