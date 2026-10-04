@@ -106,6 +106,24 @@ test("for acts with effects, the tutor's pick only orders the numbered choice, m
   assert.ok(store.factsWithHead("Mean").some((f) => isTutor(f.meta.from) && f.meta.status === "Active"));
 });
 
+test("a because that says what a kind of thing is proposes it on the kind, and a matching pick makes it a kind the graph uses", async () => {
+  const store = seededStore();
+  store.load(zap("UnknownEffects"));
+  store.load(`Pack(name="test-tutor-kinds", version="0", from=WordNet("test"))
+Concept(Snib(), Lemma("snib"), Category(Noun()))
+Concept(Frob(), Lemma("frob"), Category(Noun()))
+`);
+  const s = createSession(store, root(), { grants: ["UnknownEffects"] });
+  tutored(s, store, (q) => `choice: ${second(q)}\nsuggest: none\nask: none\nbecause: A snib is a frob.`);
+  await s.turn("zap");
+  const pending = store.facts("Tutor", "Proposes");
+  assert.deepEqual(pending.map((f) => key(f.claim)), ["Proposes(Snib(), IsA(Frob()))"]);
+  assert.ok(!store.kinds("Snib").has("Frob"));
+  await s.turn("1");
+  assert.ok(store.facts("Snib", "IsA").some((f) => isTutor(f.meta.from) && f.meta.status === "Active"));
+  assert.ok(store.kinds("Snib").has("Frob"));
+});
+
 test("for acts that only read, the tutor's pick is taken for this turn, and the reply says so", async () => {
   const store = seededStore();
   store.load(zap("Reads"));

@@ -8,7 +8,7 @@ import { type Call, type Expr, c, isCall, isHead, isVar, key, positional, role, 
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { type ReadingItem, type Store, readingKey } from "./store.js";
-import { contentHeads, type Described, describedActs, explainable, isArgument, matchFeatures, softMatch } from "./softmatch.js";
+import { broader, contentHeads, type Described, describedActs, explainable, isArgument, matchFeatures, softMatch } from "./softmatch.js";
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
@@ -193,8 +193,10 @@ export class Rewriter {
       this.softMemo.set(k, []);
       return [];
     }
+    // Descriptions of what the request names, and of what it is said to be a kind or a part of
+    // ("a socket" is a network file: a description of network files is about it too).
     const pool = new Set<Described>();
-    for (const h of heads) for (const d of index.byHead.get(h) ?? []) pool.add(d);
+    for (const h of heads) for (const x of [h, ...broader(this.store, h).keys()]) for (const d of index.byHead.get(x) ?? []) pool.add(d);
     const threshold = this.threshold();
     // What a description cannot explain of the request bounds its score from above: where every
     // cost the match can add only lowers it (no weight on them is negative), one that cannot reach
@@ -344,12 +346,17 @@ export class Rewriter {
    * Expressions left that have readings of their own, none of which applied: a word that should
    * have been read and was not ("yet" left inside a rule). Unworked, by the definition of section
    * 7; structural heads and opaque nodes do not count. A concept said again inside itself is one
-   * thing left unread, not two (an auxiliary says its verb again: "what does jq do").
+   * thing left unread, not two (an auxiliary says its verb again: "what does jq do"), and so is
+   * the same thing said twice by a reading that says it of each of a list ("an X may be a Y or a
+   * Z": X is in both).
    */
-  unread(e: Expr): number {
+  unread(e: Expr, seen = new Set<string>()): number {
     if (!isCall(e) || OPAQUE.has(e.head)) return 0;
+    const k = key(e);
+    if (seen.has(k)) return 0;
+    seen.add(k);
     const own = !STRUCTURAL_NAMES.has(e.head) && this.store.readingsOn(e.head).some((r) => !r.mode && r.owner !== "Segment" && r.meta.status !== "Pending") ? 1 : 0;
-    return own + e.args.reduce((n, a) => n + (isCall(a.value) && a.value.head === e.head && own ? this.unread(a.value) - 1 : this.unread(a.value)), 0);
+    return own + e.args.reduce((n, a) => n + (isCall(a.value) && a.value.head === e.head && own ? Math.max(0, this.unread(a.value, seen) - 1) : this.unread(a.value, seen)), 0);
   }
 
   private norm(e: Expr, depth: number, seen: Set<string>): Omit<Derivation, "score">[] {

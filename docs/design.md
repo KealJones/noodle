@@ -995,8 +995,9 @@ reads or answers, its pick is taken for the turn and the reply says so ("ChatGPT
 meant: ..."); otherwise it only orders the numbered choice, its pick first and marked, and nothing
 runs or is offered beyond what the loop offers. Its because is heard by the same pipeline as a
 page's opening into proposals, kept as `Proposes(about, claim)` on `Tutor`, Pending, where nothing
-that reads the concept's facts finds them; they become facts on what they are about when they
-prove out (the user picks what it picked, or its weight change passes the replay gate) and are
+that reads the concept's facts finds them (a because that says what a kind of thing is, "a socket
+is a network file", is proposed on that kind, read as a manual's description is, section 21);
+they become facts on what they are about when they prove out (the user picks what it picked, or its weight change passes the replay gate) and are
 shown in `--why`. `"tutor": false` in the config turns it off, and with it every weight it taught;
 `pnpm tutor:report` counts what it taught and scores versus with its learning and without. The
 scored experiment runs with it off: the freeze records `tutor: "off"` and refuses a weight from it.
@@ -1135,6 +1136,15 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("commit", Senses())
   facts directly: the property's label is heard like any word, as one phrase, with the value's
   place left open where the label leaves it open (`Capital(France#Topic(), "Paris")`). Every fact
   has the page or the entity as its source, so its trust is the source's.
+- **What a text says of kinds** (`Learner.statements`): the same pipeline over every sentence of
+  a text, asides kept, a conjunction or disjunction of clauses taken clause by clause. A clause
+  whose subject is a kind said of any one ("an open file", "a socket") is a fact on that kind's
+  concept, the subject left out, as IsA and PartOf are written. What such a clause is, is the
+  seed's (bridge): "an X is a Y" is `IsA`, "an X may be a Y" says a Y is a kind of X, "an X is
+  part of a Y" is `PartOf`, and a list said of a thing is said of it for each. A statement heard
+  from only part of its sentence (words skipped, or other pieces beside it) is kept Pending, a
+  proposal nothing takes as a kind. Manual pages are read this way (section 25), and so is a
+  tutor's because (section 17). Measured in `docs/manual-facts.md`.
 - **Answering from the graph first.** A question is answered by Know's recall before anything is
   fetched: the first topic it names, and a fact on it whose head is a word of the question's own
   around the topic, or a word one of whose senses is a kind of one of the question word's senses
@@ -1288,6 +1298,13 @@ is tracked alongside accuracy.
   to say its command ("add a comment to the pr"), and a group command that only shows the thing
   itself is what showing one is ("show me pr 1748" is `gh pr view 1748`). Where a summary does
   not say the command only shows, the first sentence of its page's description is understood too.
+  The rest of the page is read for what it says of the things it is about: its description's
+  sentences, and each option's beyond its first, heard into facts on the kinds they speak of
+  (`Learner.statements`, section 21; "an open file may be ... a directory": a directory is a kind
+  of open file), from the page, Pending where only part of the sentence was heard. Sentences of
+  more than 40 words are not heard for this (the chart's work grows with length, and so long a
+  sentence is rarely heard whole). The scored match takes those kinds and parts as steps from a
+  request's concept to a description's (runtime.md 6.2).
   An option whose value is a message (its placeholder, or a flag that is one word, names a kind
   within a step of Message: `--body <text>`, `-m <msg>, --message=<msg>`) takes what the request says, the act's
   `message` role: the words after "saying", a quotation after the act, or the quotation that

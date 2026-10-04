@@ -266,6 +266,13 @@ roles.
   reach the threshold: every cost of a match only lowers its score while no weight on them is
   negative, so the bound is exact, and is not used otherwise. The index, the SameAs classes and
   kind distances are kept until the facts they are worked out from change, not on every write.
+- **Kinds and parts said of a thing**: a request's concept reaches what its own IsA and PartOf
+  facts say it is a kind or a part of (learned from a manual's description, a page, a confirmed
+  tutor's because, or the user; not its senses', which are the kind distance's), up to three
+  steps, each step one of `Match:Distance`. Descriptions of those are in its pool ("a socket" is a
+  network file: a description of network files is about it), and an aligned node so reached is
+  covered whole: a description of network files says all it says of a socket, at the cost of the
+  steps. A fact only proposed (Pending) is not a step.
 
 The alignment is exact search for trees under 30 nodes (requests and descriptions are small) and
 beam search above that.
