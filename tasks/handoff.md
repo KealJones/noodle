@@ -102,3 +102,12 @@ hosts, and that is fine.
 - [ ] 1d. Test on a seed-only store (no packs): two-pass versus, timings, lookups; unit test with a
       fake fetch.
 - [ ] 2, 3, 4 as above.
+
+### Paused 2026-10-04: deciding Noodle vs Napkin vs new
+
+Keal asked for an in-depth Napkin vs Noodle comparison of raw-string parsing before going further
+("maybe I should abandon noodle and take the learnings back to napkin? or start an entirely new
+thing"). A subagent is writing docs/napkin-vs-noodle.md (how each parses, where each wins on the
+same inputs with failure causes, sizes and times, fit with Keal's goal, a recommendation). 1c
+(the hearing pre-pass) is paused until Keal decides; 1a and 1b are committed (0.49.0) and are
+small and reusable either way.
