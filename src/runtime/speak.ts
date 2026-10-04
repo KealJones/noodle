@@ -180,6 +180,9 @@ export class Speaker {
       }
       case "Fenced":
         return this.fence(e);
+      case "ShellQuoted":
+        // Character mechanics: an argument with anything a shell would split or expand is quoted.
+        return pos[0]?.kind === "string" ? (/^[\w@%+=:,./{}-]+$/.test(pos[0].value) ? pos[0].value : `"${pos[0].value.replace(/["\\$`]/g, "\\$&")}"`) : this.print(pos[0], medium, depth + 1);
       case "Digits": {
         // A number written with at least so many digits, zeros in front.
         const [x, w] = pos;

@@ -103,7 +103,8 @@ export class Rewriter {
       // said fits better ("the git status" is git's status, not any status with "git" left over).
       // Roles of what the pattern only passes through, deeper down, are not this reading's to read.
       const pattern = r.pattern as Call;
-      const unmatched = target.args.filter((a) => a.name !== undefined && !pattern.args.some((p) => p.name === a.name)).length;
+      // A pattern over anything with some roles passes the rest through, unread here.
+      const unmatched = pattern.head === "WithRoles" ? 0 : target.args.filter((a) => a.name !== undefined && !pattern.args.some((p) => p.name === a.name)).length;
       const f: Features = new Map(features ?? []);
       if (unmatched) addFeature(f, "Unmatched", -unmatched);
       // What was said in a role the result fills with something of its own is lost: unworked
@@ -111,12 +112,15 @@ export class Rewriter {
       const dropped = isCall(made) ? m.extra.filter((x) => made.args.some((a) => a.name === x.name && key(a.value) !== key(x.value))).length : 0;
       // So is what the pattern took in a variable its result does not use (a frame whose meaning
       // leaves out its theme: "take milk" as only "cause to be together").
-      const used = new Set([...walk(r.becomes!)].filter(isVar).map((x) => x.text));
+      // (A variable the reading's wants look at is used: it is what the want is about.)
+      const used = new Set([r.becomes!, ...r.wants].flatMap((x) => [...walk(x)]).filter(isVar).map((x) => x.text));
       const unused = [...m.bindings].filter(([name, x]) => name !== "_" && !used.has(name) && !isVar(x) && !(isCall(x) && STRUCTURAL_NAMES.has(x.head))).length;
       if (dropped + unused) addFeature(f, "Unworked:Dropped", -(dropped + unused));
       out.push({ r, b: m.bindings, result, features: f.size ? f : undefined });
     };
     for (const r of this.store.readingsFor(e.head)) consider(r, e);
+    // A pattern WithRoles($a, role=x) is over anything with those roles, whatever its head (ncon.md 5.1).
+    for (const r of this.store.readingsFor("WithRoles")) consider(r, e);
     // Senses (runtime.md 7): a word's senses with readings of their own are candidates for the
     // word, the sense replacing it, scored by how likely the word is to have that sense: the log
     // of its share among the word's senses of the same part of speech, a share falling with its

@@ -242,6 +242,10 @@ Fact(When(), AnswerShape(Description()))
 Fact(Why(), AnswerShape(Explanation()))
 Fact(How(), AnswerShape(Explanation()))
 
+// "what" and "which" after a verb: the clause they open is what the verb is done to, a question
+// inside the request ("find what is listening on port 3000").
+Concept(What(), Category(Thing(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())))
+Concept(Which(), Category(Thing(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())))
 Reading(on=What(), pattern=What(topic=$p), becomes=Question($p, about=Gap()))
 Reading(on=What(), pattern=What($k, topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Gap()))
 Reading(on=Which(), pattern=Which($k, topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Gap()))
@@ -818,6 +822,25 @@ Concept(Mean(), Form("means", ThirdSingular()), Form("meant", Past()),
 
 Reading(on=Mean(), pattern=Assert(Mean(agent=$w, theme=$d)), becomes=Directive(Remember(Rewrite($w, $d))))
 
+// "when I say kill 8080, find the process on port 8080 and kill it" is the same teaching: what is
+// said is a request ("say" takes an act as the words said), and "when" before a request says when
+// it is to be done, here whenever those words are said.
+Concept(Say(), Category(Act(), Takes(side=Right(), category=Act(), role=Theme())))
+Concept(When(), Category(Manner(), Takes(side=Right(), category=Clause()), Takes(side=Right(), category=Mark(), head=Comma(), optional=true), Modifies(side=Right(), category=Act())))
+Reading(on=When(), pattern=Imperative(WithRoles($d, modifier=When(Say(agent=I(), theme=$w)))), becomes=Directive(Remember(Rewrite($w, $d))))
+
+// =============================================================================================
+// 11c. What an act says: "comment on it saying looks good", "commit with the message 'fix
+// tests'". The words said are kept as written (asSaid), in the act's message role; a command's
+// option that takes text fills it (src/know/tooldocs.ts).
+
+// "say X" after an act ("saying X") is what the act says, X as written.
+Concept(Say(), Category(Manner(), Takes(side=Right(), category=Any(), role=Theme(), asSaid=true), Modifies(side=Left(), category=Act(), role=Message())))
+Reading(on=Say(), pattern=WithRoles($a, message=Say(theme=$v)), becomes=WithRoles($a, message=$v))
+// "with the message X": what is named, by a quotation after a kind of text, is the act's message.
+Reading(on=With(), pattern=WithRoles($a, instrument=Ref(kind=WithRoles($k, name=$v), said=_)), wants=IsA($k, Text()), becomes=WithRoles($a, message=$v))
+Reading(on=With(), pattern=WithRoles($a, instrument=WithRoles($k, name=$v)), wants=IsA($k, Text()), becomes=WithRoles($a, message=$v))
+
 // =============================================================================================
 // 12. Asides: kept on the turn, not answers (design section 14).
 
@@ -1081,7 +1104,18 @@ Concept(Emoji(), HasShape(Seq(Literal(":"), Repeat(OneOf(Lower(), Digit(), Liter
 
 // A code span is an exact name (design section 25b): what is between the backticks, never a
 // spelling candidate. Capture marks the part that is the name.
-Concept(CodeSpan(), IsA(Name()), HasShape(Seq(Literal("`"), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("`"))))
+Concept(CodeSpan(), IsA(Name()), HasShape(Seq(Literal("`"), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("`"))),
+  Category(Thing(), Modifies(side=Left(), category=Noun(), role=Name())))
+
+// A quotation is words kept as written, as a code span is: what is between the quote marks. After
+// a noun it names it ("the message 'fix tests'"); after an act it is what the act says.
+Concept(QuotedText(), IsA(Text()), IsA(Name()),
+  HasShape(Seq(Literal("\""), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("\""))),
+  HasShape(Seq(Literal("'"), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("'"))),
+  HasShape(Seq(Literal("“"), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("”"))),
+  HasShape(Seq(Literal("‘"), Capture(Repeat(Any(), 1, 300, shortest=true)), Literal("’"))),
+  Category(Thing(), Modifies(side=Left(), category=Noun(), role=Name())),
+  Category(Manner(), Modifies(side=Left(), category=Act(), role=Message())))
 
 // Set aside before the chart: content, never heard (runtime.md section 3.1; design section 25b).
 Concept(CodeFence(), IsA(CodeBlock()), SetsAside(),

@@ -947,7 +947,10 @@ toward it, the documentation that led to it is confirmed (the user saw the very 
 the request meant (its reduction at its gist: no agent, a referent matched whatever words named it)
 is kept as a reading from the user, values said made variables, so the same request said another
 way or of another value goes straight there, through the exact match or the scored one. Instead of
-a number the user may give the command in backticks; it is kept for what was meant. A step of a
+a number the user may give the command in backticks; it is kept for what was meant. An offer
+waits for its answer the same way: after it, the command in backticks, or a flag the offered
+command's documentation lists for it ("no, use --squash": the offered command line with it), is
+kept as the user's correction and the request read again. A step of a
 request nothing does says so and waits for its command the same way; once given, the request is
 read again. A reading the user gave carries the Trust feature (level 1), once per derivation.
 
@@ -958,7 +961,9 @@ number). Its meaning is a plan; in a plan, what a command step printed is what t
 "it" is: Output(that step's act), worked out once it has run, given to a command as one argument
 per line printed, said as `$(...)`. A command given for "kill it" without what it is done to takes
 it as its argument (as a documented command line takes what its act is done to), wanting what a
-step printed.
+step printed. "When I say kill 8080, find the process on port 8080 and kill it" is the same teaching, by
+how its words are read: "say" takes a request as the words said, and "when" before a request
+says when it is done (facts and a reading on the words, not a phrase).
 
 **ChatGPT as a tutor for choices.** Where a choice has no clear evidence path (the readings tie,
 or the top reading's probability is below `askBelow`), ChatGPT is asked before the user, through
@@ -1220,6 +1225,15 @@ is tracked alongside accuracy.
   to say its command ("add a comment to the pr"), and a group command that only shows the thing
   itself is what showing one is ("show me pr 1748" is `gh pr view 1748`). Where a summary does
   not say the command only shows, the first sentence of its page's description is understood too.
+  An option whose value is a message (its placeholder, or a flag that is one word, names a kind
+  within a step of Message: `--body <text>`, `-m <msg>, --message=<msg>`) takes what the request says, the act's
+  `message` role: the words after "saying", a quotation after the act, or the quotation that
+  names "the message" ("comment on pr 1748 saying looks good" is `gh pr comment 1748 --body "looks
+  good"`). A command line that needs an argument (a placeholder its synopsis does not make
+  optional) has no reading that runs it bare: told to do it with nothing named, the slot is an open
+  `Gap(placeholder)`, and the act is stuck on it and asks for it ("To run `kill pid`, I need to
+  know which pid"). A page with no synopsis read gives no bare reading at all. Pages written in
+  mdoc (the BSD utilities') are read through mandoc's man(7) output.
 - **Learned on demand.** A word nothing knows, or a name in backticks, that is a program on the
   PATH (`Read(Program(name))`) is learned before the request is read: from its manual page at
   once (reading documentation), or, where it has none, offered first, since reading its help runs
@@ -1305,6 +1319,7 @@ of a name, `#` before digits is an issue reference), each a competing entry chos
 | `<ins>x</ins>` | `Inserted(x)`: the added side of a correction |
 | `<sub>`, `<sup>` | part of the name or number they are in (H<sub>2</sub>O, x<sup>2</sup>), no tone |
 | `` `x` `` | a name or a mention (`Mention`, section 11): `` `agents.md` `` is an exact name, never a spelling candidate. A color (`` `#0969DA` ``) is a shape |
+| `"x"`, `'x'`, `“x”`, `‘x’` | a quotation (the shape `QuotedText`): the words kept as written, as a code span's are. After a noun it names it ("the message 'fix tests'"); after an act it is what the act says (its `message`). The quote marks are also marks, as competing entries |
 | fenced code | set aside as content with its language (`SetsAside()`), never heard. Markdown inside a fence is content too: "make the README look like this" points at it, it does not stress anything |
 | `#` to `######` | `Heading(level)`: names what the lines under it are about |
 | `>` | `Quote`: someone else's words, opaque |
