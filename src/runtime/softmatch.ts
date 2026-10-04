@@ -49,6 +49,12 @@ interface Aligned {
  */
 export type Weigh = (e: Expr) => number;
 
+/** What may fill a pattern's variable. */
+export type Fills = (e: Expr) => boolean;
+
+/** A value said (a name, a number), what a command line's argument can be. */
+export const isValue: Fills = (e) => e.kind === "string" || e.kind === "number";
+
 function nodes(e: Expr, w: Weigh): number {
   return isCall(e) ? w(e) + e.args.reduce((n, a) => n + nodes(a.value, w), 0) : isVar(e) ? 0 : w(e);
 }
@@ -66,9 +72,10 @@ function headDistance(store: Store, a: string, b: string): number | undefined {
   return d !== undefined && d <= MAX_DISTANCE ? d : undefined;
 }
 
-function align(store: Store, w: Weigh, p: Expr, r: Expr): Aligned | undefined {
-  // A pattern variable is an argument slot: anything fills it.
-  if (isVar(p)) return { covered: 0, matched: markAll(r), distance: 0, filled: 1, bindings: new Map([[p.text, r]]) };
+function align(store: Store, w: Weigh, fills: Fills, p: Expr, r: Expr): Aligned | undefined {
+  // A pattern variable is an argument slot: anything fills it, or where only a value may (a
+  // command line's slot), a value said.
+  if (isVar(p)) return !fills(r) ? undefined : { covered: 0, matched: markAll(r), distance: 0, filled: 1, bindings: new Map([[p.text, r]]) };
   if (!isCall(p) || !isCall(r)) return p.kind === r.kind && key(p) === key(r) ? { covered: w(p), matched: new Set([r]), distance: 0, filled: 0, bindings: new Map() } : undefined;
   const d = headDistance(store, p.head, r.head);
   if (d === undefined) return undefined;
@@ -86,10 +93,10 @@ function align(store: Store, w: Weigh, p: Expr, r: Expr): Aligned | undefined {
   // Roles first, by name; then positional arguments in order; then whatever is left, off role.
   for (const pa of roles(p)) {
     const i = rArgs.findIndex((ra, j) => !used.has(j) && ra.name === pa.name);
-    const a = i >= 0 ? align(store, w, pa.value, rArgs[i].value) : undefined;
+    const a = i >= 0 ? align(store, w, fills, pa.value, rArgs[i].value) : undefined;
     if (a) take(i, a, 1);
     else {
-      const alt = bestUnused(store, w, pa.value, rArgs, used);
+      const alt = bestUnused(store, w, fills, pa.value, rArgs, used);
       if (alt) take(alt.i, alt.a, OFF_ROLE);
     }
   }
@@ -97,21 +104,21 @@ function align(store: Store, w: Weigh, p: Expr, r: Expr): Aligned | undefined {
   let j = 0;
   for (const pv of pPos) {
     while (j < rArgs.length && (used.has(j) || rArgs[j].name !== undefined)) j++;
-    const a = j < rArgs.length ? align(store, w, pv, rArgs[j].value) : undefined;
+    const a = j < rArgs.length ? align(store, w, fills, pv, rArgs[j].value) : undefined;
     if (a) take(j++, a, 1);
     else {
-      const alt = bestUnused(store, w, pv, rArgs, used);
+      const alt = bestUnused(store, w, fills, pv, rArgs, used);
       if (alt) take(alt.i, alt.a, OFF_ROLE);
     }
   }
   return out;
 }
 
-function bestUnused(store: Store, w: Weigh, p: Expr, rArgs: { name?: string; value: Expr }[], used: Set<number>): { i: number; a: Aligned } | undefined {
+function bestUnused(store: Store, w: Weigh, fills: Fills, p: Expr, rArgs: { name?: string; value: Expr }[], used: Set<number>): { i: number; a: Aligned } | undefined {
   let best: { i: number; a: Aligned } | undefined;
   rArgs.forEach((ra, i) => {
     if (used.has(i)) return;
-    const a = align(store, w, p, ra.value);
+    const a = align(store, w, fills, p, ra.value);
     if (a && (!best || a.covered > best.a.covered)) best = { i, a };
   });
   return best;
@@ -133,13 +140,13 @@ function markAll(e: Expr): Set<Expr> {
  * roots cannot align. The score is the pattern covered, minus the request left unexplained. Both
  * are taken at their gist first (below).
  */
-export function softMatch(store: Store, pattern0: Expr, request0: Expr, w: Weigh = () => 1): SoftMatch | undefined {
+export function softMatch(store: Store, pattern0: Expr, request0: Expr, w: Weigh = () => 1, fills: Fills = () => true): SoftMatch | undefined {
   const pattern = gist(pattern0);
   const request = gist(request0);
   // The roots align; failing that, either root may align below the other's (a request that wraps
   // the act in "I want", a description that wraps it in "cause"), and what is above stays
   // unexplained, which the features count.
-  let a = align(store, w, pattern, request);
+  let a = align(store, w, fills, pattern, request);
   if (!a) {
     let best: Aligned | undefined;
     const consider = (x: Aligned | undefined) => {
@@ -147,7 +154,7 @@ export function softMatch(store: Store, pattern0: Expr, request0: Expr, w: Weigh
     };
     const ps = [pattern, ...descendants(pattern)];
     const rs = [request, ...descendants(request)];
-    for (const ps1 of ps) for (const rs1 of rs) if (ps1 !== pattern || rs1 !== request) consider(align(store, w, ps1, rs1));
+    for (const ps1 of ps) for (const rs1 of rs) if (ps1 !== pattern || rs1 !== request) consider(align(store, w, fills, ps1, rs1));
     a = best;
   }
   if (!a) return undefined;
@@ -206,6 +213,8 @@ export interface Described {
   becomes: Expr;
   reading: ReadingItem;
   heads: Set<string>;
+  /** Whether the reading's variables are slots a request may leave open (a task's own reading). */
+  slots?: boolean;
 }
 
 interface DescribedIndex {
@@ -250,7 +259,10 @@ export function describedActs(store: Store, structural: ReadonlySet<string>, act
         if (shorter) best = r;
       }
     }
-    if (best) all.push({ pattern: what, becomes: best.becomes!, reading: best, heads: contentHeads(store, what, structural) });
+    // A task described on its own concept (a tldr example) is run by its own reading, whose
+    // variables are its slots: what the description names in their place fills them.
+    const own = best ? undefined : store.readingsOn(sense.head).find((r) => key(r.meta.from) === page && !!r.becomes && acts(r.becomes));
+    if (best ?? own) all.push({ pattern: what, becomes: (best ?? own)!.becomes!, reading: (best ?? own)!, heads: contentHeads(store, what, structural), slots: !!own });
   }
   // What the user taught: a request's meaning that comes to an act.
   for (const r of store.readingsAdded())
