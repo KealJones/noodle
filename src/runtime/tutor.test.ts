@@ -27,7 +27,8 @@ Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("second")), effects=${
 /** A session whose tutor is a fake ChatGPT behind Know, answering with the option said `second`. */
 function tutored(s: Session, store: Store, reply: (q: string) => string | undefined, asked: string[] = []) {
   const know = new Know(store, () => new Date(), {
-    chatgpt: async (q) => {
+    chatgpt: async (m) => {
+      const q = typeof m === "string" ? m : (m.at(-1)?.content ?? "");
       asked.push(q);
       return reply(q);
     },
@@ -40,30 +41,30 @@ function tutored(s: Session, store: Store, reply: (q: string) => string | undefi
 /** The number the question gave the option that runs `echo second`. */
 const second = (q: string) => /(\d+)\. run `echo second`/.exec(q)?.[1];
 
-test("the reply is read strictly: three lines in order, a choice in range or none, a command in backticks or none, a because; prose after is not read", () => {
-  assert.deepEqual(parseTutor("choice: 2\nsuggest: none\nbecause: It reads.", 3), { choice: 2, suggest: undefined, because: "It reads." });
-  assert.deepEqual(parseTutor("\nChoice: none\n\nSuggest: `git log -5`\nBecause: Neither fits.\n\nHere is more about git log.", 3), { choice: null, suggest: "git log -5", because: "Neither fits." });
+test("the reply is read strictly: four lines in order, a choice in range or none, a command in backticks or none, a because; prose after is not read", () => {
+  assert.deepEqual(parseTutor("choice: 2\nsuggest: none\nask: none\nbecause: It reads.", 3), { choice: 2, suggest: undefined, because: "It reads." });
+  assert.deepEqual(parseTutor("\nChoice: none\n\nSuggest: `git log -5`\nAsk: none\nBecause: Neither fits.\n\nHere is more about git log.", 3), { choice: null, suggest: "git log -5", ask: undefined, because: "Neither fits." });
   for (const bad of [
-    "choice: 4\nsuggest: none\nbecause: x",
+    "choice: 4\nsuggest: none\nask: none\nbecause: x",
     "choice: 2\nbecause: x",
     "choice: 2\nbecause: x\nsuggest: none",
     "choice: none\nsuggest: git log\nbecause: x",
-    "I think 2.\nchoice: 2\nsuggest: none\nbecause: x",
-    "choice: two\nsuggest: none\nbecause: x",
-    "```\nchoice: 1\nsuggest: none\nbecause: x\n```",
+    "I think 2.\nchoice: 2\nsuggest: none\nask: none\nbecause: x",
+    "choice: two\nsuggest: none\nask: none\nbecause: x",
+    "```\nchoice: 1\nsuggest: none\nask: none\nbecause: x\n```",
     "",
   ])
     assert.equal(parseTutor(bad, 3), undefined, bad);
   const q = tutorPrompt("zap it", [{ who: "User", text: "hi" }, { who: "Self", text: "Hello." }], ["1. run `echo a`", "2. run `echo b`"]);
   assert.match(q, /the user: hi\nthe assistant: Hello\.\n\nThe request: zap it\n\nThe options:\n1\. run `echo a`\n2\. run `echo b`\n/);
-  assert.match(q, /choice: <the option's number, or none>\nsuggest: <[^>]*backticks; otherwise none>\nbecause: <one sentence>$/);
+  assert.match(q, /choice: <the option's number, or none>\nsuggest: <[^>]*backticks; otherwise none>\nask: <[^>]*>\nbecause: <one sentence>$/);
 });
 
 test("a command ChatGPT suggests joins the numbered choice, marked, and is not run; picked, it is kept as a command the user gave", async () => {
   const store = seededStore();
   store.load(zap("UnknownEffects"));
   const s = createSession(store, root(), { grants: ["UnknownEffects"] });
-  tutored(s, store, () => "choice: none\nsuggest: `echo third`\nbecause: Neither option is right.\n\nSome prose that is only kept.");
+  tutored(s, store, () => "choice: none\nsuggest: `echo third`\nask: none\nbecause: Neither option is right.\n\nSome prose that is only kept.");
   const r = await s.turn("zap");
   assert.match(r.text, /^Did you mean one of these\?\n\n1\. run `echo (first|second)`\n\n2\. run `echo (first|second)`\n\n3\. run `echo third` \(ChatGPT's suggestion\)\n\nSay its number/);
   assert.deepEqual(r.acts, []);
@@ -80,7 +81,7 @@ test("for acts with effects, the tutor's pick only orders the numbered choice, m
   const store = seededStore();
   store.load(zap("UnknownEffects"));
   const s = createSession(store, root(), { grants: ["UnknownEffects"] });
-  const asked = tutored(s, store, (q) => `choice: ${second(q)}\nsuggest: none\nbecause: Zap means echo.`);
+  const asked = tutored(s, store, (q) => `choice: ${second(q)}\nsuggest: none\nask: none\nbecause: Zap means echo.`);
   const r = await s.turn("zap");
   assert.equal(asked.length, 1);
   assert.match(asked[0], /The request: zap/);
@@ -109,7 +110,7 @@ test("for acts that only read, the tutor's pick is taken for this turn, and the 
   const store = seededStore();
   store.load(zap("Reads"));
   const s = createSession(store, root(), {});
-  tutored(s, store, (q) => `choice: ${second(q)}\nsuggest: none\nbecause: The second one.`);
+  tutored(s, store, (q) => `choice: ${second(q)}\nsuggest: none\nask: none\nbecause: The second one.`);
   const r = await s.turn("zap");
   assert.match(r.text, /^ChatGPT thought you meant: run `echo second`\./);
   assert.match(r.text, /\nsecond\n/);
@@ -125,10 +126,27 @@ Reading(on=Zap(), pattern=Zap(theme=$x), wants=IsA($x, Moment()), becomes=Run("e
 Reading(on=Zap(), pattern=Zap(theme=$x), wants=IsA($x, Moment()), becomes=Run("echo", Args("three", $x)), effects=UnknownEffects(), from=ToolDoc("test", "NAME"))
 `);
   const s = createSession(store, root(), { askBelow: 0.99 });
-  const asked = tutored(s, store, (q) => `choice: ${/(\d+)\. run `echo three 5`/.exec(q)?.[1]}\nsuggest: none\nbecause: Three.`);
+  const asked = tutored(s, store, (q) => `choice: ${/(\d+)\. run `echo three 5`/.exec(q)?.[1]}\nsuggest: none\nask: none\nbecause: Three.`);
   assert.match((await s.turn("zap 5")).text, /^I can run `echo one 5`/);
   assert.equal(asked.length, 1);
   assert.match((await s.turn("no")).text, /Did you mean one of these\?\n\n1\. run `echo three 5` \(ChatGPT's pick\)\n\n2\. run `echo two 5`/);
+});
+
+test("a question the tutor asks back that nothing here answers is relayed beside the numbered choice, and the user's reply goes back to it", async () => {
+  const store = seededStore();
+  store.load(zap("UnknownEffects"));
+  const s = createSession(store, root(), { grants: ["UnknownEffects"] });
+  const asked = tutored(s, store, (q) =>
+    /The user answered: the later word/.test(q) ? `choice: ${second(q)}\nsuggest: none\nask: none\nbecause: The user said the second.` : "choice: none\nsuggest: none\nask: which zap do you want, the first or the second?\nbecause: Both fit.",
+  );
+  const r = await s.turn("zap");
+  assert.match(r.text, /Did you mean one of these\?[\s\S]*\n\nChatGPT asks: which zap do you want, the first or the second\?$/);
+  assert.deepEqual(r.acts, []);
+  const back = await s.turn("the later word");
+  assert.match(asked.at(-1)!, /You asked: which zap do you want, the first or the second\?\nThe user answered: the later word\n/);
+  assert.match(asked.at(-1)!, /The request: zap\n/);
+  assert.match(back.text, /^Did you mean one of these\?\n\n1\. run `echo second` \(ChatGPT's pick\)/);
+  assert.deepEqual(back.acts, []);
 });
 
 test("a reply not in the asked shape is ignored: the user is asked as before, and nothing is learned", async () => {

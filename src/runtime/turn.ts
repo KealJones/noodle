@@ -10,12 +10,12 @@ import { Chart, type Cover, type Edge } from "./chart.js";
 import { Conversation, type TurnRecord } from "./conversation.js";
 import { Evaluator, type Outcome } from "./evaluate.js";
 import { hear, segmentations, type Hearing } from "./hear.js";
-import type { Primitive, World } from "./primitive.js";
+import { GUARDED, type Primitive, type World } from "./primitive.js";
 import { type Derivation, Rewriter, type Step } from "./rewrite.js";
 import { type ChoicePoint, type Features, type LearnedBy, TUTOR, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { Speaker } from "./speak.js";
 import type { Store } from "./store.js";
-import { parseTutor, tutorPrompt } from "./tutor.js";
+import { type Exchange, howPrompt, parseHow, parseTutor, tutorPrompt } from "./tutor.js";
 
 export interface TurnOptions {
   /** Readings per segment taken to stage two (runtime.md 8.2; default 3, here a little wider). */
@@ -80,6 +80,8 @@ interface Tutored {
   because: string;
   /** The facts its because was heard into, Pending until they prove out. */
   facts: number[];
+  /** A question it asked that nothing here answered: relayed to the user. */
+  relay?: Relay;
 }
 
 /**
@@ -98,6 +100,21 @@ interface Waiting {
   from?: LastChoice;
   /** What a typed command is learned for: the step nothing could do. */
   meaning?: Call;
+  /** A question ChatGPT asked that the assistant could not answer, relayed: the user's reply goes back to it. */
+  relay?: Relay;
+}
+
+/** A question of ChatGPT's, relayed to the user, with what it was asked about. */
+interface Relay {
+  asked: string;
+  exchanged: Exchange[];
+  /** The conversation as ChatGPT was shown it when it asked. */
+  turns: { who: string; text: string }[];
+  /** Asked how a message is done or answered: the reading nothing worked out. */
+  win?: Reading;
+  commandOnly?: boolean;
+  /** Asked as a tutor: the choice it was asked about, said in the user's words. */
+  tutor?: { segText: string; options: Reading[]; words: Map<string, string> };
 }
 
 export class Session {
@@ -110,6 +127,11 @@ export class Session {
    * meant where nothing else says. Absent, it is not asked (the config's "tutor": false).
    */
   tutor?: (question: string) => Promise<string | undefined>;
+  /**
+   * ChatGPT asked how a message nothing worked out is done or answered (design section 17), through
+   * Know. Absent (ChatGPT off), a message nothing works out is only said to be stuck.
+   */
+  how?: (question: string) => Promise<string | undefined>;
   /** How far a tutor's pick moves the weights, as a fraction of a correction's step (a config value). */
   tutorRate = 0.25;
   /** Learning a program a request names that the graph does not know (design section 25). */
@@ -189,6 +211,7 @@ export class Session {
     }
     conv.focus.lookups.set("Workspace", (conv.focus.lookups.get("Workspace") ?? 0) + 1);
     const kept = cap?.kind === "number" ? names.slice(0, cap.value) : names;
+    conv.focus.workspace = kept;
     conv.focus.log.push({ what: `focus: names in the workspace (${kept.length} of ${names.length})`, candidates: [], winner: -1 });
     return kept;
   }
@@ -248,7 +271,10 @@ export class Session {
       if (!top.length) continue;
       let win = top[0];
       // A number, said when a numbered choice is waiting, picks one of them (the loop).
-      const number = waiting?.options.length && chosen.length === 1 ? top.map((r) => (r.lfs.length === 1 ? r.lfs[0] : undefined)).find((x) => x?.kind === "number") : undefined;
+      // A yes, when what waits is one command offered as a suggestion and nothing else was proposed, picks it.
+      const said1 = top[0].lfs.length === 1 ? top[0].lfs[0] : undefined;
+      const yes = waiting?.options.length === 1 && waiting.options[0].suggested !== undefined && chosen.length === 1 && !conv.proposal && isHead(said1, "Directive") && isHead(positional(said1)[0], "Permit");
+      const number = yes ? n(1) : waiting?.options.length && chosen.length === 1 ? top.map((r) => (r.lfs.length === 1 ? r.lfs[0] : undefined)).find((x) => x?.kind === "number") : undefined;
       if (waiting && number?.kind === "number" && Number.isInteger(number.value) && number.value >= 1 && number.value <= waiting.options.length) {
         // ChatGPT's suggestion, picked: the user gave that command, as if typed in backticks.
         const suggested = waiting.options[number.value - 1].suggested;
@@ -266,6 +292,19 @@ export class Session {
         if (waiting.from) for (const [k, w] of waiting.from.words) words.set(k, w);
         anything = true;
         continue;
+      }
+      // A reply to a question ChatGPT asked, relayed last turn (not a pick, not a command, not a
+      // question, request or rule of its own, nothing only about the conversation): it goes
+      // back to ChatGPT with the conversation and what it was asking about.
+      if (waiting?.relay && !opts.dry && chosen.length === 1 && !top[0].lfs.some((x) => isHead(x, "Question") || isHead(x, "Directive") || isHead(x, "Constraint")) && !this.aboutConversation(top[0], hearing)) {
+        const back = await this.answerRelay(text, waiting, conv, record);
+        if (back) {
+          said.push(...back.said);
+          if (back.waiting) this.waiting = back.waiting;
+          if (waiting.from) for (const [k, w] of waiting.from.words) words.set(k, w);
+          anything = true;
+          continue;
+        }
       }
       // Two readings too close (design sections 9 and 23): when the best readings tie exactly and
       // lead to different acts, nothing says which was meant, so it asks instead of picking one.
@@ -310,7 +349,9 @@ export class Session {
         record.reasons.push(choice(`reading of "${segText}" (too close)`, listed.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), -1));
         for (const [k, x] of w) words.set(k, x);
         said.push(this.choicesOf(listed, tutored));
-        if (!opts.dry) this.waiting = { turn: record.index, text, options: listed, from: { segText, readings: top, winner: win, words: w, turn: record.index, text, tutor: tutored } };
+        // ChatGPT's question, where it asked one nothing here answers: a reply that is not a pick goes back to it.
+        if (tutored?.relay) said.push(c("Asks", c("ChatGPT"), s(tutored.relay.asked)));
+        if (!opts.dry) this.waiting = { turn: record.index, text, options: listed, from: { segText, readings: top, winner: win, words: w, turn: record.index, text, tutor: tutored }, relay: tutored?.relay };
         anything = true;
         continue;
       }
@@ -326,6 +367,7 @@ export class Session {
       allSteps.push(...win.steps);
       choices.push({ segText, readings: top, winner: win, words, turn: record.index, text, tutor: tutored });
       const ev = new Evaluator(this.store, this.primitives, this.world, conv, opts.dry ? "Supposing" : "Doing", win.steps, segText, (x) => this.canSay(x), (x) => this.inWords(x, words, win.steps, true));
+      ev.reading = win.lfs;
       if (sure < this.askBelow) {
         ev.offerAll = true;
         record.reasons.push(choice(`not sure of "${segText}" (${sure.toFixed(2)} below ${this.askBelow}): offered`, [], -1));
@@ -345,6 +387,23 @@ export class Session {
       const stuckOn = segSaid.map((x) => role(x, "because")).find((x) => isHead(x, "NoReading"));
       const step = isHead(stuckOn, "NoReading") ? positional(stuckOn)[0] : undefined;
       if (!opts.dry && isCall(step) && !STRUCTURAL_NAMES.has(step.head)) this.waiting = { turn: record.index, text, options: [], meaning: step };
+      // Stuck, then ask how (design section 17): a question or request that reached nothing, or
+      // whose answer is a page that only shares words with it, is put to ChatGPT. Of a question
+      // about a participant no source has, only a command is taken: what ChatGPT says of the user
+      // or the assistant is not known of them (only the graph knows them). Nor of a request: words
+      // said about doing it do not do it ("I'll keep my answers short" keeps nothing).
+      const noSource = segSaid.some((x) => isHead(role(x, "because"), "NoSource"));
+      const question = win.lfs.some((x) => isHead(x, "Question"));
+      if (!opts.dry && this.how && (!reached || ev.loose) && (question || win.lfs.some((x) => isHead(x, "Directive"))) && !this.aboutConversation(win, hearing)) {
+        const meaning = isCall(step) && !STRUCTURAL_NAMES.has(step.head) ? step : this.askedOf(win);
+        const how = await this.askHow(text, segText, win, meaning, conv, record, noSource || !question);
+        if (how) {
+          said.push(how.said);
+          if (how.waiting) this.waiting = how.waiting;
+          anything = true;
+          continue;
+        }
+      }
       if (!reached && specific.length) said.push(...specific);
       else if (!reached && segSaid.length && segSaid.every((x) => isCall(x) && x.head === "Unworked")) {
         const unknown = unknownWords(hearing, seg.a, seg.b2);
@@ -573,15 +632,25 @@ export class Session {
    * moves the weights weakly (from ChatGPT, through the replay gate, never a weight the user
    * taught); its because is heard into proposals. A reply that does not parse is ignored.
    */
-  private async consult(text: string, segText: string, options: Reading[], words: Map<string, string>, conv: Conversation, record: TurnRecord): Promise<Tutored | undefined> {
-    if (!this.tutor || options.length < 2) return undefined;
+  private async consult(text: string, segText: string, options: Reading[], words: Map<string, string>, conv: Conversation, record: TurnRecord, exchanged: Exchange[] = [], turns = this.turnsBefore(conv)): Promise<Tutored | undefined> {
+    const tutor = this.tutor;
+    if (!tutor || options.length < 2) return undefined;
     const said = options.map((r, i) => this.speaker.say(this.inWords(c("Choice", n(i + 1), this.choiceAct(r)), words, r.steps), this.medium));
-    const turns = conv.turns.slice(0, -1).map((t) => ({ who: t.who, text: t.text }));
-    const reply = parseTutor(await this.tutor(tutorPrompt(text, turns, said)).catch(() => undefined), options.length);
-    if (!reply) {
+    const got = await this.withAsks(
+      (ex) => tutor(tutorPrompt(text, turns, said, ex)).then((x) => parseTutor(x, options.length)),
+      exchanged,
+      record,
+      (r) => {
+        if (r.ask) record.reasons.push(choice(`ChatGPT, asked about "${segText}", asks "${r.ask}", because ${r.because}`, [], -1));
+      },
+    );
+    if (!got) {
       record.reasons.push(choice(`ChatGPT, asked about "${segText}", gave no answer in the asked shape`, [], -1));
       return undefined;
     }
+    // A question it asked that nothing here answers is the user's, said beside the numbered choice.
+    if ("relay" in got) return { options, because: "", facts: [], relay: { ...got.relay, turns, tutor: { segText, options, words } } };
+    const reply = got;
     const pick = reply.choice ? options[reply.choice - 1] : undefined;
     record.reasons.push(choice(`ChatGPT's pick for "${segText}": ${reply.choice ?? "none"}, because ${reply.because}`, options.map((r) => ({ label: r.lfs.map(key).join(" ; "), features: [...r.features], score: r.score })), pick ? options.indexOf(pick) : -1));
     // A command it suggested is a candidate as one the user typed would be, at its trust: it joins
@@ -596,6 +665,162 @@ export class Session {
       if ((await this.learnWeights(pick, against, record, "tutor")) && this.gate) this.confirmTutor(t, record, "the replay gate passed");
     }
     return t;
+  }
+
+  /**
+   * Whether a turn is only about the conversation itself, as its reading says: an assent or a
+   * refusal (Permit, or a referent that is the proposal or the question asked), a pick by number
+   * (a bare number), or a correction (its signal is a fact on its words). The conversation's own
+   * structure answers it, or nothing is pending and it is stuck honestly: ChatGPT is not asked.
+   */
+  private aboutConversation(r: Reading, h: Hearing): boolean {
+    const own = (x: Expr) => isHead(x, "Permit") || (isHead(x, "Ref") && (isHead(role(x, "kind"), "Proposal") || isHead(role(x, "kind"), "Question")));
+    return r.lfs.some((lf) => lf.kind === "number" || [...walkCalls(lf)].some(own)) || hasSignal(this.store, h);
+  }
+
+  /** What a reading asked, as a command taught for it is kept for: a question whole, or a request's act. */
+  private askedOf(r: Reading): Call | undefined {
+    for (const lf of r.lfs) {
+      if (isHead(lf, "Question")) return lf as Call;
+      const x = isHead(lf, "Directive") ? positional(lf)[0] : undefined;
+      if (isCall(x) && !STRUCTURAL_NAMES.has(x.head)) return x;
+    }
+    return undefined;
+  }
+
+  /**
+   * Stuck, then ask how (design section 17): ChatGPT, through Know (trust level 4), is asked in a
+   * fixed shape how the message is done or answered. An answer is said as from it, kept as content
+   * and understood like a page. A command is a candidate as one the user typed would be: offered
+   * as its exact command line, never run on its own; a yes (or its number) keeps it as the user's
+   * reading for what was asked, and the message is read again. A reply in any other shape, or
+   * neither, is nothing: what was found before is said.
+   */
+  private async askHow(text: string, segText: string, win: Reading, meaning: Call | undefined, conv: Conversation, record: TurnRecord, commandOnly = false, exchanged: Exchange[] = [], turns = this.turnsBefore(conv)): Promise<{ said: Expr; waiting?: Waiting } | undefined> {
+    const know = this.world.know;
+    const how = this.how;
+    if (!how || !know?.canAsk || (GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))) return undefined;
+    // What ChatGPT asks back is answered by the assistant itself where it can, and ChatGPT asked
+    // once more; otherwise it is the user's to answer (relayed, marked as ChatGPT's).
+    const reply = await this.withAsks(
+      (ex) => how(howPrompt(text, turns, ex)).then(parseHow),
+      exchanged,
+      record,
+      (r) => record.reasons.push(choice(`ChatGPT, asked how to do or answer "${segText}": ${r.kind}${r.command ? ` \`${r.command}\`` : ""}${r.ask ? `, asking "${r.ask}"` : ""}, because ${r.because}`, [], -1)),
+    );
+    if (!reply) {
+      record.reasons.push(choice(`ChatGPT, asked how to do or answer "${segText}", gave no answer in the asked shape`, [], -1));
+      return undefined;
+    }
+    if ("relay" in reply) return { said: c("Asks", c("ChatGPT"), s(reply.relay.asked)), waiting: { turn: record.index, text, options: [], meaning, relay: { ...reply.relay, win, commandOnly, turns } } };
+    if (reply.kind === "answer" && reply.answer && !commandOnly) {
+      const k = await know.keepAnswer(reply.answer, segText);
+      const q = win.lfs.find((x) => isHead(x, "Question")) ?? c("Question", s(segText));
+      return { said: c("Outcome", q, ["result", c("Found", c("Block", s(k.block)), ["from", c(k.source)])]) };
+    }
+    const argv = reply.kind === "command" && reply.command && meaning ? commandLine(reply.command) : [];
+    const read = this.primitives.get("Read");
+    if (!argv.length || !read) return undefined;
+    // The program must be there to run.
+    try {
+      await read.run([c("Program", s(argv[0]))], this.world);
+    } catch {
+      return undefined;
+    }
+    const act = c("Run", s(argv[0]), c("Args", ...argv.slice(1).map((a) => s(a))));
+    const suggestion: Reading = { lfs: [act], steps: [], features: new Map(), score: -Infinity, cover: win.cover, suggested: reply.command };
+    return { said: c("Suggested", c("ChatGPT"), act), waiting: { turn: record.index, text, options: [suggestion], meaning } };
+  }
+
+  /**
+   * The user's reply to a question ChatGPT asked, sent back to it with the conversation and what it
+   * was asked about (as a tutor, the choice; asked how, the message), and what it says then handled
+   * as it would have been the first time.
+   */
+  private async answerRelay(text: string, w: Waiting, conv: Conversation, record: TurnRecord): Promise<{ said: Expr[]; waiting?: Waiting } | undefined> {
+    const relay = w.relay!;
+    const exchanged: Exchange[] = [...relay.exchanged, { asked: relay.asked, answer: text, by: "user" }];
+    record.reasons.push(choice(`the user's answer to ChatGPT's question "${relay.asked}", sent back to it`, [], -1));
+    if (relay.tutor) {
+      const { segText, options, words } = relay.tutor;
+      const t = await this.consult(w.text, segText, options, words, conv, record, exchanged, relay.turns);
+      if (!t) return undefined;
+      const listed = this.tutorFirst(options, t);
+      const said = [this.choicesOf(listed, t), ...(t.relay ? [c("Asks", c("ChatGPT"), s(t.relay.asked))] : [])];
+      return { said, waiting: { turn: record.index, text: w.text, options: listed, from: w.from ? { ...w.from, tutor: t } : undefined, relay: t.relay } };
+    }
+    if (!relay.win) return undefined;
+    const how = await this.askHow(w.text, w.text, relay.win, w.meaning, conv, record, relay.commandOnly, exchanged, relay.turns);
+    return how ? { said: [how.said], waiting: how.waiting } : undefined;
+  }
+
+  /** The conversation's turns before this one, both sides, as ChatGPT is shown them. */
+  private turnsBefore(conv: Conversation): { who: string; text: string }[] {
+    return conv.turns.slice(0, -1).map((t) => ({ who: t.who, text: t.text }));
+  }
+
+  /**
+   * ChatGPT asked, and asked again where it asks a question back (design section 17): its question
+   * is heard by the assistant's own pipeline like any question; answered there, it goes back to
+   * ChatGPT with the answer, once. Not answered, or asked again, it is the user's: relayed. So
+   * ChatGPT is asked at most twice.
+   */
+  private async withAsks<R extends { ask?: string }>(ask: (ex: Exchange[]) => Promise<R | undefined>, exchanged: Exchange[], record: TurnRecord, log: (r: R) => void): Promise<R | { relay: { asked: string; exchanged: Exchange[] } } | undefined> {
+    let ex = exchanged;
+    for (let round = 0; ; round++) {
+      const r = await ask(ex).catch(() => undefined);
+      if (!r) return undefined;
+      log(r);
+      if (!r.ask) return r;
+      const own = round === 0 ? await this.answerOwn(r.ask) : undefined;
+      if (!own) return { relay: { asked: r.ask, exchanged: ex } };
+      record.reasons.push(choice(`ChatGPT asked "${r.ask}", answered here: ${own}`, [], -1));
+      ex = [...ex, { asked: r.ask, answer: own, by: "assistant" }];
+    }
+  }
+
+  /**
+   * A question answered by the assistant itself: heard and read as any message is, worked out in
+   * Suppose on a copy of the conversation (from the conversation, the workspace and the graph;
+   * nothing goes out, nothing is kept). What it says, where that is an answer and nothing is stuck.
+   */
+  private async answerOwn(q: string): Promise<string | undefined> {
+    const r = await this.turn(q, { dry: true, ask: false });
+    const stuck = (x: Expr) => isHead(x, "Unworked") || isHead(x, "NoSense") || isHead(x, "Choices");
+    const answered = r.record.said.some((x) => isHead(x, "Outcome") && role(x, "result") !== undefined) && !r.record.said.some(stuck);
+    return answered && r.text.trim() ? r.text.trim() : undefined;
+  }
+
+  /**
+   * Whether a command line's own documentation says it only reads: the command it runs (its
+   * program and the words before its first flag), named by a tool's documentation, has a reading
+   * from that documentation that runs it and claims only Reads (its summary understood as showing).
+   * The longest name the documentation has decides.
+   */
+  private documentedReads(argv: string[]): boolean {
+    const flag = argv.findIndex((x, i) => i > 0 && x.startsWith("-"));
+    const words = flag < 0 ? argv : argv.slice(0, flag);
+    for (let k = words.length; k >= 1; k--) {
+      const name = words.slice(0, k).join(" ");
+      const senses = this.store.factsWithHead("Name").filter((f) => {
+        const x = positional(f.claim as Call)[0];
+        return x?.kind === "string" && x.value === name && this.store.facts(f.subject, "IsA").some((y) => isHead(positional(y.claim as Call)[0], "Command"));
+      });
+      if (!senses.length) continue;
+      const runs = (b: Expr | undefined) => {
+        if (!isHead(b, "Run")) return false;
+        const [program, args] = positional(b);
+        const given = isCall(args) ? positional(args).filter((x) => x.kind === "string").map((x) => (x as { value: string }).value) : [];
+        return program?.kind === "string" && [program.value, ...given].slice(0, k).join(" ") === name;
+      };
+      return senses.some((f) =>
+        this.store
+          .factsNaming(f.subject)
+          .filter((x) => isHead(x.claim, "Sense"))
+          .some((x) => this.store.readingsOn(x.subject).some((r) => key(r.meta.from) === key(f.meta.from) && runs(r.becomes) && r.effects.length > 0 && r.effects.every((e) => isHead(e, "Reads")))),
+      );
+    }
+    return false;
   }
 
   /**
@@ -813,13 +1038,16 @@ export class Session {
     // (A referent the step is about, "the process", is what it finds or makes, not an argument.)
     const open = (isHead(theme, "Output") || shown !== undefined) && !named;
     const meaning = open ? ({ ...said, args: said.args.map((a) => (a.name === "theme" ? { ...a, value: v("it") } : a)) } as Call) : said;
-    const act = c("Run", s(argv[0]), c("Args", ...argv.slice(1).map((a) => s(a)), ...(open ? [v("it")] : [])));
+    const run = c("Run", s(argv[0]), c("Args", ...argv.slice(1).map((a) => s(a)), ...(open ? [v("it")] : [])));
+    // A question given a command is answered by running it: it means that request.
+    const act = isHead(meaning, "Question") ? c("Directive", run) : run;
     const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Doing", [], w.text, (x) => this.canSay(x));
-    // What the step before printed is what "it" is, there: a value said is not.
-    const lesson = await ev.teach(meaning, act, open && isHead(theme, "Output") ? c("IsA", v("it"), c("Output")) : undefined);
+    // What the step before printed is what "it" is, there: a value said is not. A command whose
+    // own documentation says it only reads is held to reading when it runs.
+    const lesson = await ev.teach(meaning, act, open && isHead(theme, "Output") ? c("IsA", v("it"), c("Output")) : undefined, this.documentedReads(argv) ? c("Reads") : undefined);
     if (!lesson) return undefined;
     conv.focus.log.push({ what: `taught: ${key(lesson.pattern)} is ${key(lesson.becomes)}`, candidates: [], winner: -1 });
-    return { said: [c("Taught", act)], rerun: w.text };
+    return { said: [c("Taught", run)], rerun: w.text };
   }
 
   /**
