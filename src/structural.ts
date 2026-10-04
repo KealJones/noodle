@@ -126,6 +126,10 @@ export const STRUCTURAL = {
       // A child said as itself where it has words of its own, else the wrapper's fallback: what
       // lets a wrapper say only the wrapping ("Done: ...") and a child say itself (a command's run).
       "Either",
+      // A clause said as a sentence (its first letter a capital, a period after it, unless it is a
+      // block), the printing head that capitalizes, and the kind of document that is a block: a
+      // paragraph holding one is split around it into a Document.
+      "Sentence", "Initial", "BlockLevel", "Document",
       // Run's argument list, which a command line is realized from.
       "Args",
     ],

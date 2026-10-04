@@ -2,8 +2,9 @@
 // readings into a document, then printed in the destination's medium by the medium's readings.
 // The runtime holds no wording and no markup: every word said and every mark printed comes from
 // seed/realizations.ncon. What is here is mechanism: applying readings, folding a long sequence
-// into pairs when only a pair's reading exists, joining printed text, escaping a medium's marks
-// (Escapes facts on the medium), and fencing code.
+// into pairs when only a pair's reading exists, splitting a paragraph around a block it holds,
+// joining printed text, capitalizing a sentence's start, escaping a medium's marks (Escapes facts
+// on the medium), and fencing code.
 
 import { type Call, type Expr, c, isCall, isVar, key, positional, role, s } from "./expr.js";
 import { carry, instantiate, match, type Bindings } from "./match.js";
@@ -116,6 +117,8 @@ export class Speaker {
     if (isVar(doc)) return "...";
     if (doc.kind === "boolean") return String(doc.value);
     if (!isCall(doc)) return "";
+    // A sentence whose clause is a block (a document, a list, a code block) is that block.
+    if (doc.head === "Sentence" && this.isBlock(positional(doc)[0])) return this.print(positional(doc)[0], medium, depth + 1);
     const p = c("Print", doc, ["medium", c(medium)]);
     const r = this.apply(p);
     if (r !== undefined) return this.text(r, medium, depth + 1);
@@ -174,6 +177,11 @@ export class Speaker {
       }
       case "Uppercase":
         return this.plain(pos[0]).toUpperCase();
+      case "Initial": {
+        // Text with its first letter made a capital (a sentence's start), the rest as it is.
+        const t = this.text(pos[0] ?? s(""), medium, depth + 1);
+        return t.charAt(0).toUpperCase() + t.slice(1);
+      }
       case "Capitalized": {
         const t = this.plain(pos[0]);
         return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
@@ -247,9 +255,56 @@ export class Speaker {
     return l?.kind === "string" ? l.value : concept.toLowerCase();
   }
 
-  /** Say: realize, then print in the medium. */
+  /**
+   * Layout: a paragraph holding a block (a code block, a list, a document) is split around it, so
+   * a wrapper can hold a child that says itself as a block and no realization needs a nested
+   * pattern for layout. A paragraph inside a paragraph is a run of the same text, so it is split
+   * as part of its parent. Which documents are blocks is a fact on them (IsA BlockLevel).
+   */
+  layout(e: Expr): Expr {
+    if (!isCall(e)) return e;
+    if (e.head !== "Paragraph") return { ...e, args: e.args.map((a) => ({ ...a, value: this.layout(a.value) })) };
+    const parts: Expr[] = [];
+    let run: Expr[] = [];
+    let split = false;
+    const close = () => {
+      // The text beside a block is trimmed where it meets it; a run left with no text is dropped.
+      const edge = (x: Expr | undefined, f: (t: string) => string) => (x?.kind === "string" ? { ...x, value: f(x.value) } : x);
+      if (split && run.length) {
+        run[0] = edge(run[0], (t) => t.trimStart())!;
+        run[run.length - 1] = edge(run[run.length - 1], (t) => t.trimEnd())!;
+      }
+      if (run.some((x) => x.kind !== "string" || x.value !== "")) parts.push(c("Paragraph", ...run));
+      run = [];
+    };
+    const walk = (x: Expr): void => {
+      if (isCall(x) && x.head === "Paragraph" && x.args.every((a) => a.name === undefined)) return positional(x).forEach(walk);
+      const laid = this.layout(x);
+      if (!this.isBlock(laid)) return void run.push(laid);
+      split = true;
+      close();
+      parts.push(laid);
+    };
+    positional(e).forEach(walk);
+    if (!split) return { ...e, args: e.args.map((a) => ({ ...a, value: this.layout(a.value) })) };
+    close();
+    return parts.length === 1 ? parts[0] : c("Document", ...parts);
+  }
+
+  private isBlock(e: Expr): boolean {
+    // A block has content; a concept on its own (the word "list") is not one. Only the document
+    // head's own fact counts: what its word's senses are kinds of (a "code" is a kind of writing)
+    // is not layout.
+    return (
+      isCall(e) &&
+      e.args.length > 0 &&
+      this.store.facts(e.head, "IsA").some((f) => { const k = positional(f.claim as Call)[0]; return isCall(k) && k.head === "BlockLevel"; })
+    );
+  }
+
+  /** Say: realize, lay out, then print in the medium. */
   say(e: Expr, medium: string): string {
-    return this.print(this.realize(e), medium).trim();
+    return this.print(this.layout(this.realize(e)), medium).trim();
   }
 }
 
