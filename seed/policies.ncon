@@ -99,9 +99,11 @@ Fact(ChatGPT(), IsA(KnowledgeSource()))
 // Focus's budget per turn (design section 14b; runtime.md 11b): how many lookups each source may
 // have, and how many candidates one search may take from it, most salient first. The world is
 // asked at most four times a turn (a question, and what it names learned about); the workspace
-// is listed once, at most 200 names.
+// is listed once, at most 200 names. The lexicon (a dictionary, through Know.word) is asked for at
+// most eight words a turn that nothing in the store hears, all at once, before the chart.
 Concept(Focus(),
   Budget(CurrentConversation(), candidates=20),
   Budget(UserFacts(), candidates=20),
   Budget(Workspace(), lookups=1, candidates=200),
-  Budget(World(), lookups=4))
+  Budget(World(), lookups=4),
+  Budget(Lexicon(), lookups=8))
