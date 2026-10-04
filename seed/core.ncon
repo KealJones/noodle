@@ -203,6 +203,8 @@ Concept(Weekday(), Frame(Number()))
 // Space
 
 Concept(Here(), Lemma("here"), IsA(Place()))
+// What Read gives for a path that holds others (a folder); the workspace, here, is one.
+Concept(Directory(), Lemma("directory"), Lemma("folder"), Category(Noun()), IsA(Place()))
 Concept(Near(), Lemma("near"), Frame(Thing(), Thing()))
 Concept(Far(), Lemma("far"), Frame(Thing(), Thing()))
 Concept(Above(), Lemma("above"), Frame(Thing(), Thing()))

@@ -228,3 +228,26 @@ Fact(Card(), Frequency(4.9))
   assert.equal(freq("Card"), 0);
   assert.ok(Math.abs(freq("Cart")! + 1) < 1e-9);
 });
+
+// A noun followed by a numeral or a name by its shape is the one it names (seed/lexical-rules), and
+// where the noun is known to be named so (a tool's documentation: tldr's {{port}}), that fits
+// better than the noun's verb taking the number ("port 3000" is not "to port 3000"); a word after
+// the noun is not a name, so the verb still takes it.
+test("a noun followed by a numeral is the one that numeral names; a word after it is not", async () => {
+  const store = seededStore();
+  store.load(`Pack(name="test-named", version="0", from=Seed("test"))
+Concept(Port(), Lemma("port"), Category(Noun()), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())),
+  Category(Thing(), Takes(side=Right(), category=Thing(), role=Name())))
+Concept(App(), Lemma("app"), Category(Noun()))
+`);
+  const { hear } = await import("./hear.js");
+  const { Chart } = await import("./chart.js");
+  const { Weights } = await import("./score.js");
+  const best = (text: string) => {
+    const h = hear(store, text);
+    const cv = new Chart(store, h, 0, h.tokens.length, new Weights(store).get).build().covers()[0];
+    return cv.edges.map((e) => key(e.expr)).join(" ; ");
+  };
+  assert.equal(best("port 3000"), "Port(name=3000)");
+  assert.equal(best("port the app"), "Port(theme=The(App()))");
+});

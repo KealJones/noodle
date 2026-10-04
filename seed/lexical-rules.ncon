@@ -15,7 +15,6 @@ Pack(name="seed-lexical-rules", version="0.1.0", from=Seed("lexical-rules"))
 // Agent unless a rule (the passive) said otherwise.
 
 Concept(Act(), Category(Clause(), Takes(side=Left(), category=Thing(), role=Agent())))
-
 // ---------------------------------------------------------------------------------------------
 // Moods. Every clause that spans a segment gets the moods it could have; the score picks (design
 // section 9). Rules on Segment() apply to the top edges of a cover, not to edges inside them, so an
@@ -74,6 +73,15 @@ Reading(on=Noun(), pattern=Noun($n), becomes=Thing($n))
 
 // A noun before a noun modifies it: "shopping list", "feature branch" (ncon.md, Decided).
 Concept(Noun(), Category(Noun(), Modifies(side=Right(), category=Noun())))
+
+// A noun followed by a value that names one of it is that one: "port 3000", "process 1234", "pr
+// 1748", "line 12", "branch `main`". The value is a numeral or a name by its shape (digits, a
+// code span, a quotation), so a word after a noun is not taken for a name ("square root" is not
+// a square named root). Where the noun is known to be named so (a tool's documentation says a
+// port is named by a number), the entry fits better than the same words put together another
+// way (ShapeFit:Head).
+Concept(Noun(), Category(Thing(), Takes(side=Right(), category=Thing(), kind=Numeral(), role=Name())))
+Concept(Noun(), Category(Thing(), Takes(side=Right(), category=Thing(), kind=Name(), role=Name())))
 
 // A property before a noun modifies it: "broken test".
 Concept(Property(), Category(Property(), Modifies(side=Right(), category=Noun())))

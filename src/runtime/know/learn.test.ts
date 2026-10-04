@@ -69,3 +69,16 @@ Fact(Part(), Category(Noun()))
   // Of a thing named, not a kind, nothing is said here (that is a page's topic's to keep).
   assert.deepEqual(said("Zorbia is a glorp."), []);
 });
+
+test("a bracket after a kind lists kinds of it (apposition), and is no one's argument", () => {
+  const st = store();
+  st.load(`Pack(name="test-aside", version="0", from=WordNet("test"))
+Concept(Blarg(), Lemma("blarg"), Category(Noun()))
+Concept(Snib(), Lemma("snib"), Category(Noun()))
+Concept(Wug(), Lemma("wug"), Category(Noun()))
+Concept(Zib(), Lemma("zib"), Category(Noun()))
+Concept(Fip(), Lemma("fip"), Category(Noun()))
+`);
+  const said = (text: string) => new Learner(st).statements(text).map((x) => `${x.subject}: ${key(x.claim)}`);
+  assert.deepEqual(said("A blarg may be a snib or a wug (zib or fip).").sort(), ["Fip: IsA(Wug())", "Snib: IsA(Blarg())", "Wug: IsA(Blarg())", "Zib: IsA(Wug())"]);
+});

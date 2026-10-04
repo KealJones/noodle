@@ -116,7 +116,23 @@ export class Rewriter {
       // (A variable the reading's wants look at is used: it is what the want is about.)
       const used = new Set([r.becomes!, ...r.wants].flatMap((x) => [...walk(x)]).filter(isVar).map((x) => x.text));
       const unused = [...m.bindings].filter(([name, x]) => name !== "_" && !used.has(name) && !isVar(x) && !(isCall(x) && STRUCTURAL_NAMES.has(x.head))).length;
-      if (dropped + unused) addFeature(f, "Unworked:Dropped", -(dropped + unused));
+      // And so is a role a WithRoles in the result sets over one what was said already filled
+      // ("what's using port 3000": the subject put where the port was).
+      const overwritten = [...walk(r.becomes!)].filter((x): x is Call => isHead(x, "WithRoles")).reduce((sum, w) => {
+        const target = instantiate(positional(w)[0], m.bindings);
+        return isCall(target) ? sum + w.args.filter((a) => a.name !== undefined && target.args.some((t) => t.name === a.name && !isHead(t.value, "Gap"))).length : sum;
+      }, 0);
+      // And so is what is carried onto a primitive in a role the same source's other readings of
+      // the word give a place in the act: the primitive acts on its arguments, so a reading that
+      // leaves that role out leaves what was said there out ("show network connections" is not
+      // the bare command, when its reading with a theme puts the theme on the command line). Who
+      // does it (the addressee) is not a thing said, and a referent ("it", "my changes") points at
+      // something already there, which the command may act on without being told.
+      const ignored =
+        isCall(made) && PRIMITIVE_HEADS.has(made.head)
+          ? m.extra.filter((x) => !made.args.some((a) => a.name === x.name) && !isHead(x.value, "Ref") && this.placed(pattern.head, r.meta.from).has(x.name) && [...walk(x.value)].some((y) => y.kind !== "call" || !STRUCTURAL_NAMES.has(y.head))).length
+          : 0;
+      if (dropped + unused + overwritten + ignored) addFeature(f, "Unworked:Dropped", -(dropped + unused + overwritten + ignored));
       out.push({ r, b: m.bindings, result, features: f.size ? f : undefined });
     };
     for (const r of this.store.readingsFor(e.head)) consider(r, e);
@@ -305,6 +321,30 @@ export class Rewriter {
     return this.store.facts(word).some((f) => isCall(f.meta.from) && f.meta.from.head === "Seed") ? [] : this.senses(word);
   }
 
+  private placedMemo = new Map<string, Set<string>>();
+
+  /** The roles a source's readings of a head bind to a variable their result uses: roles they give a place. */
+  private placed(head: string, from: Expr): Set<string> {
+    const k = `${head} ${key(from)}`;
+    let out = this.placedMemo.get(k);
+    if (!out) {
+      out = new Set();
+      for (const r of this.store.readingsFor(head)) {
+        if (!isCall(r.pattern) || r.pattern.head !== head || key(r.meta.from) !== key(from) || !r.becomes) continue;
+        const used = new Set([...walk(r.becomes)].filter(isVar).map((x) => x.text));
+        for (const a of r.pattern.args) if (a.name && isVar(a.value) && used.has(a.value.text)) out.add(a.name);
+      }
+      // Where they place one, so are the roles the word takes as its arguments in any frame
+      // (its object as a theme, a patient, a topic): one of them said is the one they place.
+      if (out.size)
+        for (const f of this.store.facts(head, "Category"))
+          for (const t of positional(f.claim as Call).slice(1))
+            if (isHead(t, "Takes") && isHead(role(t, "side"), "Right") && isCall(role(t, "role"))) out.add(lowerFirst((role(t, "role") as Call).head));
+      this.placedMemo.set(k, out);
+    }
+    return out;
+  }
+
   /** The value of a reading's wants as features (runtime.md 8.1: WantedKind, ShapeFit). */
   wantFeatures(r: ReadingItem, b: Bindings): Features {
     const f: Features = new Map();
@@ -436,3 +476,5 @@ export class Rewriter {
 }
 
 export { role };
+
+const lowerFirst = (x: string) => x[0].toLowerCase() + x.slice(1);

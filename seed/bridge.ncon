@@ -85,6 +85,10 @@ Reading(on=Read(), pattern=Say($x), becomes=Read($x))
 // own "Show the working tree status"), shows it to whoever it is talking to.
 Reading(on=Say(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x))), becomes=Say($x), effects=Speaks())
 Reading(on=Read(), pattern=Cause(agent=Addressee(), result=Become(See(stimulus=$x))), becomes=Read($x))
+// The assistant listing something, with no one named to keep the list, shows it to whoever it is
+// talking to ("list open files", and a manual's "lists open files"), as showing does.
+Reading(on=Say(), pattern=List(agent=Addressee(), theme=$x), becomes=Say($x), effects=Speaks())
+Reading(on=Read(), pattern=List(agent=Addressee(), theme=$x), becomes=Read($x))
 // Asking to be told something is asking what it is ("tell me your name": what is your name).
 Reading(on=Question(), pattern=Cause(result=Become(Know(experiencer=Speaker(), theme=$x))), becomes=Question(Be(Gap(), $x), about=Gap()))
 // Being told or shown the answer to a question is asking it ("show me what's in the readme",
@@ -111,6 +115,12 @@ Reading(on=Read(), pattern=Question(Contains($h, Gap()), about=Gap()), becomes=Q
 // What is here is what is in it; the place we are in is here, and asking which place that is
 // asks where it is ("what's in here", "where are we", "what folder are we in").
 Reading(on=Here(), pattern=Read(Here()), becomes=Read("."))
+// The directory pointed at as this one or the current one ("this folder", "the current
+// directory") is the one we are in, and here, as what an act is done to, is the workspace: the
+// directory Read knows as "." ("show disk usage of this folder").
+Reading(on=This(), pattern=This(Directory()), becomes=".")
+Reading(on=Current(), pattern=The(Directory(modifier=Current())), becomes=".")
+Reading(on=Here(), pattern=WithRoles($a, theme=Here()), becomes=WithRoles($a, theme="."))
 Reading(on=Here(), pattern=BeIn(And(Speaker(), Addressee()), $p), becomes=Be($p, Here()))
 Reading(on=Here(), pattern=Be(agent=And(Speaker(), Addressee()), location=$p), becomes=Be($p, Here()))
 Reading(on=Here(), pattern=BeIn(Speaker(), $p), becomes=Be($p, Here()))
@@ -245,6 +255,13 @@ Reading(on=Be(), pattern=Be(Some($x), Some($y)), becomes=IsA(Some($x), $y))
 Reading(on=Maybe(), pattern=Maybe(Be(Some($x), Some($y))), becomes=IsA(Some($y), $x))
 Reading(on=Maybe(), pattern=Maybe(IsA(Some($x), $y)), becomes=IsA(Some($y), $x))
 Reading(on=Part(), pattern=Be(Some($x), Part(theme=Some($y))), becomes=PartOf(Some($x), $y))
+// What a bracket after a kind lists are kinds of it: "a network file (Internet socket, NFS file
+// or UNIX domain socket)" says an Internet socket is a network file.
+Reading(on=Aside(), pattern=IsA(Some(WithRoles($n, aside=Aside($l))), $y), becomes=And(IsA(Some($n), $y), IsA(Some($l), $n)))
+Reading(on=Comma(), pattern=IsA(Some(Comma($a, $b)), $y), becomes=And(IsA(Some($a), $y), IsA(Some($b), $y)))
+Reading(on=Comma(), pattern=IsA(Some(Comma($a, $b, $c)), $y), becomes=And(IsA(Some($a), $y), IsA(Some(Comma($b, $c)), $y)))
+Reading(on=Comma(), pattern=IsA(Some(Comma($a, $b, $c, $d)), $y), becomes=And(IsA(Some($a), $y), IsA(Some(Comma($b, $c, $d)), $y)))
+Reading(on=Or(), pattern=IsA(Some(Or($a, $b)), $y), becomes=And(IsA(Some($a), $y), IsA(Some($b), $y)))
 Reading(on=Comma(), pattern=Be($x, Comma($a, $b)), becomes=And(Be($x, $a), Be($x, $b)))
 Reading(on=Comma(), pattern=Be($x, Comma($a, $b, $c)), becomes=And(Be($x, $a), Be($x, Comma($b, $c))))
 Reading(on=Comma(), pattern=Be($x, Comma($a, $b, $c, $d)), becomes=And(Be($x, $a), Be($x, Comma($b, $c, $d))))
