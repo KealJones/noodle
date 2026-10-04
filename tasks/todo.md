@@ -68,3 +68,12 @@
   a network file is a file) with the pipeline Know uses for page openings, from=ToolDoc, so "list
   open files" covers sockets and the reasoning carries to other tools and asks. ChatGPT's "because"
   proposals (Pending) feed the same facts once confirmed.
+- **All of the machine's tools, without crowding English** (blocked install). `pnpm import tools`
+  learned 1,857 programs (in ~/.noodle/packs-pending/tools-all), but loading them all made versus
+  worse (39/51/4 to 36/48/10 with ChatGPT off): programs named by ordinary words (yes, read, date,
+  time, open, say, which, file) turn those words into acts ("yes" ran `cvmkfile`, held to reading),
+  and matching requests against every description surfaces loose candidates. Fix in the importer
+  and the score, not by hand: a bulk-learned program's name is a word for it only where the store
+  has no other sense of that word, or when it is named as a program (backticks, "the X command",
+  "run X"); its descriptions stay candidates for the scored match, which needs a stricter fit as
+  the pool grows. Then install the set.
