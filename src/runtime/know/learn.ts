@@ -50,7 +50,7 @@ export class Learner {
     this.weights = new Weights(store);
     // An opening is reduced by the seed's own readings ("is a" to Be, "a" to Some) and stops
     // there: readings that act are for requests, as when a definition is understood.
-    this.rewriter = new Rewriter(store, this.weights.get, { mode: "Doing", beam: 3, maxSteps: 8, allow: (r) => this.reduces(r) });
+    this.rewriter = new Rewriter(store, this.weights.get, { mode: "Doing", beam: 3, maxSteps: 16, allow: (r) => this.reduces(r) });
   }
 
   private reduces(r: ReadingItem): boolean {
@@ -145,6 +145,52 @@ export class Learner {
     const out = new Map<string, Expr>();
     for (const r of this.readings(this.opening(text))) r.exprs.forEach((e, i) => r.categories[i] === "Clause" && out.set(key(e), e));
     return [...out.values()];
+  }
+
+  /**
+   * What a text says of kinds of things (a manual's description, a tutor's because): each
+   * sentence heard as a page's opening is, asides kept (a bracketed list after a noun is heard as
+   * the seed's brackets are), each clause of its best readings, a conjunction or disjunction of
+   * clauses taken clause by clause. A clause whose subject is a kind said of any one ("an open
+   * file", "a socket") says something of that kind: a fact on the kind's concept, the subject left
+   * out (as PartOf and IsA are on what they are said of). The seed's readings say what such a
+   * clause is ("an X is a Y": IsA; "an X may be a Y": a Y is a kind of X; "part of": PartOf).
+   * A statement from a sentence only part of which was heard (words skipped, or pieces beside the
+   * clause) is partial: kept Pending, a proposal, until it proves out.
+   */
+  statements(text: string, maxWords = Infinity): Statement[] {
+    const out = new Map<string, Statement>();
+    // A sentence's full stop says nothing of what it says (as a summary's does not).
+    for (const sentence of sentences(text)) {
+      if (sentence.split(" ").length > maxWords) continue;
+      for (const r of this.readings(sentence.replace(/[.!?](?=[)\]"']?$)/, ""))) {
+        const partial = r.skipped > 0 || r.exprs.length > 1;
+        r.exprs.forEach((e, i) => {
+          if (r.categories[i] !== "Clause") return;
+          for (const clause of clausesOf(e)) {
+            const st = this.stated(clause, partial);
+            const k = st && `${st.subject} ${key(st.claim)}`;
+            if (st && (!out.has(k!) || (out.get(k!)!.partial && !partial))) out.set(k!, st);
+          }
+        });
+      }
+    }
+    return [...out.values()];
+  }
+
+  /** A clause said of a kind (its first part "some X"): a statement on X, without it. */
+  private stated(clause: Expr, partial: boolean): Statement | undefined {
+    if (!isCall(clause)) return undefined;
+    const pos = positional(clause);
+    const first = pos[0];
+    if (!isHead(first, "Some") || pos.length < 2) return undefined;
+    const kind = this.core(positional(first as Call)[0] ?? first);
+    if (!isCall(kind) || STRUCTURAL_NAMES.has(kind.head) || PRIMITIVES.has(kind.head) || this.functionWord(kind.head)) return undefined;
+    let dropped = false;
+    const claim: Call = { ...clause, args: clause.args.filter((a) => (a.value === first && !dropped ? !(dropped = true) : true)) };
+    // What a concept is said to be of itself ("a regular file is an open file", on File) says nothing of the concept.
+    if (claim.args.length === 1 && isHead(this.core(positional(claim)[0]), kind.head)) return undefined;
+    return { subject: kind.head, claim, partial };
   }
 
   /** Understand what was found, and the claims on its entity: facts on its topic. */
@@ -303,6 +349,28 @@ export class Learner {
   forget(): void {
     this.topics = undefined;
   }
+}
+
+/** Something a text says of a kind of thing: a claim on its concept. */
+export interface Statement {
+  subject: string;
+  claim: Call;
+  /** Heard from only part of its sentence. */
+  partial: boolean;
+}
+
+/** A text's sentences: a full stop (or ! or ?), a closing bracket or quote after it, then a capital or an opening bracket. */
+export function sentences(text: string): string[] {
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?][)\]"']?)\s+(?=[\p{Lu}(])/u)
+    .filter(Boolean);
+}
+
+/** A clause's parts that are clauses on their own: a conjunction or disjunction of them, each. */
+function clausesOf(e: Expr): Expr[] {
+  return isCall(e) && (e.head === "And" || e.head === "Or") && e.args.every((a) => a.name === undefined) ? e.args.flatMap((a) => clausesOf(a.value)) : [e];
 }
 
 /** Where what was found came from: the source, and its address where it has one. */

@@ -74,13 +74,66 @@ function vars(e: Expr): number {
   return isVar(e) ? 1 : isCall(e) ? e.args.reduce((n, a) => n + vars(a.value), 0) : 0;
 }
 
+/**
+ * How far a pattern's head (a) is from a request's (b): none where they are one concept; the
+ * kind distance through their nearest common kind; or the steps from the request's concept up to
+ * what it is said to be a kind or a part of (its own IsA and PartOf facts, learned from a manual,
+ * a page, a tutor or the user), whichever is nearer: a request about a socket reaches a
+ * description of network files, a port the address it is part of.
+ */
 function headDistance(store: Store, a: string, b: string): number | undefined {
-  if (a === b) return 0;
+  return step(store, a, b)?.d;
+}
+
+/**
+ * The distance from a pattern's head to a request's, and how much of the pattern's node the
+ * request's explains: all of it where the request's thing is said to be one of the pattern's kind
+ * or part of it (a description of network files covers a socket: the cost is the steps, counted
+ * by the distance), otherwise less the further their common kind (a cat is not a dog).
+ */
+function step(store: Store, a: string, b: string): { d: number; share: number } | undefined {
+  if (a === b) return { d: 0, share: 1 };
   const ca = canonical(store, a);
   const cb = canonical(store, b);
-  if (ca === cb) return 0;
-  const d = store.kindDistance(ca, cb);
-  return d !== undefined && d <= MAX_DISTANCE ? d : undefined;
+  if (ca === cb) return { d: 0, share: 1 };
+  const up = broader(store, cb).get(ca);
+  const k = store.kindDistance(ca, cb);
+  if (up !== undefined && (k === undefined || up <= k)) return up <= MAX_DISTANCE ? { d: up, share: 1 } : undefined;
+  return k !== undefined && k <= MAX_DISTANCE ? { d: k, share: 1 / (1 + k) } : undefined;
+}
+
+/** Steps up from a concept through what it is said to be a kind or a part of, at most this many. */
+const MAX_BROADER = 3;
+const broaders = new WeakMap<Store, { at: number; of: Map<string, Map<string, number>> }>();
+
+/**
+ * What a concept is said to be a kind or a part of, and in how many steps: its own IsA and PartOf
+ * facts (not its senses': those are the kind distance's), then theirs, each step a kind's or a
+ * whole's own concept. A fact only proposed (Pending) is not a step.
+ */
+export function broader(store: Store, concept: string): Map<string, number> {
+  const at = store.changedAt(["IsA", "PartOf", "SameAs"]);
+  let b = broaders.get(store);
+  if (!b || b.at !== at) broaders.set(store, (b = { at, of: new Map() }));
+  let out = b.of.get(concept);
+  if (out) return out;
+  out = new Map();
+  let frontier = [concept];
+  for (let d = 1; d <= MAX_BROADER && frontier.length; d++) {
+    const next: string[] = [];
+    for (const x of frontier)
+      for (const f of [...store.facts(x, "IsA"), ...store.facts(x, "PartOf")]) {
+        const k = positional(f.claim as Call)[0];
+        if (f.meta.status === "Pending" || !isCall(k)) continue;
+        const h = canonical(store, k.head);
+        if (h === concept || out.has(h)) continue;
+        out.set(h, d);
+        next.push(h);
+      }
+    frontier = next;
+  }
+  b.of.set(concept, out);
+  return out;
 }
 
 function align(store: Store, w: Weigh, fills: Fills, p: Expr, r: Expr): Aligned | undefined {
@@ -90,13 +143,14 @@ function align(store: Store, w: Weigh, fills: Fills, p: Expr, r: Expr): Aligned 
   // A slot said as one of its kind (a task's Directory($path)) takes a referent of that kind.
   const ref = referents.get(r);
   if (ref && isCall(p) && isCall(r) && p.args.length === 1 && isVar(p.args[0].value) && fills(ref)) {
-    const d = headDistance(store, p.head, r.head);
-    if (d !== undefined) return { covered: w(p) / (1 + d), matched: markAll(r), distance: d, filled: 1, bindings: new Map([[(p.args[0].value as { text: string }).text, ref]]) };
+    const st = step(store, p.head, r.head);
+    if (st) return { covered: w(p) * st.share, matched: markAll(r), distance: st.d, filled: 1, bindings: new Map([[(p.args[0].value as { text: string }).text, ref]]) };
   }
   if (!isCall(p) || !isCall(r)) return p.kind === r.kind && key(p) === key(r) ? { covered: w(p), matched: new Set([r]), distance: 0, filled: 0, bindings: new Map() } : undefined;
-  const d = headDistance(store, p.head, r.head);
-  if (d === undefined) return undefined;
-  const out: Aligned = { covered: w(p) / (1 + d), matched: new Set([r]), distance: d, filled: 0, bindings: new Map() };
+  const st = step(store, p.head, r.head);
+  if (!st) return undefined;
+  const d = st.d;
+  const out: Aligned = { covered: w(p) * st.share, matched: new Set([r]), distance: d, filled: 0, bindings: new Map() };
   const used = new Set<number>();
   const rArgs = r.args;
   const take = (i: number, a: Aligned, weight: number) => {
@@ -229,7 +283,7 @@ function shape(pattern0: Expr) {
  */
 const kinships = new WeakMap<Store, { at: number; of: Map<string, Map<string, boolean>> }>();
 function kinship(store: Store): (head: string) => Map<string, boolean> {
-  const at = store.changedAt(["IsA", "Sense", "SenseOf", "PartOfSpeech", "SameAs"], true);
+  const at = store.changedAt(["IsA", "PartOf", "Sense", "SenseOf", "PartOfSpeech", "SameAs"], true);
   let k = kinships.get(store);
   if (!k || k.at !== at) kinships.set(store, (k = { at, of: new Map() }));
   const of = k.of;

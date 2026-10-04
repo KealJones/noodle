@@ -847,14 +847,24 @@ export class Session {
    * The tutor's because, heard by the same pipeline as a page's opening, into proposed facts on
    * what the picked reading means. Until they prove out they are kept as proposals, Pending, from
    * ChatGPT as a tutor (Proposes(about, claim) on Tutor), where nothing that reads the concept's
-   * facts finds them.
+   * facts finds them. A because that says what a kind of thing is ("a socket is a network file")
+   * proposes that, on the kind, as a manual's description would: confirmed, it is a step the scored
+   * match takes from a request about the thing to a description of its kind.
    */
   private propose(pick: Reading, because: string, conv: Conversation, record: TurnRecord): number[] {
     const learner = this.world.know?.learner;
     const about = this.meaningOf(pick, conv)?.head ?? this.actsOf(pick)[0]?.head;
     if (!learner || !about) return [];
-    const have = new Set([...this.store.facts(about).map((f) => key(f.claim)), ...this.store.facts("Tutor", "Proposes").map((f) => key(positional(f.claim as Call)[1]))]);
-    const added = learner.claims(because).filter((x) => !have.has(key(x))).map((x) => this.store.addFact("Tutor", c("Proposes", c(about), x), TUTOR, { status: "Pending" }));
+    const stated = learner.statements(because);
+    const proposals = stated.length ? stated.map((st) => ({ about: st.subject, claim: st.claim as Expr })) : learner.claims(because).map((claim) => ({ about, claim }));
+    const id = (on: Expr | undefined, claim: Expr | undefined) => `${isCall(on) ? on.head : ""} ${claim ? key(claim) : ""}`;
+    const have = new Set([
+      ...proposals.flatMap((p) => this.store.facts(p.about).map((f) => id(c(p.about), f.claim))),
+      ...this.store.facts("Tutor", "Proposes").map((f) => id(...(positional(f.claim as Call) as [Expr, Expr]))),
+    ]);
+    const added = proposals
+      .filter((p) => !have.has(id(c(p.about), p.claim)))
+      .map((p) => this.store.addFact("Tutor", c("Proposes", c(p.about), p.claim), TUTOR, { status: "Pending" }));
     if (added.length) record.reasons.push(choice("proposed from ChatGPT's because (pending)", added.map((f) => ({ label: key(f.claim), features: [], score: 0 })), -1));
     return added.map((f) => f.meta.id);
   }

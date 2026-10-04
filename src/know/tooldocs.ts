@@ -29,11 +29,14 @@ import { match } from "../runtime/match.js";
 import { format } from "../ncon/index.js";
 import { Names, encodeLemma } from "./names.js";
 import { categoriesFor } from "./wordnet.js";
+import { Learner, type Statement, sentences } from "../runtime/know/learn.js";
 
 export interface ToolResult {
   text: string;
   commands: string[];
   skipped: string[];
+  /** What its pages say of the kinds of things they speak of, heard into facts. */
+  facts: Statement[];
 }
 
 /** What a command's summary says it does, understood, and the effects that follows. */
@@ -92,6 +95,16 @@ export function summaryReader(words: Store): (summary: string) => Promise<Unders
     return { what, effects: shows ? ["Reads"] : undefined, heard: h!.act };
   };
 }
+
+/** A page's DESCRIPTION section. */
+const descriptionOf = (doc: Expr): Call | undefined =>
+  isCall(doc) ? (doc.args.map((a) => a.value).find((x) => isHead(x, "Section") && positional(x as Call)[0]?.kind === "string" && /^DESCRIPTION$/.test((positional(x as Call)[0] as { value: string }).value)) as Call | undefined) : undefined;
+
+/**
+ * Words in a sentence of a manual beyond which it is not heard for facts: the chart's work grows
+ * with a sentence's length, and a sentence that long is rarely heard whole.
+ */
+const MAX_WORDS = 40;
 
 const blockText = (store: Store, b: Expr | undefined) => {
   const id = isCall(b) && b.head === "Block" ? positional(b)[0] : undefined;
@@ -339,6 +352,8 @@ export async function learnTool(
     words.load(format({ forms: [c("Pack", ["name", s(`tool-${program}-terms`)], ["version", s("local")], ["from", from]), ...terms] as Call[] }));
   }
   const understand = words ? summaryReader(words) : undefined;
+  const learner = words ? new Learner(words) : undefined;
+  const facts: Statement[] = [];
   const lex = words ?? store;
   // The tool's own name is a word for the tool: "git push" is push, done with git. A program
   // learned in bulk whose name English already has as a word ("yes", "date", "file") is not that
@@ -396,7 +411,7 @@ export async function learnTool(
     const summary = blockText(world.store, role(doc, "summary"));
     const u = summary ? await understand?.(summary) : undefined;
     if (u?.effects) return { summary, u };
-    const desc = isCall(doc) ? doc.args.map((a) => a.value).find((x) => isHead(x, "Section") && positional(x as Call)[0]?.kind === "string" && /^DESCRIPTION$/.test((positional(x as Call)[0] as { value: string }).value)) : undefined;
+    const desc = descriptionOf(doc);
     const para = isCall(desc) ? positional(desc).find((p) => isHead(p, "Paragraph")) : undefined;
     const first = para ? blockText(world.store, positional(para as Call)[0]).split(/(?<=\.)\s/)[0] : "";
     const d = first && first !== summary ? await understand?.(first) : undefined;
@@ -548,6 +563,29 @@ export async function learnTool(
         forms.push(c("Reading", ["on", c(option)], ["pattern", c(option)], ["becomes", run(path, s(o.flag), ...(needed ? [c("Gap", s(needed))] : []))], ["effects", eff], ["from", optFrom]));
       }
     }
+    // What the page says of the things it is about, beyond what the command does: its
+    // description's sentences, and each option's beyond its first, heard as a page's opening is
+    // (Know's own pipeline) into facts on the kinds they speak of ("an open file may be ... a
+    // network file": a network file is a kind of open file), from the page. A fact from a sentence
+    // only part of which was heard is kept Pending.
+    if (learner) {
+      const desc = descriptionOf(doc);
+      const texts: { text: string; from: Expr }[] = [];
+      if (desc) for (const p of positional(desc).filter((x) => isHead(x, "Paragraph"))) texts.push({ text: blockText(world.store, positional(p as Call)[0]), from: c("ToolDoc", s(path.join("-")), s("DESCRIPTION")) });
+      for (const o of optionsOf(world.store, doc)) {
+        const rest = sentences(o.text).slice(1).join(" ");
+        if (rest) texts.push({ text: rest, from: c("ToolDoc", s(path.join("-")), s(o.flag)) });
+      }
+      const kept = new Set<string>();
+      for (const { text, from: f } of texts)
+        for (const st of learner.statements(text, MAX_WORDS)) {
+          const k = `${st.subject} ${key(st.claim)}`;
+          if (kept.has(k)) continue;
+          kept.add(k);
+          forms.push(c("Fact", c(st.subject), st.claim, ["from", f], ...(st.partial ? ([["status", c("Pending")]] as [string, Expr][]) : [])));
+          facts.push(st);
+        }
+    }
     commands.push(path.slice(1).join(" ") || program);
   };
 
@@ -635,7 +673,7 @@ export async function learnTool(
   }
   // The terms were lent to the words to hear the summaries with; they are kept in the tool's pack.
   if (words) words.unload(`tool-${program}-terms`);
-  return { text: format({ forms: forms as Call[] }), commands, skipped };
+  return { text: format({ forms: forms as Call[] }), commands, skipped, facts };
 }
 
 const lowerFirst = (x: string) => x[0].toLowerCase() + x.slice(1);

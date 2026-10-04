@@ -533,6 +533,8 @@ export class Store {
       const next: string[] = [];
       for (const x of frontier)
         for (const f of this.facts(x, "IsA")) {
+          // A kind only proposed (heard from part of a sentence) is not one until it proves out.
+          if (f.meta.status === "Pending") continue;
           const k = positional(f.claim as Call)[0];
           if (isCall(k)) reach(k.head, d + 1, next, "isa");
         }

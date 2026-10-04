@@ -74,7 +74,18 @@
   (mandoc's ".TP 8n" width had made every BSD option term "8n -A"). lsof's -i is still not reached:
   "selects the listing of files any of whose Internet address matches" is not heard (a third-person
   verb and a "whose" clause), and "what's using port 3000" shares only "port" with any description.
-  (b) is open.
+  (b) is built (2026-10-04): a manual's DESCRIPTION sentences and each option's beyond the first
+  are heard (`Learner.statements`) into facts on the kinds they speak of, from the page, Pending
+  where only part of a sentence was heard; the seed's bridge says what "is a", "may be" and "part
+  of" are (IsA, PartOf); the scored match steps from a request's concept through its own IsA and
+  PartOf facts (Match:Distance per step, the node covered whole); a tutor's because of that shape
+  is proposed on the kind. Measured in docs/manual-facts.md. lsof is still not reached, at
+  hearing: "a network file" is heard as the verb "file" with "a network" its subject, so the
+  bracketed list after it ("(Internet socket, NFS file or UNIX domain socket.)") is the verb's
+  theme and no "a socket is a network file" comes out (and a bracketed list after a noun is not
+  yet heard as kinds of it); "selects" is heard as Store; "-i"'s first sentence (a "whose"
+  clause) is not heard; and the prompts themselves ("port 3000" a verb, "what's using X" losing X)
+  fail before the match.
 - **All of the machine's tools, without crowding English**: fixed in the importer and the score,
   and measured (ChatGPT off, store and pack copies): versus 39/51/4/0 with the re-imported set
   loaded, the same as without it, not one prompt different (it was 36/48/10). A program learned in

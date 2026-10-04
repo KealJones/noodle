@@ -80,6 +80,32 @@ Reading(on=Blip(), pattern=Blip(), becomes=Run("echo", Args("other frobs")), eff
   assert.doesNotMatch((await createSession(store, root(), {}).turn("zorch the frob")).text, /I can run/);
 });
 
+test("a request about a thing reaches a description of what it is a kind or a part of, a step at a time, and not on a proposal", async () => {
+  const store = seededStore();
+  store.load(`${words}
+Concept(Zorch(), Lemma("zorch"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Frob(), Lemma("frob"), Category(Noun()))
+Concept(Snib(), Lemma("snib"), Category(Noun()))
+Concept(Wug(), Lemma("wug"), Category(Noun()))
+Concept(Frob#Cmd(), SenseOf(Zap()), Describes(Frob#Cmd(), Zorch(agent=Addressee(), theme=Some(Frob()))), from=ToolDoc("frobtool", "NAME"))
+Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("frobs")), effects=UnknownEffects(), from=ToolDoc("frobtool", "NAME"))
+`);
+  // Nothing says what a snib is: no description is about it.
+  assert.doesNotMatch((await createSession(store, root(), {}).turn("zorch the snib")).text, /I can run/);
+  // Only proposed (heard from part of a sentence), it is not a step.
+  store.load(`Pack(name="test-kinds-pending", version="0", from=Seed("test"))
+Fact(Snib(), IsA(Frob()), from=ToolDoc("frobtool", "DESCRIPTION"), status=Pending())
+`);
+  assert.doesNotMatch((await createSession(store, root(), {}).turn("zorch the snib")).text, /I can run/);
+  // A snib is a kind of frob, a wug part of one: the frob's description is about both.
+  store.load(`Pack(name="test-kinds", version="0", from=Seed("test"))
+Fact(Snib(), IsA(Frob()), from=ToolDoc("frobtool", "DESCRIPTION"))
+Fact(Wug(), PartOf(Frob()), from=ToolDoc("frobtool", "DESCRIPTION"))
+`);
+  assert.match((await createSession(store, root(), {}).turn("zorch the snib")).text, /I can run `echo frobs`/);
+  assert.match((await createSession(store, root(), {}).turn("zorch the wug")).text, /I can run `echo frobs`/);
+});
+
 test("\"when I say X, Y\" teaches the same as \"X means Y\"", async () => {
   const store = seededStore();
   store.load(words);

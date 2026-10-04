@@ -52,3 +52,20 @@ test("a question about what was learned is answered from the facts, with Know of
   // Nothing was learned about what was not asked before, and offline nothing goes out for it.
   assert.doesNotMatch((await s.turn("what is the capital of blorpia")).text, /Quuxton|From /);
 });
+
+test("what a text says of kinds of things becomes statements on the kinds: is a, may be, part of, each of a list", () => {
+  const st = store();
+  st.load(`Pack(name="test-kinds", version="0", from=WordNet("test"))
+Concept(Blarg(), Lemma("blarg"), Category(Noun()))
+Concept(Snib(), Lemma("snib"), Category(Noun()))
+Concept(Wug(), Lemma("wug"), Category(Noun()))
+Fact(Part(), Category(Noun()))
+`);
+  const said = (text: string) => new Learner(st).statements(text).map((x) => `${x.subject}: ${key(x.claim)}${x.partial ? " (partial)" : ""}`);
+  assert.deepEqual(said("A snib is a glorp."), ["Snib: IsA(Glorp())"]);
+  // "may be": what it may be is a kind of it, each of a list.
+  assert.deepEqual(said("A blarg may be a snib, a wug or a glorp.").sort(), ["Glorp: IsA(Blarg())", "Snib: IsA(Blarg())", "Wug: IsA(Blarg())"]);
+  assert.deepEqual(said("A wug is part of a blarg."), ["Wug: PartOf(Blarg())"]);
+  // Of a thing named, not a kind, nothing is said here (that is a page's topic's to keep).
+  assert.deepEqual(said("Zorbia is a glorp."), []);
+});

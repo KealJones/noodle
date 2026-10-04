@@ -237,6 +237,22 @@ Reading(on=Location(), pattern=Location($x, $y), becomes=BeIn($x, $y))
 Reading(on=HasPossession(), pattern=HasPossession($h, $x), becomes=Have($h, $x))
 Reading(on=HasState(), pattern=HasState($x, $v), becomes=Be($x, $v))
 Reading(on=HasAttribute(), pattern=HasAttribute($x, $a, $v), becomes=Be($x, $v, attribute=$a))
+// What a kind is (a manual's description, a tutor's because): "an X is a Y" says an X is a kind of
+// Y; "an X may be a Y", that a Y is one kind of X; "an X is part of a Y", where an X belongs. A
+// list said of a thing is said of it for each of the list ("may be a file, a directory or a
+// socket"), and what may be one or another may be each.
+Reading(on=Be(), pattern=Be(Some($x), Some($y)), becomes=IsA(Some($x), $y))
+Reading(on=Maybe(), pattern=Maybe(Be(Some($x), Some($y))), becomes=IsA(Some($y), $x))
+Reading(on=Maybe(), pattern=Maybe(IsA(Some($x), $y)), becomes=IsA(Some($y), $x))
+Reading(on=Part(), pattern=Be(Some($x), Part(theme=Some($y))), becomes=PartOf(Some($x), $y))
+Reading(on=Comma(), pattern=Be($x, Comma($a, $b)), becomes=And(Be($x, $a), Be($x, $b)))
+Reading(on=Comma(), pattern=Be($x, Comma($a, $b, $c)), becomes=And(Be($x, $a), Be($x, Comma($b, $c))))
+Reading(on=Comma(), pattern=Be($x, Comma($a, $b, $c, $d)), becomes=And(Be($x, $a), Be($x, Comma($b, $c, $d))))
+Reading(on=Comma(), pattern=Be($x, Comma($a, $b, $c, $d, $e)), becomes=And(Be($x, $a), Be($x, Comma($b, $c, $d, $e))))
+Reading(on=Comma(), pattern=Be($x, Comma($a, $b, $c, $d, $e, $f)), becomes=And(Be($x, $a), Be($x, Comma($b, $c, $d, $e, $f))))
+Reading(on=Be(), pattern=Be($x, Or($a, $b)), becomes=Or(Be($x, $a), Be($x, $b)))
+Reading(on=Maybe(), pattern=Maybe(Or($a, $b)), becomes=Or(Maybe($a), Maybe($b)))
+Reading(on=Maybe(), pattern=Maybe(And($a, $b)), becomes=And(Maybe($a), Maybe($b)))
 Reading(on=Motion(), pattern=Motion($x), becomes=Move(theme=$x))
 Reading(on=Motion(), pattern=Motion($x, $path), becomes=Move(theme=$x, path=$path))
 Reading(on=Transfer(), pattern=Transfer($a, $t, $r), becomes=Cause(agent=$a, result=Become(Have($r, $t))))
