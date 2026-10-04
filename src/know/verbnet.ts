@@ -157,8 +157,12 @@ function readFrame(frame: XmlElement): Frame | undefined {
     else return undefined;
   }
   const entry = c("Category", c("Act"), ...takes);
-  const sem = readSemantics(child(frame, "SEMANTICS"), used);
-  return { entry, patternRoles, becomes: sem?.expr, roles: [...used], predicates: sem?.predicates ?? [] };
+  const members = new Set<string>();
+  const sem = readSemantics(child(frame, "SEMANTICS"), used, members);
+  // A role the semantics names by its members is a set of two said as one: the pattern takes it
+  // as And(first, second).
+  const pattern = patternRoles.map(([name, x]): [string, Expr] => (members.has(name[0].toUpperCase() + name.slice(1)) ? [name, c("And", v(name + "I"), v(name + "J"))] : [name, x]));
+  return { entry, patternRoles: pattern, becomes: sem?.expr, roles: [...used], predicates: sem?.predicates ?? [] };
 }
 
 /**
@@ -168,7 +172,7 @@ function readFrame(frame: XmlElement): Frame | undefined {
  * the state before and left out; negated at the result event they are Not(...) of the result.
  * Implicit roles (?Role) are left out.
  */
-function readSemantics(sem: XmlElement | undefined, roles: Set<string>): { expr: Expr; predicates: string[] } | undefined {
+function readSemantics(sem: XmlElement | undefined, roles: Set<string>, members = new Set<string>()): { expr: Expr; predicates: string[] } | undefined {
   if (!sem) return undefined;
   const preds = childrenNamed(sem, "PRED").map((p) => ({
     name: encodeLemma(p.attrs.value.replace(/_/g, " ")) ?? p.attrs.value,
@@ -183,9 +187,12 @@ function readSemantics(sem: XmlElement | undefined, roles: Set<string>): { expr:
       if (a.type === "Event") continue;
       if (a.type !== "ThemRole") return undefined;
       if (a.value.startsWith("?")) return undefined;
-      const r = roleName(a.value);
+      // Patient_I and Patient_J are two members of a plural patient ("connect the computers").
+      const member = /^(.+)_([IJ])$/i.exec(a.value);
+      const r = roleName(member ? member[1] : a.value);
       if (!roles.has(r)) return undefined;
-      out.push(v(lower(r)));
+      if (member) members.add(r);
+      out.push(v(lower(r) + (member ? member[2].toUpperCase() : "")));
     }
     return out;
   };

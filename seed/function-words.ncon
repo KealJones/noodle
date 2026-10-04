@@ -230,7 +230,10 @@ Concept(How(), Lemma("how"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Manner())),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Property()), heads=State()),
   Category(Clause(), Takes(side=Right(), category=Property()), Takes(side=Right(), category=Clause(), role=Topic())),
-  Category(Clause(), Takes(side=Right(), category=Thing(), head=Many()), Takes(side=Right(), category=Act(), role=Topic())))
+  Category(Clause(), Takes(side=Right(), category=Thing(), head=Many()), Takes(side=Right(), category=Act(), role=Topic())),
+  // "how many files are here", "how much space is left": how many of a kind, as "which" asks
+  // which of a kind, fills the gap in the clause after it.
+  Category(Clause(), Takes(side=Right(), category=Thing(), head=Many()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())))
 Concept(Whether(), Lemma("whether"), Category(Clause(), Takes(side=Right(), category=Clause())))
 
 // What shape of answer each word that asks wants: a description of a thing, or an explanation.
@@ -255,6 +258,8 @@ Reading(on=When(), pattern=When(topic=$p), becomes=Question(And($p, Be(Gap(), Ti
 Reading(on=Why(), pattern=Why(topic=$p), becomes=Question(Because($p, reason=Gap()), about=Gap()))
 Reading(on=How(), pattern=How(topic=$p), becomes=Question(And($p, Be(Gap(), Way($p))), about=Gap()))
 Reading(on=How(), pattern=How(Many(), topic=$p), becomes=Question(And($p, Be(Gap(), Number($p))), about=Gap()))
+// "how many files are here": the things of the kind the clause is true of, and their number.
+Reading(on=How(), pattern=How(Many($k), topic=$p), becomes=Question(And($p, Be(Gap(), $k)), about=Number()))
 // "how much is X": the amount asked for is the subject, and the question is what X comes to.
 Reading(on=Many(), pattern=How(Many(), topic=Be(theme=$x)), becomes=Question(Be(Gap(), $x), about=Gap()))
 // "how is X", "how are you": the gap is what X is like (the entry that fills a property heads
@@ -266,7 +271,11 @@ Reading(on=Whether(), pattern=Whether($p), becomes=Question($p))
 Concept(WhatIs(), Lemma("what's"), Form("whats"), Form("wats"), Form("wuts"),
   Category(Clause(), Takes(side=Right(), category=Relation(), role=Location())),
   Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())),
-  Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())))
+  Category(Clause(), Takes(side=Right(), category=Property(), role=Attribute())),
+  // After a verb, as "what" is: the clause it opens is what the verb is done to ("show me what's
+  // in the readme").
+  Category(Thing(), Takes(side=Right(), category=Relation(), role=Location())),
+  Category(Thing(), Takes(side=Right(), category=Property(), role=Attribute())))
 Concept(WhereIs(), Lemma("where's"), Form("wheres"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
 Concept(WhoIs(), Lemma("who's"), Form("whos"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))
 Concept(HowIs(), Lemma("how's"), Form("hows"), Category(Clause(), Takes(side=Right(), category=Thing(), role=Theme())))

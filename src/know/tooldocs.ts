@@ -355,6 +355,10 @@ export async function learnTool(
       const command = lex.lookup("command").find((h) => lex.facts(h.concept, "IsA").some((f) => isHead(positional(f.claim as Call)[0], "Program")))?.concept;
       // Named as a program it is a noun ("the date command"), as well as a thing (below).
       if (command) claims.push(c("Words", c(sameWord), c(command)), c("Category", c("Noun")));
+      // And it is one more sense of the word, its newest, a noun: which sense "tar" means is the
+      // score's, by how likely the sense is and how the rest of what was said fits it.
+      claims.push(c("PartOfSpeech", c("PartOfSpeechNoun")));
+      forms.push(c("Concept", c(sameWord), c("Sense", c(toolWord)), ["from", toolFrom]));
     } else if (!store.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
     if (!store.facts(toolWord, "Category").length)
       claims.push(c("Category", c("Thing")), c("Category", c("Manner"), c("Modifies", ["side", c("Right")], ["category", c("Act")], ["role", c("Instrument")])));
