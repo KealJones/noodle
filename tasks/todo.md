@@ -59,3 +59,12 @@
   src/runtime/tutor.ts, `pnpm tutor:report`). Left: a numbered option lists a Run inside a
   referent's kind as an act ("run `git show`run `git stash`"), so ChatGPT is shown, and picks,
   options that would not run what they say; Keal confirming a proposal by hand has no path yet.
+- **Reason through what a tool's manual says, not only its one-line summary** (after the stuck-to-
+  local-or-ChatGPT builder lands). Keal's lsof example: "what's listening on port 3000" should reach
+  `lsof -i :3000` because lsof's own page says "an open file may be ... a network file (Internet
+  socket ...)" and `-i` "selects the listing of files any of whose Internet address matches".
+  (a) The scored match also matches option descriptions (cheap; the data is imported). (b) A
+  manual's DESCRIPTION paragraphs are heard into facts (IsA: an Internet socket is a network file,
+  a network file is a file) with the pipeline Know uses for page openings, from=ToolDoc, so "list
+  open files" covers sockets and the reasoning carries to other tools and asks. ChatGPT's "because"
+  proposals (Pending) feed the same facts once confirmed.
