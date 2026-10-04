@@ -65,6 +65,16 @@ export class Evaluator {
   offerAll = false;
   /** Checks that passed for pure calls worked out inside other acts' arguments. */
   private innerChecks = 0;
+  /**
+   * Every part of the reading being evaluated (the caller's): a question's other fragments say
+   * what it is about too ("what's the date tomorrow": the question, and tomorrow).
+   */
+  reading: Expr[] = [];
+  /**
+   * Set when what was said is a page that only shares words with the question (its title brings
+   * words of its own) and ChatGPT could be asked instead: the caller may ask it, and say the better.
+   */
+  loose = false;
 
   constructor(
     readonly store: Store,
@@ -97,6 +107,9 @@ export class Evaluator {
     };
   }
 
+  /** Whether what is being run is one part of several said together (And, Then). */
+  private partOfMany = false;
+
   async run(lf: Expr): Promise<Outcome> {
     if (!isCall(lf)) return this.stuck(lf);
     switch (lf.head) {
@@ -117,7 +130,12 @@ export class Evaluator {
       case "And":
       case "Then": {
         let o = this.out();
+        // Each part is one of several said together: a question among them is looked up by its
+        // own words, not the whole turn's.
+        const was = this.partOfMany;
+        this.partOfMany = positional(lf).length > 1;
         for (const x of positional(lf)) o = this.merge(o, await this.run(x));
+        this.partOfMany = was;
         return o;
       }
     }
@@ -304,7 +322,7 @@ export class Evaluator {
    * Remember, the path everything the user teaches takes. A reading already there is not kept
    * twice. Returns the main lesson, where one was kept or was there.
    */
-  async teach(said: Call, act: Expr, wants?: Expr): Promise<Lesson | undefined> {
+  async teach(said: Call, act: Expr, wants?: Expr, effects?: Expr): Promise<Lesson | undefined> {
     const remember = this.primitives.get("Remember");
     if (this.mode !== "Doing" || !remember) return undefined;
     // The kind a role names, where the graph has it ("pr 1748": the role number wants a Number).
@@ -321,7 +339,7 @@ export class Evaluator {
         continue;
       }
       try {
-        await remember.run([c("Rewrite", l.pattern, l.becomes, ...(l.wants ? ([["wants", l.wants]] as [string, Expr][]) : []))], this.world);
+        await remember.run([c("Rewrite", l.pattern, l.becomes, ...(l.wants ? ([["wants", l.wants]] as [string, Expr][]) : []), ...(effects ? ([["effects", effects]] as [string, Expr][]) : []))], this.world);
         main ??= l;
       } catch {
         // Not something to keep (a function word, a primitive): the act still stands.
@@ -557,7 +575,7 @@ export class Evaluator {
     if (!p.holds) return undefined;
     const keys = new Set(this.ancestry(act).map(key));
     const claimed = new Set<EffectClass>();
-    for (const st of this.steps) if (keys.has(key(st.after))) for (const e of st.effects) if (isCall(e)) claimed.add(e.head as EffectClass);
+    for (const k of keys) for (const st of this.stepsMaking(k)) for (const e of st.effects) if (isCall(e)) claimed.add(e.head as EffectClass);
     const effects = [...claimed];
     return effects.length && p.holds(effects, this.world) ? effects : undefined;
   }
@@ -671,12 +689,14 @@ export class Evaluator {
   private stepsMaking(k: string): Step[] {
     if (!this.byAfter) {
       this.byAfter = new Map();
-      for (const st of this.steps) {
-        const sk = key(st.after);
-        const list = this.byAfter.get(sk);
-        if (list) list.push(st);
-        else this.byAfter.set(sk, [st]);
-      }
+      // A step that made a directive made its act too (a question taught a command: Directive(Run(...))).
+      for (const st of this.steps)
+        for (const made of isHead(st.after, "Directive") ? [st.after, positional(st.after)[0]] : [st.after]) {
+          const sk = key(made);
+          const list = this.byAfter.get(sk);
+          if (list) list.push(st);
+          else this.byAfter.set(sk, [st]);
+        }
     }
     return this.byAfter.get(k) ?? [];
   }
@@ -848,6 +868,13 @@ export class Evaluator {
 
   private async question(lf: Call): Promise<Outcome> {
     const [p] = positional(lf);
+    // The question's own words: where the turn holds more than this question ("what's 6 times 7
+    // and what's the capital of italy"), what is looked up is this one, not the whole turn.
+    // (Said back in the user's words, the question is its words where one span says it, or the
+    // words of its parts where it was said in pieces.)
+    const echoed = this.partOfMany && this.inWords ? positional(this.inWords(c("Echo", lf)) as Call)[0] : undefined;
+    const ownText = echoed?.kind === "string" ? echoed.value : echoed ? [...walk(echoed)].flatMap((y) => (y.kind === "string" ? [y.value] : [])).join(" ") : "";
+    const said = this.partOfMany && ownText.trim() && this.said && ownText.length < this.said.length ? ownText : this.said;
     const prim = this.primitiveCall(p);
     if (prim && this.pureFor(prim.p, p)) {
       const r = await this.call(prim.p, prim.args, p);
@@ -881,8 +908,8 @@ export class Evaluator {
     // nothing outside the conversation ("what's up"), or that asks about what a pointer ("it")
     // points at, has nothing to look up in the world.
     const know = this.world.know;
-    const words = this.topicText();
-    if (!know || !this.said || !words || this.asksOfPointer(p)) return this.stuck(lf);
+    const words = this.topicText(said);
+    if (!know || !said || !words || this.asksOfPointer(p)) return this.stuck(lf);
     // What the graph learned answers first (Know, step 1): facts on what the question names, from
     // the pages and claims they came from. Nothing goes out for it, so it counts in Suppose too;
     // a page kept about what it names is only words looked up before, and does not (below).
@@ -891,28 +918,35 @@ export class Evaluator {
     // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
     // explanation is found by the whole question, a description by the thing it is about.
     const about = this.asksExplanation() ? "reason" : "thing";
-    const cached = know.cached("answer", this.said);
+    const cached = know.cached("answer", said);
     // In Suppose nothing goes out, and an answer from outside does not count as reaching one: a
     // reading is chosen by what the graph can do with it, not by whether its words were looked up
     // before (a question once answered from Wikipedia is read anew once the graph can answer it,
     // "what time is it"). A question nothing else reaches still wins, and is looked up.
     if (this.mode === "Supposing") return this.out();
+    // A question about here (this, now, mine, a name in the workspace, something in play) is not
+    // the world's to answer: no page about its words answers it. It is worked out locally or stuck.
+    const here = this.aboutHere(lf);
+    if (here) {
+      this.conversation.focus.log.push({ what: `focus: "${said}" is about here (${here}), not looked up in the world`, candidates: [], winner: -1 });
+      return this.stuck(lf);
+    }
     // A page kept about what the question names answers it before anything goes out.
     if (!cached && recalled) return { ...this.out(), said: [this.recalled(lf, recalled)], reachedAct: true };
     if (!cached && !know.opts.offline && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
-      return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
+      return { ...this.out(), said: [c("Offer", c("Know", s(said)))], reachedAct: true };
     // The world has a budget of lookups per turn (runtime.md 11b); past it the need stays unmet,
     // and says so. What was asked, and what came back, goes in the reasons log.
     const focus = this.conversation.focus;
     const used = focus.lookups.get("World") ?? 0;
     if (!cached && used >= this.budget("World", "lookups")) {
-      focus.log.push({ what: `focus: "${this.said}" from the world, over the turn's budget of ${used}`, candidates: [], winner: -1 });
+      focus.log.push({ what: `focus: "${said}" from the world, over the turn's budget of ${used}`, candidates: [], winner: -1 });
       return this.stuck(lf, c("NeedUnmet", c("Budget", c("World"))));
     }
     if (!cached) focus.lookups.set("World", used + 1);
     let k: Awaited<ReturnType<typeof know.answer>>;
     try {
-      k = cached ?? (await know.answer(this.said, words, about));
+      k = cached ?? (await know.answer(said, words, about));
       // What was found was understood as it was kept: the graph may answer now. Where it does
       // not, and the question is about a thing, what the question names is learned about (its
       // own page and claims), and the graph asked again; failing that, the page is the answer.
@@ -937,16 +971,19 @@ export class Evaluator {
         if (learned) again = facts(["Relation"]);
       }
       if (again) {
-        focus.log.push({ what: `focus: "${this.said}" from the world, answered from what was learned`, candidates: [], winner: -1 });
+        focus.log.push({ what: `focus: "${said}" from the world, answered from what was learned`, candidates: [], winner: -1 });
         return { ...this.out(), said: [this.recalled(lf, again)], reachedAct: true };
       }
     } catch {
       // A source that fails is no answer, not an error to show.
     }
-    focus.log.push({ what: `focus: "${this.said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
+    focus.log.push({ what: `focus: "${said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
     // Where the page is the answer, what it says under a heading that names what was asked (the
     // question's own words its title does not have: "history" of a page titled "Git") answers
     // better than its opening. Reading the whole page is a lookup in the world, within the budget.
+    // A page that only shares words with the question (its title brings words of its own) is said
+    // only where nothing better can be had: where ChatGPT can be asked, the caller asks it.
+    if (k && know.canAsk && !know.close(k, words)) this.loose = true;
     if (k?.url && about === "thing") {
       const title = k.title.toLowerCase();
       const asked = words.split(/\s+/).filter((w) => w.length > 2 && !title.includes(w.toLowerCase().slice(0, Math.max(3, w.length - 2))));
@@ -1014,8 +1051,8 @@ export class Evaluator {
    * What a question is about, in its own words: the words of what was said that are not in the
    * function-word lexicon ("what is rayleigh scattering" is about "rayleigh scattering").
    */
-  private topicText(): string | undefined {
-    const words = this.said
+  private topicText(said = this.said): string | undefined {
+    const words = said
       .split(/[^\p{L}\p{N}'’.-]+/u)
       .filter(Boolean)
       .filter((w) => !this.store.lookup(w).some((h) => this.store.facts(h.concept).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))))));
@@ -1041,23 +1078,23 @@ export class Evaluator {
 
   /**
    * What a command's documentation says of it, when the question is about the command: a call to
-   * Run standing beside the gap in the same proposition ("what does git commit do": Do(agent=Run(
-   * "git", Args("commit")), theme=Gap())), reached by a reading from a page of documentation. What
+   * Run standing beside the gap in the question's proposition, and nothing else ("what does git
+   * commit do": Do(agent=Run("git", Args("commit")), theme=Gap())), reached by a reading from a page of documentation. What
    * the page says is the summary the same page gave its word's sense (Said).
    */
   private documentation(p: Expr): { said: Expr; from: Expr } | undefined {
-    for (const y of walk(p)) {
-      if (!isCall(y) || !y.args.some((a) => isHead(a.value, "Gap"))) continue;
-      for (const a of y.args) {
-        if (!isHead(a.value, "Run")) continue;
-        const step = this.steps.find((st) => key(st.after) === key(a.value) && this.trustLevel(st.from) >= 3);
-        if (!step) continue;
-        for (const f of this.store.facts(step.owner, "Sense")) {
-          const sense = positional(f.claim as Call)[0];
-          if (!isCall(sense) || key(f.meta.from) !== key(step.from)) continue;
-          const said = this.store.facts(sense.head, "Said").map((x) => positional(x.claim as Call)[0])[0];
-          if (said) return { said, from: step.from };
-        }
+    // The question asks of the command alone: the proposition is the command and the gap, and
+    // nothing else ("what branch am i on" asks of the speaker too, and is not answered by it).
+    if (!isCall(p) || p.args.length !== 2 || !p.args.some((a) => isHead(a.value, "Gap"))) return undefined;
+    for (const a of p.args) {
+      if (!isHead(a.value, "Run")) continue;
+      const step = this.steps.find((st) => key(st.after) === key(a.value) && this.trustLevel(st.from) >= 3);
+      if (!step) continue;
+      for (const f of this.store.facts(step.owner, "Sense")) {
+        const sense = positional(f.claim as Call)[0];
+        if (!isCall(sense) || key(f.meta.from) !== key(step.from)) continue;
+        const said = this.store.facts(sense.head, "Said").map((x) => positional(x.claim as Call)[0])[0];
+        if (said) return { said, from: step.from };
       }
     }
     return undefined;
@@ -1141,6 +1178,23 @@ export class Evaluator {
   }
 
   /** Whether the thing beside the gap is a referent that only points (no kind, no name said). */
+  /**
+   * Whether a question is about here, and by what: a word whose meaning is fixed by who says it,
+   * where and when (Deixis, a fact on the word: "this folder", "tomorrow", "am i"), a name in the
+   * workspace ("notes.txt"), or a referent that is something in play. Read from every part of the
+   * reading, as its words were understood.
+   */
+  private aboutHere(lf: Expr): string | undefined {
+    const names = this.conversation.focus.workspace ?? [];
+    for (const part of this.reading.length ? this.reading : [lf])
+      for (const y of walk(part)) {
+        if (isCall(y) && this.store.facts(y.head, "Deixis").length) return y.head;
+        if (y.kind === "string" && names.some((x) => y.value === x || y.value.startsWith(`${x}/`))) return y.value;
+        if (isCall(y) && y.head === "Ref" && isCall(role(y, "kind")) && this.referent(y) !== undefined) return key(y);
+      }
+    return undefined;
+  }
+
   private asksOfPointer(p: Expr): boolean {
     const pointer = (x: Expr) => isHead(x, "Ref") && !role(x, "kind") && ![...walk(role(x, "said") ?? x)].some((y) => y.kind === "string");
     return [...walk(p)].some((y) => isCall(y) && y.args.some((a) => isHead(a.value, "Gap")) && y.args.some((a) => pointer(a.value)));

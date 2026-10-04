@@ -350,12 +350,13 @@ export async function pageDoc(url: string): Promise<PageDoc | undefined> {
  * machine), for when the one-shot command cannot reach the browser because the server holds it.
  * Only localhost is asked; what comes back is the reply's text.
  */
-export async function chatgptServer(question: string, port = 7778, timeoutMs = 120000): Promise<string | undefined> {
+/** ChatGPT through gptb serve: one question, or a whole chat (messages that extend one it has seen continue it). */
+export async function chatgptServer(question: string | { role: string; content: string }[], port = 7778, timeoutMs = 120000): Promise<string | undefined> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "chatgpt", stream: false, messages: [{ role: "user", content: question }] }),
+      body: JSON.stringify({ model: "chatgpt", stream: false, messages: typeof question === "string" ? [{ role: "user", content: question }] : question }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) return undefined;
