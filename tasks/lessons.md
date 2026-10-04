@@ -33,3 +33,14 @@ key ... my model did its training live in real time." Never frame Noodle's live 
 cheating or as unlike a model's pre-training, and never propose pre-loading a corpus to make a
 comparison fair. The fair comparison is Keal's: a pass with learning, then a pass with learning
 off and the graph kept, timed.
+
+## The point is learning live, small, anywhere (2026-10-04)
+
+Keal: since spoon the goal is "a small local agent that can adapt, learn and do shit without MCP
+servers, without needing tools, without a harness ... the key part is that it knows how to learn
+to do stuff in real time, not that it knows everything up front", and it should run in any host
+(Rust, WebAssembly, TypeScript, Node). This round drifted into bulk importing (1 GB store, 10 minute
+first load, 1,870 packs) and host-bound code (node:sqlite, child_process, mandoc). Before adding an
+import or a host dependency, ask: does this make it learn on demand, or just know more up front?
+Prefer learning a thing the first time it is needed and keeping it, and keep the core small and
+portable.
