@@ -1032,7 +1032,7 @@ Every fact carries a **trust level** from its source:
 
 1. the user in the conversation, the home instruction file, and the config file;
 2. the project's instruction file;
-3. the project's `AGENTS.md`, READMEs, help text;
+3. the project's `AGENTS.md`, READMEs, help text, and a tool's documentation (its man pages, tldr-pages);
 4. the web and other fetched pages, and ChatGPT.
 
 - **Only level 1 grants permissions or lifts guards.** Level 2 sets standing rules for its project.
@@ -1305,6 +1305,19 @@ is tracked alongside accuracy.
   placeholder nothing in the request fills stays a variable, so the act is unworked rather than
   guessed. Effects come from the HTTP method (GET reads and sends outside; POST, PUT and PATCH
   publish; DELETE deletes); Run can hold none of them, so every operation is offered first.
+- **Tasks from tldr-pages** (`src/know/tldr.ts`, `pnpm run import tldr`): each page's examples
+  are tasks, each a concept `PartOf` its tool (or its subcommand, where a tool pack has it), its
+  description kept and understood by the same pipeline into `Describes`, and one reading on the
+  task itself that runs its command line. Each `{{placeholder}}` is a slot, a variable: where the
+  description names the thing the placeholder's name is heard as ("port", "path/to/file" a file),
+  the slot takes that thing's place, both as the value said there and as one of that kind named by
+  its value ("port 3000"; the noun is given a chart entry that takes the value after it). The
+  scored match (runtime.md 6.2) reaches a task by its description; a slot binds only a value said
+  (a name, a number), and a match that leaves one unfilled is not a candidate, never guessed. Effects are
+  those the tool packs give the command and each option used (reads only where all of them only
+  read); otherwise unknown, so offered first. The source is `Tldr`, level 3 in the trust table;
+  the pack records the license (CC BY 4.0). Command lines that need a shell (pipes, globs,
+  redirections) and placeholders offering values with no name are left out and counted.
 - **One hierarchy for what is learned to use.** The core has the kinds (built-ins.md section 1's
   test: a chess engine, a shop's API and a dictionary are learned the same way): a `Tool` (a
   program on this machine), its `Command`s and their `Option`s, an `Api` and its `Operation`s and
