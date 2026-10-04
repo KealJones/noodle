@@ -180,6 +180,13 @@ test("Read a manual page: the options list gives Items with terms", real, async 
   assert.ok(items.every((i) => find(i, (x) => isCall(x) && x.head === "Paragraph").length > 0));
 });
 
+test("Read a manual page: an mdoc page's option terms are the flags, without the list's width (du)", real, async () => {
+  const w = world();
+  const p = await page(w, "du");
+  const terms = find(p, (x) => isCall(x) && x.head === "Item").map((i) => (role(i, "term") ? text(w, role(i, "term")) : ""));
+  assert.ok(terms.includes("-A") && terms.some((t) => t.startsWith("-B")), terms.slice(0, 8).join(" | "));
+});
+
 for (const name of ["git-commit", "git-branch", "git-status"]) {
   test(`Read a manual page: ${name} parses, with nothing unparsed in NAME or DESCRIPTION`, real, async () => {
     const w = world();

@@ -222,6 +222,7 @@ Concept(Contain())
 Concept(Occur())
 Concept(Search())
 Concept(Declare())
+Concept(Conclude())
 Concept(Indicate())
 Concept(Benefit())
 Concept(InReactionTo())
@@ -250,6 +251,8 @@ Reading(on=Contain(), pattern=Contain($h, $x), becomes=BeIn($x, $h))
 Reading(on=Occur(), pattern=Occur($e), becomes=Happen($e))
 Reading(on=Search(), pattern=Search($a, $l, $x), becomes=Try(agent=$a, theme=See(experiencer=$a, stimulus=$x), location=$l))
 Reading(on=Declare(), pattern=Declare($a, $x, $v), becomes=Say(agent=$a, theme=Be($x, $v)))
+// VerbNet's conclude (discover-84 "find the answer", deduce-97.2) is coming to know.
+Reading(on=Conclude(), pattern=Conclude($a, $x), becomes=Cause(agent=$a, result=Become(Know(experiencer=$a, theme=$x))))
 Reading(on=Indicate(), pattern=Indicate($x, $t), becomes=Mean($x, $t))
 // VerbNet joins a predicate with one that only says who it is for or what it answers; those are
 // roles of the first. The same thing said twice is said once.
@@ -278,6 +281,8 @@ Reading(on=Run(), pattern=$what, needs=All(Describes($program, $what), Usage($pr
 // Making a command or a program work is running it ("run git status", "run `pwd`").
 Reading(on=Run(), pattern=Work(theme=Run($p, $a)), becomes=Run($p, $a))
 Reading(on=Run(), pattern=Work(theme=$p), wants=IsA($p, Program()), becomes=Run($p, Args()))
+// Running a program named as one ("run the date command") is doing what it is: its own reading runs it.
+Reading(on=Run(), pattern=Work(theme=Ref(kind=$p, said=_)), wants=IsA($p, Program()), becomes=$p)
 // Reading or showing what a command gives ("show me the git log") is running it: its output is
 // what is shown.
 Reading(on=Run(), pattern=Read(Run($p, $a)), becomes=Run($p, $a))

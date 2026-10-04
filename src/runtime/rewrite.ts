@@ -7,7 +7,7 @@ import { type Call, type Expr, c, isCall, isHead, isVar, key, positional, role, 
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { type ReadingItem, type Store, readingKey } from "./store.js";
-import { contentHeads, type Described, describedActs, isValue, matchFeatures, softMatch } from "./softmatch.js";
+import { contentHeads, type Described, describedActs, isArgument, matchFeatures, softMatch } from "./softmatch.js";
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
@@ -131,7 +131,20 @@ export class Rewriter {
       for (const r of this.store.readingsOn(sense))
         if (isCall(r.pattern) && r.pattern.head === sense) consider(r, { ...e, head: sense }, new Map([["SenseFrequency", prior]]));
     if (this.opts.soft && e.head === "Directive") out.push(...this.soft(e));
+    if (this.opts.soft && e.head === "Question") out.push(...this.softQuestion(e));
     return out;
+  }
+
+  /**
+   * A question whose answer is what a command prints ("what's using port 3000", "what branch am
+   * i on"): what it asks of is matched, as a directive's act is, against what the store says acts
+   * do, and each match is a candidate that asks the addressee to do the act. Whether the answer
+   * is had that way or another (the graph, a page) is the score's and the dry run's to decide.
+   */
+  private softQuestion(e: Call): Candidate[] {
+    const x = positional(e)[0];
+    if (!isCall(x)) return [];
+    return this.softFor(x).map((y) => ({ r: y.d.reading, b: new Map(), result: c("Directive", y.result, ["agent", c("Addressee")]), features: y.f, step: { before: x, after: y.result } }));
   }
 
   private softMemo = new Map<string, { result: Expr; d: Described; f: Features }[]>();
@@ -178,19 +191,31 @@ export class Rewriter {
     const pool = new Set<Described>();
     for (const h of heads) for (const d of index.byHead.get(h) ?? []) pool.add(d);
     const threshold = this.threshold();
-    const scored: { d: Described; f: Features; s: number; result: Expr }[] = [];
+    const all: { d: Described; f: Features; s: number; result: Expr }[] = [];
     for (const d of pool) {
-      const m = softMatch(this.store, d.pattern, x, index.weigh, d.slots ? isValue : undefined);
+      const m = softMatch(this.store, d.pattern, x, index.weigh, d.slots ? isArgument : undefined);
       if (!m) continue;
       // What the reading wants of what fills it counts as it does for an exact match.
       const f = mergeFeatures(matchFeatures(m), this.wantFeatures(d.reading, m.bindings));
-      const s = scoreOf(f, this.weights);
-      if (s < threshold) continue;
       // A slot the request did not fill is not guessed, and a match that leaves one open does not
       // stand for the request: what it needs was not said (design section 23).
       const result = instantiate(d.becomes, m.bindings);
       if ([...walk(result)].some(isVar)) continue;
-      scored.push({ d, f, s, result });
+      all.push({ d, f, s: scoreOf(f, this.weights), result });
+    }
+    // A match says which act is meant only as far as the others do not fit as well: of n
+    // different acts that fit at least as well, it is one guess in n (the log of n, a cost). The
+    // more descriptions there are to match, the more of them fit loosely, so the same fit counts
+    // for less as the pool grows, by what the pool holds, not by a number set for it.
+    const best = new Map<string, number>();
+    for (const y of all) best.set(key(y.result), Math.max(best.get(key(y.result)) ?? -Infinity, y.s));
+    const scored: typeof all = [];
+    for (const y of all) {
+      let n = 0;
+      for (const s of best.values()) if (s >= y.s) n++;
+      const f = n > 1 ? mergeFeatures(y.f, new Map([["Match:Ambiguity", -Math.log(n)]])) : y.f;
+      const s = scoreOf(f, this.weights);
+      if (s >= threshold) scored.push({ ...y, f, s });
     }
     const seen = new Set<string>();
     const out = scored

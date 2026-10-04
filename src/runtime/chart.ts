@@ -240,10 +240,14 @@ export class Chart {
     if (cand.concept) {
       const { entries, joins } = this.entries(cand.concept);
       const prior = this.categoryPrior(cand.concept);
+      // A form the lexicon lists says what part of speech it is: "using", listed as a form whose
+      // lexical rules are over acts, is an act, however often its word is used as a noun. (A
+      // form only guessed from a suffix, "find" as "fin" and "d", says nothing of the kind.)
+      const formed = new Set(cand.source === "Exact" ? cand.features.flatMap((x) => this.rulesOn(x)).map((r) => (isCall(r.pattern) ? r.pattern.head : "")) : []);
       for (const en of entries) {
         if (en.fillsGap) this.hasGapWord = true;
         const f = joined(features, en.category);
-        const p = prior?.get(en.category);
+        const p = formed.has(en.category) ? undefined : prior?.get(en.category);
         if (p !== undefined) addFeature(f, "SenseFrequency:Category", p);
         out.push(
           this.make({
@@ -526,7 +530,9 @@ export class Chart {
       if (!CATEGORY_HEADS.has(result.head)) continue;
       const features = new Map(e.features);
       addFeature(features, `Rule:${readingKey(r)}`, 1);
-      out.push(this.make({ ...e, category: result.head, expr: positional(result)[0], pending: [], modifies: [], byRule: true, features, step: `rule ${r.meta.id}`, back: [e] }));
+      // What the result modifies, where the rule says (an adjective and "ly" is a manner of an act).
+      const modifies = positional(result).slice(1).filter((x): x is Call => isHead(x, "Modifies")).map(modifiesOf);
+      out.push(this.make({ ...e, category: result.head, expr: positional(result)[0], pending: [], modifies, byRule: true, features, step: `rule ${r.meta.id}`, back: [e] }));
     }
     return out;
   }
@@ -695,7 +701,7 @@ export function entriesOf(store: Store, concept: string) {
       const category = headOf(role(sub, "category")) ?? "Any";
       if (sub.head === "Takes")
         takes.push({ side, category, role: headOf(role(sub, "role")), head: headsOf(role(sub, "head")), marks: headOf(role(sub, "marks")), kind: headOf(role(sub, "kind")), asSaid: boolOf(role(sub, "asSaid")) || undefined, optional: boolOf(role(sub, "optional")) });
-      else if (sub.head === "Modifies") modifies.push({ side, category, role: headOf(role(sub, "role")) });
+      else if (sub.head === "Modifies") modifies.push(modifiesOf(sub));
       else if (sub.head === "FillsGap") fillsGap = category;
     }
     entries.push({ category: cat.head, takes, modifies, wraps: headOf(role(claim, "wraps")), heads: headOf(role(claim, "heads")), fillsGap });
@@ -705,6 +711,7 @@ export function entriesOf(store: Store, concept: string) {
 }
 
 const headOf = (e: Expr | undefined) => (isCall(e) ? e.head : undefined);
+const modifiesOf = (sub: Call): ModifiesSpec => ({ side: (headOf(role(sub, "side")) ?? "Right") as "Left" | "Right", category: headOf(role(sub, "category")) ?? "Any", role: headOf(role(sub, "role")) });
 /** A head, or OneOf(several). */
 const headsOf = (e: Expr | undefined): string | string[] | undefined =>
   isCall(e) && e.head === "OneOf" ? positional(e).filter(isCall).map((x) => x.head) : headOf(e);

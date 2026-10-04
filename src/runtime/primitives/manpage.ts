@@ -212,8 +212,11 @@ function toks(nodes: TNode[], holder: number): Tok[] {
         case "TP":
         case "IP": {
           const tag = headText(node);
-          // IP's last head word is the indent width.
-          if (node.name === "IP" && tag.length > 1 && /^\d+$/.test(tag[tag.length - 1])) tag.pop();
+          // IP's last head word is the indent width, and TP's first (".TP 8n", as mandoc writes an
+          // mdoc list in man(7)): a number, with a unit or not, or a sum of them ("120u+4").
+          const width = /^[\d.]+[cimnPpuvf]?([-+*/][\d.]+[cimnPpuvf]?)*$/;
+          if (node.name === "IP" && tag.length > 1 && width.test(tag[tag.length - 1])) tag.pop();
+          if (node.name === "TP" && tag.length > 1 && width.test(tag[0])) tag.shift();
           out.push({ t: "tagged", term: tag.join(" "), kids: inner });
           break;
         }

@@ -67,13 +67,26 @@
   manual's DESCRIPTION paragraphs are heard into facts (IsA: an Internet socket is a network file,
   a network file is a file) with the pipeline Know uses for page openings, from=ToolDoc, so "list
   open files" covers sockets and the reasoning carries to other tools and asks. ChatGPT's "because"
-  proposals (Pending) feed the same facts once confirmed.
-- **All of the machine's tools, without crowding English** (blocked install). `pnpm import tools`
-  learned 1,857 programs (in ~/.noodle/packs-pending/tools-all), but loading them all made versus
-  worse (39/51/4 to 36/48/10 with ChatGPT off): programs named by ordinary words (yes, read, date,
-  time, open, say, which, file) turn those words into acts ("yes" ran `cvmkfile`, held to reading),
-  and matching requests against every description surfaces loose candidates. Fix in the importer
-  and the score, not by hand: a bulk-learned program's name is a word for it only where the store
-  has no other sense of that word, or when it is named as a program (backticks, "the X command",
-  "run X"); its descriptions stay candidates for the scored match, which needs a stricter fit as
-  the pool grows. Then install the set.
+  proposals (Pending) feed the same facts once confirmed. (a) is built: each option's description
+  (first sentence) is a Describes of the command run with it, and mdoc pages' options are read now
+  (mandoc's ".TP 8n" width had made every BSD option term "8n -A"). lsof's -i is still not reached:
+  "selects the listing of files any of whose Internet address matches" is not heard (a third-person
+  verb and a "whose" clause), and "what's using port 3000" shares only "port" with any description.
+  (b) is open.
+- **All of the machine's tools, without crowding English**: fixed in the importer and the score,
+  and measured (ChatGPT off, store and pack copies): versus 39/51/4/0 with the re-imported set
+  loaded, the same as without it, not one prompt different (it was 36/48/10). A program learned in
+  bulk (`pnpm import tools`) whose name English has is its own concept (`DateProgram`, named "the
+  date command" or `date`), and its summary is only a description for the scored match; tldr names
+  programs the same way. The scored match costs `Match:Ambiguity`, the log of how many different
+  acts fit as well. To install: re-run `pnpm import tools` (the packs in packs-pending were made by
+  the old importer) and re-import git, gh, jq, pwd and tldr. Open: "run X" with X a bare English
+  word is not reached (only "the X command" and backticks), and `run \`date\`` does not use the
+  program's documented effects.
+- **Plain requests and questions still mostly fail at hearing**, not at matching (2026-10-03, fresh
+  prompts with every tool loaded): "show disk usage of this folder" splits into `git show` plus a
+  fragment; "display ..." is heard as a noun; "port 3000" as the verb port; "how much disk space is
+  left" is not a question; "what branch am i on" is a question whose proposition already holds `git
+  branch` inside a referent; "this folder" is never the workspace (the graph does not connect a
+  folder to what reading "." gives); "find" in a summary still comes out as Store (its get frame and
+  its discover frame tie, and the first wins).

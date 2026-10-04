@@ -104,6 +104,11 @@ Concept(Past(), Suffix("ed"), Suffix("d"), Suffix("ed", undouble=true), Suffix("
 Concept(PastParticiple(), Suffix("ed"), Suffix("d"), Suffix("ed", undouble=true), Suffix("ied", restore="y"))
 Concept(Gerund(), Suffix("ing"), Suffix("ing", restore="e"), Suffix("ing", undouble=true))
 
+// Manner adverbs: an adjective and "ly" says how an act is done ("recursively", "interactively",
+// "automatically", "simply", "easily"), as an adverb does.
+Concept(Adverbial(), Suffix("ly"), Suffix("ily", restore="y"), Suffix("ally"), Suffix("ly", restore="le"))
+Reading(on=Adverbial(), pattern=Property($p), becomes=Manner($p, Modifies(side=Left(), category=Act())))
+
 // ---------------------------------------------------------------------------------------------
 // Imported words: the part-of-speech to category mapping (runtime.md, open question 1).
 

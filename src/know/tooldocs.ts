@@ -63,13 +63,19 @@ export function summaryReader(words: Store): (summary: string) => Promise<Unders
     const h = hear(words, text, { names: [] });
     if (!h.tokens.length) return undefined;
     const chart = new Chart(words, h, 0, h.tokens.length, weights.get).build();
-    const best = chart
+    const acts = chart
       .edges()
-      .filter((e) => e.category === "Act" && !e.wraps && !e.heads && !e.gap && e.pending.every((p) => p.takes.optional))
-      .sort((a, b2) => b2.score - a.score)[0];
-    if (!best || !isCall(best.expr)) return undefined;
-    const lf = rewriter.normalize(c("Directive", withRoles(best.expr, { agent: c("Addressee") })))[0]?.expr;
-    return lf && { lf, act: best.expr };
+      .filter((e) => e.category === "Act" && !e.wraps && !e.heads && !e.gap && e.pending.every((p) => p.takes.optional) && isCall(e.expr))
+      .sort((a, b2) => b2.score - a.score);
+    // Of the readings the chart scores alike (the same words, as one frame's roles or another's:
+    // "find" as getting a thing or as coming to know it), the one whose meaning reads best.
+    const tied = acts.filter((e) => e.score === acts[0]?.score);
+    let best: { lf: Expr; act: Expr; score: number } | undefined;
+    for (const e of tied) {
+      const d = rewriter.normalize(c("Directive", withRoles(e.expr as Call, { agent: c("Addressee") })))[0];
+      if (d && (!best || d.score > best.score)) best = { lf: d.expr, act: e.expr, score: d.score };
+    }
+    return best && { lf: best.lf, act: best.act };
   };
   return async (summary) => {
     // A summary written as a sentence ends in a full stop, which says nothing of what is done.
@@ -174,6 +180,8 @@ interface OptionDoc {
   aliases: string[];
   /** The placeholder of the value it takes, if it takes one. */
   value?: string;
+  /** Whether the value may be left out ("-i [i]"): the flag alone is a command line too. */
+  optional?: boolean;
   text: string;
 }
 
@@ -190,19 +198,23 @@ function optionsOf(store: Store, page: Expr): OptionDoc[] {
     const flags: string[] = [];
     const aliases: string[] = [];
     let value: string | undefined;
+    let optional = false;
     for (const tok of term.split(/[\s,]+/).filter(Boolean)) {
       if (tok.startsWith("-") && !value) {
         const [f, val] = tok.split("=");
         flags.push(f.replace(/\[|\]/g, ""));
         if (val) value = val.replace(/[<>[\]]/g, "");
       } else if (tok.startsWith("-")) aliases.push(tok.split("=")[0].replace(/\[|\]/g, ""));
-      else if (!value) value = tok.replace(/[<>[\]]/g, "");
+      else if (!value) {
+        value = tok.replace(/[<>[\]]/g, "");
+        optional = tok.startsWith("[");
+      }
     }
     // The long form is the one a command line can be read by.
     const flag = flags.sort((a, b2) => b2.length - a.length)[0];
     if (!flag || !/^--?[A-Za-z0-9][\w-]*$/.test(flag) || seen.has(flag)) continue;
     seen.add(flag);
-    out.push({ flag, aliases: [...flags.filter((f) => f !== flag), ...aliases].filter((f) => /^--?[A-Za-z0-9][\w-]*$/.test(f)), value: value || undefined, text });
+    out.push({ flag, aliases: [...flags.filter((f) => f !== flag), ...aliases].filter((f) => /^--?[A-Za-z0-9][\w-]*$/.test(f)), value: value || undefined, optional, text });
   }
   return out;
 }
@@ -284,6 +296,12 @@ export async function learnTool(
   words?: Store,
   /** Where to learn it from: its manual pages, its help (run held to reading), or either, manual first. */
   how: "manual" | "help" | "any" = "any",
+  /**
+   * Learned in bulk, with every other program on the machine, not because it was asked for: its
+   * name is a word for it only where English has no other word with that name, and what its
+   * pages say it does is a description for the scored match, not a reading of ordinary words.
+   */
+  bulk = false,
 ): Promise<ToolResult> {
   // A program's manual page, or where it has none, its own help: the same structure either way.
   let manual = how !== "help";
@@ -322,13 +340,22 @@ export async function learnTool(
   }
   const understand = words ? summaryReader(words) : undefined;
   const lex = words ?? store;
-  // The tool's own name is a word for the tool: "git push" is push, done with git.
-  const toolWord = names.word(program);
-  if (!store.lookup(program).some((h) => store.facts(h.concept).some((f) => isSeedPart(f.meta.from, "function-words")))) {
+  // The tool's own name is a word for the tool: "git push" is push, done with git. A program
+  // learned in bulk whose name English already has as a word ("yes", "date", "file") is not that
+  // word: it is a concept of its own, named as a program ("the date command") or as code (`date`).
+  const english = (w: string) =>
+    bulk ? lex.lookup(w).find((h) => h.text === w && lex.facts(h.concept).some((f) => !isHead(f.meta.from, "ToolDoc") && !isHead(f.meta.from, "Tldr")))?.concept : undefined;
+  const sameWord = english(program);
+  const toolWord = sameWord ? names.other(`program:${program}`, `${encodeLemma(program) ?? "Tool"}Program`) : names.word(program);
+  if (sameWord || !store.lookup(program).some((h) => store.facts(h.concept).some((f) => isSeedPart(f.meta.from, "function-words")))) {
     const toolFrom = c("ToolDoc", s(program), s("NAME"));
     // A tool (the core's kind of what is learned to use), called by its name.
     const claims: Expr[] = [c("IsA", c("Tool")), c("Name", s(program))];
-    if (!store.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
+    if (sameWord) {
+      const command = lex.lookup("command").find((h) => lex.facts(h.concept, "IsA").some((f) => isHead(positional(f.claim as Call)[0], "Program")))?.concept;
+      // Named as a program it is a noun ("the date command"), as well as a thing (below).
+      if (command) claims.push(c("Words", c(sameWord), c(command)), c("Category", c("Noun")));
+    } else if (!store.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
     if (!store.facts(toolWord, "Category").length)
       claims.push(c("Category", c("Thing")), c("Category", c("Manner"), c("Modifies", ["side", c("Right")], ["category", c("Act")], ["role", c("Instrument")])));
     forms.push(c("Concept", c(toolWord), ...claims, ["from", toolFrom]));
@@ -352,9 +379,9 @@ export async function learnTool(
   const act = (lemma: string) => {
     const word = names.word(lemma);
     const claims: Expr[] = [];
-    if (!store.facts(word, "Lemma").length) claims.push(c("Lemma", s(lemma)));
+    if (!(bulk ? lex : store).facts(word, "Lemma").length) claims.push(c("Lemma", s(lemma)));
     // A command is something done: its word is an act that may take what it is done to.
-    if (!store.facts(word, "Category").length)
+    if (!(bulk ? lex : store).facts(word, "Category").length)
       claims.push(c("Category", c("Act"), c("Takes", ["side", c("Right")], ["category", c("Thing")], ["role", c("Theme")], ["optional", { kind: "boolean", value: true, pos: { line: 0, column: 0 } }])));
     return { word, claims };
   };
@@ -392,8 +419,10 @@ export async function learnTool(
   // Each reading also comes in forms that name the tool, done with it or said of it ("git status":
   // status, with git; "the git log": the log, of git), so the tool's name picks its own command
   // where two tools share a word.
+  // Learned in bulk, a reading of ordinary words ("create a file") is only in the forms that name
+  // the tool: said without it, what the page describes is the scored match's to find.
   const reading = (word: string, pattern: Expr, becomes: Expr, from: Expr, effects: Expr) => {
-    forms.push(c("Reading", ["on", c(word)], ["pattern", pattern], ["becomes", becomes], ["effects", effects], ["from", from]));
+    if (!bulk || word === toolWord) forms.push(c("Reading", ["on", c(word)], ["pattern", pattern], ["becomes", becomes], ["effects", effects], ["from", from]));
     if (isCall(pattern) && word !== toolWord)
       for (const r of ["instrument", "modifier"])
         forms.push(c("Reading", ["on", c(word)], ["pattern", { ...pattern, args: [...pattern.args, { name: r, value: c(toolWord) }] }], ["becomes", becomes], ["effects", effects], ["from", from]));
@@ -463,7 +492,7 @@ export async function learnTool(
     // A group's command that only shows the thing itself ("View a pull request": what it is done
     // to is its object, not part of it, and nothing more is said of it than the group's kind; not
     // "a pull request in git") is what showing one is: "show me pr 1748".
-    if (group?.kind && isHead(effects, "Reads") && isCall(heard.u?.heard)) {
+    if (!bulk && group?.kind && isHead(effects, "Reads") && isCall(heard.u?.heard)) {
       const holed = withoutObject(withoutAgent(heard.u.heard), group.kind, true);
       if (isCall(holed) && holed.args.some((a) => isVarNamed(a.value, OBJECT)))
         // Shown is read or said to the user (the bridge has both, chosen by the score).
@@ -482,7 +511,7 @@ export async function learnTool(
       optionTexts.add(id);
       const option = names.other(`option:${path.join(" ")} ${o.flag}`, `${encodeLemma(o.flag) ?? "Flag"}Option`);
       forms.push(c("Concept", c(option), c("IsA", c("Option")), c("PartOf", c(sense)), c("Name", s(o.flag)), ...o.aliases.map((a) => c("Name", s(a))), c("Said", c("Block", s(id))), ["from", optionFrom]));
-      if (o.value) {
+      if (o.value && !o.optional) {
         // An option whose value is text, by the words its page names the value with (its
         // placeholder, its flag: "--body <text>", "-m <msg>, --message=<msg>"), takes what the act
         // says (the message role, seed/function-words.ncon 11c): "comment on pr 1748 saying looks
@@ -499,11 +528,21 @@ export async function learnTool(
         }
         continue;
       }
-      const ou = await understand?.(o.text);
+      // What it does is its first sentence; what follows qualifies it.
+      const ou = await understand?.(o.text.split(/(?<=\.)\s/)[0]);
       if (!ou?.heard) continue;
       const optFrom = c("ToolDoc", s(path.join("-")), s(o.flag));
       const eff = isHead(effects, "Reads") && ou.effects ? effects : c("UnknownEffects");
       phrased(ou.heard, (x) => run(path, ...(x ? [v("x")] : []), s(o.flag)), optFrom, eff);
+      // What the option does, as its page says it, is a description of the command run with it,
+      // for the scored match ("selects the listing of files any of whose Internet address
+      // matches"), as the command's own summary is. A command line that needs an argument is
+      // stuck on it until it is said.
+      if (!group && usage) {
+        const needed = requiredPlaceholder(usage);
+        forms.push(c("Concept", c(option), c("Describes", c(option), ou.what), ["from", optFrom]));
+        forms.push(c("Reading", ["on", c(option)], ["pattern", c(option)], ["becomes", run(path, s(o.flag), ...(needed ? [c("Gap", s(needed))] : []))], ["effects", eff], ["from", optFrom]));
+      }
     }
     commands.push(path.slice(1).join(" ") || program);
   };

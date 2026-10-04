@@ -36,6 +36,7 @@ Fact(Feature(), Weight("Match:Scored", 1.5))
 Fact(Feature(), Weight("Match:Uncovered", 1))
 Fact(Feature(), Weight("Match:Unexplained", 1))
 Fact(Feature(), Weight("Match:Distance", 0.25))
+Fact(Feature(), Weight("Match:Ambiguity", 0.5))
 Concept(Match(), Threshold(-1.8))
 
 // A reading the user gave (trust level 1) is what they said they mean (runtime.md 8.1: Trust):
