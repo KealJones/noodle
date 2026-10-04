@@ -33,7 +33,13 @@ export interface KnowOptions {
    * The last source, asked a question in its own words and answering in its own (ChatGPT,
    * through the program the config names: Run, held as sending outside). Absent, it is not asked.
    */
-  chatgpt?: (question: string) => Promise<string | undefined>;
+  chatgpt?: (question: string | ChatMessage[]) => Promise<string | undefined>;
+}
+
+/** A message of the chat with ChatGPT, as gptb's OpenAI-compatible server takes it. */
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
 export class Know {
@@ -131,31 +137,83 @@ export class Know {
       await this.understand(found).catch(() => undefined);
       return k;
     }
-    // Before giving up, the last source: it answers the question itself, so what it says is about it.
-    return this.ask(question, topic);
+    // ChatGPT is not asked here: a question nothing answers is stuck, and the turn asks ChatGPT how
+    // it is done or answered, in a fixed shape (tutor.ts, howPrompt).
+    return undefined;
   }
 
   /**
-   * ChatGPT's answer to a question (the last source, trust level 4): kept as content from it, and
-   * understood into facts like any page, about what the question is about. What it says is a
-   * proposal at most: it never grants or sets a rule (design section 20). With understand false,
-   * the reply is kept as content only, for the asker to hear (the tutor hears its own part of it).
+   * An answer ChatGPT gave in its own words, asked how a question is answered (tutor.ts): kept as
+   * content from it, and understood into facts like any page, about what the question is about.
    */
-  async ask(question: string, topic?: string, opts: { understand?: boolean } = {}): Promise<Knowledge | undefined> {
-    const have = this.cached("ask", question);
-    if (have || this.opts.offline || !this.opts.chatgpt) return have;
-    // A source that did not answer is not asked again for a while: each try waits on it (gptb
-    // waits for ChatGPT's page), and a turn should not pay that for every question.
-    if (this.quietUntil > this.now().getTime()) return undefined;
-    const text = (await this.opts.chatgpt(question).catch(() => undefined))?.trim();
+  async keepAnswer(text: string, title: string): Promise<Knowledge> {
+    const found: Found = { text, title, url: "", source: "ChatGPT", media: "text/markdown" };
+    const k = this.keep("answer-from-chatgpt", title, found);
+    await this.understand(found).catch(() => undefined);
+    return k;
+  }
+
+  /** Whether ChatGPT can be asked: it is configured and Know may go out. */
+  get canAsk(): boolean {
+    return !!this.opts.chatgpt && !this.opts.offline && this.quietUntil <= this.now().getTime();
+  }
+
+  /**
+   * Whether a page found for a question is about only what was asked: its title (without what is
+   * in parentheses) is made only of the question's words. A page whose title brings words of its
+   * own ("Date palm", "The Twelve Days of Christmas") only shares words with the question, and an
+   * answer to the question itself is better where one can be had (the same test about() makes).
+   */
+  close(k: Pick<Knowledge, "title">, topic: string): boolean {
+    const split = (x: string) => x.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
+    const words = split(topic);
+    const title = split(k.title.replace(/\([^)]*\)/g, ""));
+    const stem = (w: string) => w.slice(0, Math.max(4, w.length - 2));
+    return title.length > 0 && title.every((t) => words.some((w) => stem(w) === stem(t) || w.startsWith(stem(t)) || t.startsWith(stem(w))));
+  }
+
+  /**
+   * One message in Noodle's one chat with ChatGPT (design section 17): everything Noodle asks it
+   * (the tutor's choices, how a stuck message is done, the follow-ups) goes to the same chat, so
+   * ChatGPT builds up a sense of how Noodle asks. The chat is the rules (`system`), then each
+   * exchange so far, kept in the store as facts on ChatGPT (`Exchange(Block(asked), Block(reply))`,
+   * from ChatGPT, so it survives restarts), then the new message: gptb's server continues the same
+   * chat where the history matches what it has seen. Each message carries the context it needs
+   * inline. Where the chat cannot be continued (no reply), a new one is started once, with the rules
+   * and the message alone, and the history counts from there. Nothing is cached: the chat goes on.
+   */
+  async converse(system: string, message: string): Promise<string | undefined> {
+    if (this.opts.offline || !this.opts.chatgpt || this.quietUntil > this.now().getTime()) return undefined;
+    const chatgpt = this.opts.chatgpt;
+    const history = this.chat();
+    const send = (past: ChatMessage[]) => chatgpt([{ role: "system", content: system }, ...past, { role: "user", content: message }]).catch(() => undefined);
+    let text = (await send(history))?.trim();
+    let fresh = false;
+    if (!text && history.length) {
+      text = (await send([]))?.trim();
+      fresh = true;
+    }
     if (!text) {
       this.quietUntil = this.now().getTime() + QUIET_MS;
       return undefined;
     }
-    const found: Found = { text, title: topic ?? question, url: "", source: "ChatGPT", media: "text/markdown" };
-    const k = this.keep("ask", question, found);
-    if (opts.understand !== false) await this.understand(found).catch(() => undefined);
-    return k;
+    const from = c("ChatGPT");
+    const asked = this.store.addBlock(message, "text/plain", c("Self"));
+    const reply = this.store.addBlock(text, "text/markdown", from);
+    this.store.addFact("ChatGPT", c("Exchange", c("Block", s(asked.id)), c("Block", s(reply.id)), ...(fresh ? ([["fresh", { kind: "boolean", value: true, pos: { line: 0, column: 0 } }]] as [string, Expr][]) : [])), from);
+    return text;
+  }
+
+  /** The chat with ChatGPT so far, from the last time it was started afresh. */
+  private chat(): ChatMessage[] {
+    const out: ChatMessage[] = [];
+    for (const f of this.store.facts("ChatGPT", "Exchange")) {
+      const [q, r] = positional(f.claim as Call).map((b) => (isCall(b) ? positional(b)[0] : undefined)).map((id) => (id?.kind === "string" ? this.store.block(id.value)?.body : undefined));
+      if (q === undefined || r === undefined) continue;
+      if (role(f.claim, "fresh")) out.length = 0;
+      out.push({ role: "user", content: q }, { role: "assistant", content: r });
+    }
+    return out;
   }
 
   /**

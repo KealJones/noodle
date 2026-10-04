@@ -111,7 +111,7 @@ export const STRUCTURAL = {
   },
   loop: {
     why: "try, offer, learn (design section 17): the numbered choice the turn says and a number picks from, what a typed command taught, and ChatGPT asked as a tutor for a choice and what it picked",
-    names: ["Choices", "Choice", "Taught", "Slots", "Tutor", "Tutored", "Proposes", "Suggested"],
+    names: ["Choices", "Choice", "Taught", "Slots", "Tutor", "Tutored", "Proposes", "Suggested", "Asks"],
   },
   speaking: {
     why: "seed draft: what Say is handed to realize, and the printing step of design section 25b",
@@ -141,6 +141,11 @@ export const STRUCTURAL = {
       "Learned",
       // The last source Know asks, through the program the config names (design section 21).
       "ChatGPT",
+      // Noodle's one chat with ChatGPT: each message it sent and the reply, kept in order.
+      "Exchange",
+      // A word whose meaning is fixed by who says it, where and when: a question it is in is
+      // about here, worked out locally and never answered from the world's sources.
+      "Deixis",
       // A page read into structure: what a section holds beside paragraphs and items (Section,
       // Paragraph and Item are a manual page's too).
       "Row", "Link", "Fields", "Field",
