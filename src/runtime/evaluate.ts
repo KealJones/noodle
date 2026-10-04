@@ -11,7 +11,7 @@ import type { Conversation, StandingRule } from "./conversation.js";
 import { match } from "./match.js";
 import { GUARDED, type EffectClass, type Primitive, type World } from "./primitive.js";
 import type { Mode, Step } from "./rewrite.js";
-import type { Store } from "./store.js";
+import type { FactItem, Store } from "./store.js";
 import { type Features, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { isThing, things } from "./primitives/hold.js";
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
@@ -1113,7 +1113,7 @@ export class Evaluator {
     if (!isCall(thing)) return undefined;
     const doc = (from: Expr) => this.trustLevel(from) >= 3;
     const saidOf = (concept: string, page?: Expr) => {
-      for (const f of this.store.facts(concept, "Sense")) {
+      for (const f of this.certainSenses(concept)) {
         const sense = positional(f.claim as Call)[0];
         if (!isCall(sense) || !doc(f.meta.from) || (page && key(f.meta.from) !== key(page))) continue;
         const said = this.store.facts(sense.head, "Said").find((x) => key(x.meta.from) === key(f.meta.from));
@@ -1135,6 +1135,16 @@ export class Evaluator {
     // A program named as one: a concept documentation gave a summary, of a sense or of its own.
     if (thing.args.length) return undefined;
     return saidOf(thing.head) ?? own(thing.head);
+  }
+
+  /**
+   * A word's sense when it has only one, so the word means it for certain ("jq" is the jq
+   * command). Of a word with several ("tar": the substance, the program), which is meant is the
+   * reading's choice, made by the score where the sense replaced the word, not the answer's.
+   */
+  private certainSenses(concept: string): FactItem[] {
+    const senses = this.store.facts(concept, "Sense");
+    return new Set(senses.map((f) => key(f.claim))).size === 1 ? senses : [];
   }
 
   /**
@@ -1190,7 +1200,7 @@ export class Evaluator {
     }
     // The thing's parts: what is PartOf it or of one of its senses.
     if (anchors.length) {
-      const wholes = anchors.flatMap((a) => [a, ...this.store.facts(a, "Sense").flatMap((f) => { const x = positional(f.claim as Call)[0]; return isCall(x) ? [x.head] : []; })]);
+      const wholes = anchors.flatMap((a) => [a, ...this.certainSenses(a).flatMap((f) => { const x = positional(f.claim as Call)[0]; return isCall(x) ? [x.head] : []; })]);
       const parts = new Set(wholes.flatMap((w) => subjects(w, "PartOf")));
       found = found ? found.filter((m) => parts.has(m)) : [...parts].filter((m) => this.store.facts(m, "Said").length);
     }
