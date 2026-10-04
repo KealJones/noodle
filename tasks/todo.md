@@ -138,3 +138,9 @@
   do" answer from the man page. Left: some sub-second turns are still 2 to 3 times slower with
   everything loaded (the scored match's pool grows with the descriptions that share a common
   concept: an index of which heads are kin would make it sublinear).
+- **Open regressions** (small): "read notes.txt and tell me how many lines it has" prints the file
+  and junk instead of the count; "what branch am i on" answered the folder path with the
+  re-imported packs; "how many grams are in a pound" gets junk Wikipedia with ChatGPT off; "add
+  a.txt and b.txt" asks whether to append one file into the other.
+- **Direction under review** (tasks/handoff.md): Keal is reconsidering size, load time and host
+  dependence. Do not add bulk imports or start the browser port before asking.
