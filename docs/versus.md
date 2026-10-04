@@ -1,12 +1,12 @@
 # Noodle beside Napkin
 
-Run 2026-10-03 23:13 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
+Run 2026-10-04 00:03 UTC with `pnpm versus` (scripts/versus.mjs): 94 everyday prompts in 14 sessions, written once without looking at the corpus and not tuned to either system. The criteria for each verdict are stated at the top of the script: RIGHT (answered, or did or offered the act), HONEST (said it was stuck), WRONG (a wrong answer, a page about something else, or an act it should not have done), ERROR (crashed, timed out or said nothing). Replies are cut at 400 characters here.
 
 ## Summary
 
 | | RIGHT | HONEST | WRONG | ERROR |
 |---|---|---|---|---|
-| Noodle | 38 | 46 | 10 | 0 |
+| Noodle | 47 | 37 | 10 | 0 |
 | Napkin | 31 | 49 | 14 | 0 |
 
 By session (RIGHT / HONEST / WRONG / ERROR):
@@ -14,19 +14,19 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | session | Noodle | Napkin |
 |---|---|---|
 | small talk | 5 / 3 / 0 / 0 | 6 / 1 / 1 / 0 |
-| facts | 4 / 3 / 1 / 0 | 2 / 5 / 1 / 0 |
-| math | 5 / 1 / 1 / 0 | 5 / 1 / 1 / 0 |
+| facts | 6 / 1 / 1 / 0 | 2 / 5 / 1 / 0 |
+| math | 6 / 0 / 1 / 0 | 5 / 1 / 1 / 0 |
 | units | 1 / 3 / 1 / 0 | 2 / 3 / 0 / 0 |
 | time and reminders | 2 / 1 / 2 / 0 | 4 / 1 / 0 / 0 |
-| lists and memory | 2 / 7 / 0 / 0 | 2 / 5 / 2 / 0 |
-| definitions | 2 / 4 / 0 / 0 | 3 / 1 / 2 / 0 |
-| files | 2 / 5 / 1 / 0 | 0 / 7 / 1 / 0 |
+| lists and memory | 4 / 5 / 0 / 0 | 2 / 5 / 2 / 0 |
+| definitions | 3 / 3 / 0 / 0 | 3 / 1 / 2 / 0 |
+| files | 2 / 4 / 2 / 0 | 0 / 7 / 1 / 0 |
 | git | 4 / 1 / 3 / 0 | 0 / 8 / 0 / 0 |
 | instructions | 3 / 1 / 0 / 0 | 0 / 4 / 0 / 0 |
-| multi-step | 1 / 3 / 1 / 0 | 0 / 4 / 1 / 0 |
-| typos and messy phrasing | 3 / 5 / 0 / 0 | 2 / 5 / 1 / 0 |
+| multi-step | 2 / 3 / 0 / 0 | 0 / 4 / 1 / 0 |
+| typos and messy phrasing | 4 / 4 / 0 / 0 | 2 / 5 / 1 / 0 |
 | near-misses | 4 / 3 / 0 / 0 | 2 / 3 / 2 / 0 |
-| conversation | 0 / 6 / 0 / 0 | 3 / 1 / 2 / 0 |
+| conversation | 1 / 5 / 0 / 0 | 3 / 1 / 2 / 0 |
 
 ## small talk
 
@@ -48,9 +48,9 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 9 | what is the capital of japan? | From Wikidata:<br><br>Tokyo | RIGHT | Tokyo. | RIGHT |
 | 10 | who wrote pride and prejudice | From Wikipedia, [Pride & Prejudice (2005 film)](https://en.wikipedia.org/wiki/Pride_%26_Prejudice_(2005_film)):<br><br>Pride & Prejudice is a 2005 period romance film directed by Joe Wright, in his feature directorial debut, based on Jane Austen's 1813 novel of the same name. The film features five sisters from an English family of landed gentry as they deal with issues of marriage, morality, and  ... | RIGHT | I don't know that yet. | HONEST |
 | 11 | how many legs does a spider have | I couldn't work out "how many legs does a spider have". | HONEST | I heard that as "how many legs does have spider", but couldn't work it out. Could you put it another way? | HONEST |
-| 12 | what's the boiling point of water in celsius | I couldn't work out "what's the boiling point of water in celsius". | HONEST | I don't know boiling point of water in celsius yet. | HONEST |
+| 12 | what's the boiling point of water in celsius | From ChatGPT:<br><br>Water boils at **100°C** at standard atmospheric pressure, roughly sea level. | RIGHT | I don't know boiling point of water in celsius yet. | HONEST |
 | 13 | who painted the mona lisa? | From Wikipedia, [Mona Lisa](https://en.wikipedia.org/wiki/Mona_Lisa):<br><br>The Mona Lisa is a half-length portrait painting by the Italian artist Leonardo da Vinci. Considered an archetypal masterpiece of the Italian Renaissance, it has been described as "the best known, the most visited, the most written about, the most sung about, \[and\] the most parodied work of art in the world". The painti ... | RIGHT | Leonardo Da Vinci. | RIGHT |
-| 14 | what year did the berlin wall fall | I couldn't work out "what year did the berlin wall fall". | HONEST | I don't know that yet. | HONEST |
+| 14 | what year did the berlin wall fall | From ChatGPT:<br><br>The Berlin Wall fell in **1989**, on **November 9, 1989**. | RIGHT | I don't know that yet. | HONEST |
 | 15 | is a tomato a fruit? | From Wikipedia, [Helicoverpa zea](https://en.wikipedia.org/wiki/Helicoverpa_zea):<br><br>Helicoverpa zea, commonly known as the corn earworm, is a species in the family Noctuidae. The larva of the moth Helicoverpa zea is a major agricultural pest. Since it is polyphagous during the larval stage, the species has been given many different common names, including the cotton bollworm and the tomato fr ... | WRONG | I don't know yet. | HONEST |
 | 16 | what language do they speak in brazil | From Wikipedia, [Languages of Brazil](https://en.wikipedia.org/wiki/Languages_of_Brazil):<br><br>Portuguese is the official and national language of Brazil, being widely spoken by nearly all of its population. Brazil is the most populous Portuguese-speaking country in the world, with its lands comprising the minority of Portugal's former colonial holdings in the Americas. | RIGHT | English. | WRONG |
 
@@ -64,7 +64,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 20 | whats 100 divided by 8 | 100 divided by 8 is 12.5. | RIGHT | 12.5. | RIGHT |
 | 21 | square root of 144? | the square root of 144 is 12. | RIGHT | 12 | RIGHT |
 | 22 | 2+2 | 2 plus 2 is 4. | RIGHT | I see. | WRONG |
-| 23 | if i have 3 apples and eat one how many are left | I couldn't work out "if i have 3 apples and eat one how many are left". | HONEST | I don't know how many are left yet. | HONEST |
+| 23 | if i have 3 apples and eat one how many are left | From ChatGPT:<br><br>2 apples. | RIGHT | I don't know how many are left yet. | HONEST |
 
 ## units
 
@@ -80,7 +80,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 29 | what time is it | It's 4:15 PM. | RIGHT | It is 10:59 PM. | RIGHT |
+| 29 | what time is it | It's 5:10 PM. | RIGHT | It is 10:59 PM. | RIGHT |
 | 30 | what day is it today | Today is Saturday, October 3. | RIGHT | Thursday. | RIGHT |
 | 31 | what's the date tomorrow | From Wikipedia, [Date palm](https://en.wikipedia.org/wiki/Date_palm):<br><br>Phoenix dactylifera, commonly known as the date palm, is a flowering-plant species in the palm family Arecaceae, native to the region from the Gulf States and Iraq to Pakistan and India. It is cultivated for its edible sweet fruit called dates. The species is widely cultivated across northern Africa, the Middle East, Aust ... | WRONG | Friday, October 2, 2026 | RIGHT |
 | 32 | remind me to call the dentist at 3pm | I couldn't work out "remind me to call the dentist at 3pm". | HONEST | I don't know how to remind yet. | HONEST |
@@ -95,8 +95,8 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 36 | also add bread | I couldn't work out "also add bread". | HONEST | I don't know how to add yet. | HONEST |
 | 37 | what's on my grocery list? | You haven't told me that. | HONEST | I don't know yet. | HONEST |
 | 38 | take milk off the list | I couldn't work out "take milk off the list".<br><br>I understood add milk to I, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I don't know how to milk yet. | HONEST |
-| 39 | remember that my sister's birthday is june 4 | I couldn't work out "remember that my sister's birthday is june 4". | HONEST | That makes 4. | WRONG |
-| 40 | when is my sister's birthday? | I couldn't work out "when is my sister's birthday?". | HONEST | I don't know your sister's birthday yet. | HONEST |
+| 39 | remember that my sister's birthday is june 4 | From ChatGPT:<br><br>I’ll remember that your sister’s birthday is June 4. | RIGHT | That makes 4. | WRONG |
+| 40 | when is my sister's birthday? | From ChatGPT:<br><br>Your sister’s birthday is **June 4**. memcite | RIGHT | I don't know your sister's birthday yet. | HONEST |
 | 41 | my name is sam | Got it: your name is sam. | RIGHT | I see. | WRONG |
 | 42 | what's my name | Your name is sam. | RIGHT | Sam. | RIGHT |
 
@@ -106,7 +106,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 43 | what does ephemeral mean | From Wikipedia, [Ephemerality](https://en.wikipedia.org/wiki/Ephemerality):<br><br>Ephemerality is the concept of things being transitory, existing only briefly. Academically, the term ephemeral constitutionally describes a diverse assortment of things and experiences, from digital media to types of ponds and streams.<br>With respect to unique performances, for example, it has been noted that "\[e ... | RIGHT | "ephemeral" means: lasting for a short period of time. | RIGHT |
 | 44 | define ubiquitous | I couldn't work out "define ubiquitous". | HONEST | An ubiquitous is the property of being present everywhere. | RIGHT |
-| 45 | what's a synonym for happy | I couldn't work out "what's a synonym for happy". | HONEST | I don't know synonym for happy yet. | HONEST |
+| 45 | what's a synonym for happy | From ChatGPT:<br><br>Cheerful. | RIGHT | I don't know synonym for happy yet. | HONEST |
 | 46 | what is photosynthesis | From Wikipedia, [Photosynthesis](https://en.wikipedia.org/wiki/Photosynthesis):<br><br>Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photos ... | RIGHT | A photosynthesis is a biological process to convert light into chemical energy. | RIGHT |
 | 47 | what does idempotent mean in programming | I couldn't work out "what does idempotent mean in programming". | HONEST | "programming" means: the designing, scheduling or planning of a radio or television program/programme. | WRONG |
 | 48 | meaning of the word serendipity | I couldn't work out "meaning of the word serendipity". | HONEST | I see. | WRONG |
@@ -118,7 +118,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 49 | what files are in this folder | From Wikipedia, [File folder](https://en.wikipedia.org/wiki/File_folder):<br><br>A file folder is a kind of folder that holds papers together for organization and protection. File folders usually consist of a sheet of heavy paper stock or other thin, but stiff, material which is folded in half, and are used to keep paper documents. They are often used in conjunction with a filing cabinet for stora ... | WRONG | I don't know yet. | HONEST |
 | 50 | show me the readme | `README.md`:<br><br>```<br># Shopping app<br><br>A tiny app that keeps a shopping list.<br><br>Run it with node.<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: Readme() | HONEST |
 | 51 | what's in notes.txt | `notes.txt`:<br><br>```<br>buy milk<br>call mom<br>fix the bike<br>``` | RIGHT | I don't know yet. | HONEST |
-| 52 | how many lines are in notes.txt | I couldn't work out "how many lines are in notes.txt". | HONEST | I don't know yet. | HONEST |
+| 52 | how many lines are in notes.txt | From ChatGPT:<br><br>I can’t find a `notes.txt` file attached to this chat or available in your files. Upload it here, and I can count the lines. | WRONG | I don't know yet. | HONEST |
 | 53 | create a file called ideas.md with the text 'build a robot' | I don't know what `ideas.md` means here. | HONEST | I worked that out, but I don't know how to say it yet: Robot() | HONEST |
 | 54 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
 | 55 | rename ideas.md to plans.md | I don't know these words yet: ideas.md and plans.md. | HONEST | I don't know how to rename yet. | HONEST |
@@ -130,10 +130,10 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 |---|---|---|---|---|---|
 | 57 | what branch am i on | From the manual page `git-branch`:<br><br>List, create, or delete branches | WRONG | I don't know what branch on you yet. | HONEST |
 | 58 | what changed since the last commit | From Wikipedia, [Continuous integration: Committing changes](https://en.wikipedia.org/wiki/Continuous_integration#Committing_changes):<br><br>When making a code change, a developer creates a branch that is a copy of the current codebase. As other changes are committed to the repository, this copy diverges from the latest version.<br><br>The longer development continues on a branch without merging  ... | WRONG | I don't know changed since last commit yet. | HONEST |
-| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit cb9aa591d26b219f57cdca92299a70a34613640d<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 16:16:04 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
+| 59 | show me the git log | ```<br>git log<br>```<br><br>```<br>commit 71102390d89d8e393a61557833307c03b280a051<br>Author: Versus <versus@example.com><br>Date:   Sat Oct 3 17:12:01 2026 -0700<br><br>    first commit<br>``` | RIGHT | I don't know how to log yet. | HONEST |
 | 60 | commit my changes with the message 'update readme' | I can run `git commit`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to commit yet. | HONEST |
 | 61 | yes go ahead | `git commit` failed (exit 1):<br><br>```<br>On branch main<br>Changes not staged for commit:<br>  (use "git add <file>..." to update what will be committed)<br>  (use "git restore <file>..." to discard changes in working directory)<br>	modified:   README.md<br><br>no changes added to commit (use "git add" and/or "git commit -a")<br>``` | WRONG | I worked that out, but I don't know how to say it yet: GoAhead() | HONEST |
-| 62 | is the working tree clean now? | Did you mean one of these?<br><br>1. run `git clean the working tree`<br><br>2. run `git clean`<br><br>Say its number, or give me the right command in backticks. | RIGHT | I don't know yet. | HONEST |
+| 62 | is the working tree clean now? | Did you mean one of these?<br><br>1. run `git clean the working tree`<br><br>2. run `git clean`<br><br>3. run `git status` (ChatGPT's suggestion)<br><br>Say its number, or give me the right command in backticks. | RIGHT | I don't know yet. | HONEST |
 | 63 | create a branch called feature-login | I don't know what `feature-login` means here. | HONEST | I worked that out, but I don't know how to say it yet: BudgetExceeded(kind="steps", limit=4000) | HONEST |
 | 64 | push it | I can run `git push`, but I don't know yet what it changes. Go ahead? | RIGHT | I don't know how to push yet. | HONEST |
 
@@ -142,7 +142,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
 | 65 | don't run any git commands without asking me first | Got it: I won't run `git ...` until you say so.<br><br>I couldn't work out "first". | RIGHT | I worked that out, but I don't know how to say it yet: Not(NoCode()) | HONEST |
-| 66 | show me the git status | Did you mean one of these?<br><br>1. run `git status`, then run `git status`<br><br>2. run `git status`run `git status`run `git status`<br><br>Say its number, or give me the right command in backticks. | RIGHT | I don't know how to status yet. | HONEST |
+| 66 | show me the git status | Did you mean one of these?<br><br>1. run `git status`, then run `git status`<br><br>2. run `git status`run `git status`run `git status`<br><br>3. run `git status` (ChatGPT's suggestion)<br><br>Say its number, or give me the right command in backticks. | RIGHT | I don't know how to status yet. | HONEST |
 | 67 | from now on, keep your answers short | I couldn't work out "from now on, keep your answers short".<br><br>I understood one of its steps, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I worked that out, but I don't know how to say it yet: Short() | HONEST |
 | 68 | stop | Stopped. | RIGHT | I worked that out, but I don't know how to say it yet: Stop() | HONEST |
 
@@ -150,11 +150,11 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 69 | read notes.txt and tell me how many lines it has | I couldn't work out "read notes.txt and tell me how many lines it has".<br><br>I understood one of its steps, but I don't know how to do it yet. Give me its command in backticks and I'll remember it. | HONEST | I don't know how to note yet. | HONEST |
+| 69 | read notes.txt and tell me how many lines it has | I couldn't work out "read notes.txt and tell me how many lines it has".<br><br>I understood one of its steps, but I don't know how to do it yet. Give me its command in backticks and I'll remember it.<br><br>From ChatGPT:<br><br>I can do that, but I don’t currently have access to a `notes.txt` file in this chat or your file library. Upload `notes.txt`, and I’ll count the lines. | HONEST | I don't know how to note yet. | HONEST |
 | 70 | make a file called a.txt, then another called b.txt | I don't know these words yet: a.txt and b.txt. | HONEST | I don't know how to called yet. | HONEST |
 | 71 | yes | There's nothing I'm waiting to do. | HONEST | Got it. | WRONG |
 | 72 | list the files and then show me package.json | `package.json`:<br><br>```<br>{<br>  "name": "shop",<br>  "version": "1.0.0"<br>}<br>``` | RIGHT | I worked that out, but I don't know how to say it yet: PackageJson() | HONEST |
-| 73 | what's 6 times 7 and what's the capital of italy | 6 times 7 is 42. | WRONG | I don't know how to multiply yet. | HONEST |
+| 73 | what's 6 times 7 and what's the capital of italy | 6 times 7 is 42.<br><br>From ChatGPT:<br><br>6 × 7 = **42**, and the capital of Italy is **Rome**. | RIGHT | I don't know how to multiply yet. | HONEST |
 
 ## typos and messy phrasing
 
@@ -166,7 +166,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 | 77 | whats 9 tims 9 | 9 times 9 is 81. | RIGHT | I don't know yet. | HONEST |
 | 78 | remmber my fav color is green | I couldn't work out "remmber my fav color is green". | HONEST | I don't know how to is yet. | HONEST |
 | 79 | wats my fav color | You haven't told me that. | HONEST | I see. | WRONG |
-| 80 | can u tell me the tiem | I couldn't work out "can u tell me the tiem". | HONEST | It is 11:06 PM. | RIGHT |
+| 80 | can u tell me the tiem | From ChatGPT:<br><br>It’s **5:14 PM** in Phoenix right now.<br><br>genui | RIGHT | It is 11:06 PM. | RIGHT |
 | 81 | sooo how r u | I'm good, thanks. | RIGHT | I don't know what sooo is yet. Tell me (like "sooo is ...") and I'll remember. | HONEST |
 
 ## near-misses
@@ -185,7 +185,7 @@ By session (RIGHT / HONEST / WRONG / ERROR):
 
 | # | prompt | Noodle | verdict | Napkin | verdict |
 |---|---|---|---|---|---|
-| 89 | tell me a joke | I couldn't work out "tell me a joke". | HONEST | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
+| 89 | tell me a joke | From ChatGPT:<br><br>Why don’t skeletons fight each other?<br><br>They don’t have the guts. 😄 | RIGHT | A joke is a short fictional story with the intent to make people laugh. | RIGHT |
 | 90 | what can you do? | I don't know that about myself. | HONEST | Arithmetic, follow up arithmetic, dates and times, remember what you tell me, recall what you said, describe what i know, learn new words, look things up, continue sequences, compare two things, say what a plan is missing and forget what you ask. | WRONG |
 | 91 | that's not what I meant | I couldn't work out "that's not what I meant". | HONEST | I don't know how to is yet. | HONEST |
 | 92 | who made you | I don't know that about myself. | HONEST | I see. | WRONG |

@@ -248,10 +248,14 @@ function textOf(lines: Line[]): string {
 }
 
 class Builder {
-  constructor(private readonly world: World) {}
+  constructor(
+    private readonly world: World,
+    /** Where the text comes from: the tool's own documentation, kept as its source. */
+    private readonly from: Expr = SELF,
+  ) {}
 
   block(text: string): Expr {
-    return blockRef(this.world.store.addBlock(text, "text/plain", SELF).id);
+    return blockRef(this.world.store.addBlock(text, "text/plain", this.from).id);
   }
 
   /** A body's content as Paragraph, Item and Subsection parts. */
@@ -350,7 +354,7 @@ export function readManPage(world: World, source: Call): Expr {
     : run(world, "mandoc", ["-T", "tree", page]);
   const { root, section } = parseTree(tree);
   mdocFlags(root);
-  const build = new Builder(world);
+  const build = new Builder(world, c("ToolDoc", s(name)));
 
   const head: [string, Expr][] = [["name", s(name)]];
   if (section !== undefined) head.push(["section", /^\d+$/.test(section) ? n(Number(section)) : s(section)]);
