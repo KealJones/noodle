@@ -103,11 +103,23 @@
   tar do" answers from tar's page (a program named by an English word is that word's newest sense,
   a noun, chosen by the score; an answer uses a word's senses only when it has one); "display the
   readme" reads it; "how many X <clause>" is a question (how many of a kind fills the clause's
-  gap). Left: "port 3000" in "what is listening on port 3000" is still the verb port, and in
-  "what's using port 3000" a reading that drops the port leaves fewer unworked expressions and wins
-  (a dropped word should cost what Unworked:Dropped costs); "this folder" and "the current folder"
-  are never the workspace (WordNet's folder has no computing sense, and nothing connects Folder to
-  the Directory that reading "." gives); "find X" ties between finding (Read) and getting (Store
+  gap). Done since (2026-10-04, hearing): "port 3000", "process 1234" are the noun named by the
+  numeral (a lexical rule on Noun, by the value's shape), and a WithRoles that overwrites a role
+  said costs Unworked:Dropped, so "what's using port 3000" keeps the port; "this folder", "the
+  current directory" are "." (the core's Directory is "directory" and "folder"; deixis on "this"
+  and "current"); a bracket is an aside, never an argument, and after a noun lists kinds of it;
+  "whose" relatives; "lists" shows. Left: "what's using port 3000" ties between Use's VerbNet
+  readings (consume: Remove) and "using" the noun, and reaches no command; "which process is
+  listening on port 8080" is heard (Listen of Port(8080)) but reaches no command (lsof's pack is not
+  installed); "show network connections" ties between Read and `git show <them>` (the git show
+  reading's slot has no kind, so a concept fills a command line; the importer could want a name
+  there); "what files does process 1234 have open" is not heard: the gap is Have's theme before a
+  secondary predicate ("have _ open"), and a gap passes up only through Compose, so no entry
+  carries it; "selects" in lsof's -i is still obtain-13.5.2 (Store), and the -i sentence ("files
+  any of whose Internet address matches the address specified in i") is heard only in pieces
+  ("whose Internet" and "address matches" as a verb, "specified" as a past tense); lsof's whole
+  DESCRIPTION sentence with eight kinds gives only Directory (its "an executing text reference" is
+  heard as a participle taking the rest of the list). "find X" ties between finding (Read) and getting (Store
   into the addressee) and the order decides, and VerbNet's encounter frame for find is never
   matched (its subject is an Experiencer, and the chart names every subject agent); "how many grams
   are in a pound" and "how many minutes are in 3 hours" are now questions whose lookups find wrong

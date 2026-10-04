@@ -17,7 +17,10 @@ export interface TakesSpec {
   head?: string | string[];
   /** A kind of role the argument's head word must mark (Marks facts on it): a spatial slot. */
   marks?: string;
-  /** A kind the argument must be (its word, or what its shape says it is: a numeral is a number). */
+  /**
+   * A kind the argument must be: its word or shape itself, or a kind it is said to be one step up
+   * (a numeral is a number; a code span is a name).
+   */
   kind?: string;
   /**
    * The argument is taken as the words said, as written, not as what they mean: what follows
@@ -244,10 +247,13 @@ export class Chart {
       // lexical rules are over acts, is an act, however often its word is used as a noun. (A
       // form only guessed from a suffix, "find" as "fin" and "d", says nothing of the kind.)
       const formed = new Set(cand.source === "Exact" ? cand.features.flatMap((x) => this.rulesOn(x)).map((r) => (isCall(r.pattern) ? r.pattern.head : "")) : []);
+      const given = entries.some((en) => en.seed);
       for (const en of entries) {
         if (en.fillsGap) this.hasGapWord = true;
         const f = joined(features, en.category);
-        const p = formed.has(en.category) ? undefined : prior?.get(en.category);
+        // A word the seed gives entries to is what the seed says it is: an imported entry beside
+        // them ("plus" as a noun, "can" as a container) is a sense more than it has.
+        const p = formed.has(en.category) ? undefined : (prior?.get(en.category) ?? (given && !en.seed ? -1 : undefined));
         if (p !== undefined) addFeature(f, "SenseFrequency:Category", p);
         out.push(
           this.make({
@@ -309,7 +315,10 @@ export class Chart {
     if (t.kind) {
       const kind = t.kind;
       const heads = [arg.word, isCall(arg.expr) ? arg.expr.head : undefined].filter((x): x is string => !!x);
-      if (!heads.some((h) => h === kind || this.store.kinds(h).has(kind))) return false;
+      // What a thing is said to be, one step up: what its noun senses are, not what its word
+      // means as a verb, nor what a far broader kind takes in ("i" is a digit, a kind of integer,
+      // a kind of number, but not a number said).
+      if (!heads.some((h) => h === kind || (this.store.kinds(h, "Noun").get(kind) ?? Infinity) <= 1)) return false;
     }
     if (!t.head && !t.marks) return true;
     if (!isCall(arg.expr)) return false;
@@ -323,6 +332,18 @@ export class Chart {
     return true;
   }
 
+  /**
+   * A word taken where an entry asks for that very word ("cause" takes "to" and an act) fits the
+   * entry better than the same words put together another way (runtime.md 8.1, ShapeFit). So does
+   * a value of the kind a slot asks for, where the word itself is known to take that role (what a
+   * tool's documentation says of a port: one is named by a number), not where only its category
+   * could ("read" the noun followed by a file's name is no named read).
+   */
+  private named(t: TakesSpec, head: Edge): Features {
+    const fits = t.head || t.marks || (t.kind && !!head.word && this.entries(head.word).entries.some((en) => en.takes.some((x) => x.role === t.role)));
+    return fits ? new Map([["ShapeFit:Head", 1]]) : new Map();
+  }
+
   /** Take: a head with a pending argument on a side combines with an adjacent complete edge. */
   private take(head: Edge, arg: Edge, side: "Left" | "Right"): Edge | undefined {
     const p = head.pending[0];
@@ -333,7 +354,8 @@ export class Chart {
     if (!this.headFits(p.takes, arg)) return undefined;
     // A gap may only be taken by an entry whose FillsGap says it can, and that entry's last argument
     // (the clause the displaced phrase came from) must have it.
-    if (arg.gap && head.acceptsGap !== arg.gap) return undefined;
+    // ...and only there: an argument before it fills no gap ("which" takes its noun whole).
+    if (arg.gap && (head.acceptsGap !== arg.gap || head.pending.slice(1).some((x) => !x.takes.optional))) return undefined;
     if (head.acceptsGap && head.pending.length === 1 && arg.gap !== head.acceptsGap) return undefined;
     if (head.gap && arg.gap) return undefined;
     const isMark = p.takes.category === "Mark";
@@ -348,7 +370,7 @@ export class Chart {
       expr,
       pending: head.pending.slice(1),
       gap: head.gap ?? (arg.gap && head.acceptsGap === arg.gap ? undefined : arg.gap),
-      features: mergeFeatures(head.features, arg.features, named(p.takes)),
+      features: mergeFeatures(head.features, arg.features, this.named(p.takes, head)),
       byRule: false,
       step: "take",
       back: [head, arg],
@@ -430,7 +452,7 @@ export class Chart {
       expr,
       pending: [...inner, ...head.pending.slice(1)],
       acceptsGap: arg.acceptsGap ?? head.acceptsGap,
-      features: mergeFeatures(head.features, arg.features, named(p.takes)),
+      features: mergeFeatures(head.features, arg.features, this.named(p.takes, head)),
       byRule: false,
       step: "compose",
       back: [head, arg],
@@ -695,7 +717,7 @@ export class Chart {
 
 /** The chart entries of a concept: its Category facts (each with nested Takes...) and Joins facts. */
 export function entriesOf(store: Store, concept: string) {
-  const entries: { category: string; takes: TakesSpec[]; modifies: ModifiesSpec[]; wraps?: string; heads?: string; fillsGap?: string }[] = [];
+  const entries: { category: string; takes: TakesSpec[]; modifies: ModifiesSpec[]; wraps?: string; heads?: string; fillsGap?: string; seed: boolean }[] = [];
   for (const f of store.facts(concept, "Category")) {
     const claim = f.claim as Call;
     const [cat, ...subs] = positional(claim);
@@ -712,7 +734,7 @@ export function entriesOf(store: Store, concept: string) {
       else if (sub.head === "Modifies") modifies.push(modifiesOf(sub));
       else if (sub.head === "FillsGap") fillsGap = category;
     }
-    entries.push({ category: cat.head, takes, modifies, wraps: headOf(role(claim, "wraps")), heads: headOf(role(claim, "heads")), fillsGap });
+    entries.push({ category: cat.head, takes, modifies, wraps: headOf(role(claim, "wraps")), heads: headOf(role(claim, "heads")), fillsGap, seed: isCall(f.meta.from) && f.meta.from.head === "Seed" });
   }
   const joins = store.facts(concept, "Joins").map((f) => headOf(role(f.claim, "category")) ?? "Any");
   return { entries, joins };
@@ -728,11 +750,6 @@ const lowerFirst = (s: string) => s[0].toLowerCase() + s.slice(1);
 /** A word candidate the token was not written as: a spelling correction, another case, a stretch. */
 const corrected = (x: Candidate) => !!x.concept && (x.source === "SpellDistance" || x.source === "CaseMatch" || x.source === "Stretched");
 
-/**
- * A word taken where an entry asks for that very word ("cause" takes "to" and an act) fits the
- * entry better than the same words put together another way (runtime.md 8.1, ShapeFit).
- */
-const named = (t: TakesSpec): Features => (t.head || t.marks || t.kind ? new Map([["ShapeFit:Head", 1]]) : new Map());
 
 function argCount(e: Expr, path: number[]): number {
   let x = e;
@@ -768,9 +785,10 @@ function signature(e: Edge): string {
 }
 
 // Two entries that differ only in the gap they fill ("how" fills a manner or a property), or in
-// what they modify ("without asking" of an act or of a clause), are two edges, not one.
+// what they modify ("without asking" of an act or of a clause), or in what a slot asks of its
+// argument (any thing, or a number that names it), are two edges, not one.
 function computeSignature(e: Edge): string {
-  return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.acceptsGap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.map((m) => `${m.side}${m.category}${m.role ?? ""}`).join(","), e.byRule].join("|");
+  return [e.category, key(e.expr), e.pending.map((p) => `${p.takes.side}${p.takes.category}${p.takes.role ?? ""}${p.takes.head ?? ""}${p.takes.marks ?? ""}${p.takes.kind ?? ""}@${p.path.join(".")}`).join(","), e.gap ?? "", e.acceptsGap ?? "", e.joinRight ? key(e.joinRight.expr) : "", e.wraps ?? "", e.heads ?? "", e.modifies.map((m) => `${m.side}${m.category}${m.role ?? ""}`).join(","), e.byRule].join("|");
 }
 
 export { roles };

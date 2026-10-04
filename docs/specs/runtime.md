@@ -164,7 +164,8 @@ literal (open question 1).
 6. **Gap**: an edge whose word has `FillsGap` leaves a gap: the next edge that would Take an argument
    of the gap's category may instead mark that Takes as filled by a gap variable, and the gap is
    threaded up through each edge that contains it (at most one open gap per edge). The displaced
-   phrase fills it when the edge containing the gap meets it ("which branch did you push?").
+   phrase fills it when the edge containing the gap meets it ("which branch did you push?"). Only
+   the entry's last argument may hold its gap: "which" takes its noun whole.
    A chart built with open arguments (`ChartOptions.open`, used to hear definitions, design
    section 6) may leave a gap with no word that fills it: a definition is said of something it
    does not name ("make visible"), and its open argument is where that something goes.
@@ -303,6 +304,11 @@ Evaluating an expression rewrites it until it reaches primitives, which run (des
 - **Kept arguments**: a reading whose result fills a role with something of its own, where the
   expression had something said in that role, drops what was said; each such argument counts
   `Unworked:Dropped` (-1), so a reading that keeps the user's arguments beats one that replaces them.
+  So does a role a `WithRoles` in the result sets over one already said ("what's using port 3000":
+  the subject put where the port was), and a role carried onto a primitive that the same source's
+  readings of the word give a place (a role they bind and use, or a role the word takes on its
+  right in a frame), since a primitive acts on its arguments only ("show network connections" is
+  not the bare `git show` with the connections left over).
 - **Order**: rewriting is outermost first, then arguments; an argument whose value a reading needs
   is evaluated before it is used.
 - **Bounds**: at most 32 rewrite steps per expression (a stated, tunable budget); a rewrite that

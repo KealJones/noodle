@@ -65,3 +65,13 @@ no prompt's verdict changed and a median turn time of 0.26 s both times.
 On their own, "An Internet socket is a network file." gives Socket: IsA(network file), and "A port
 is part of an Internet address." gives Port: PartOf(Internet address). The machinery works where
 hearing does.
+
+## Since (2026-10-04, hearing)
+
+A bracket is now an aside that no slot takes, and after a noun it lists kinds of that noun. "An
+open file may be a regular file, a directory, a stream or a network file (Internet socket, NFS
+file or UNIX domain socket)." gives Directory, Stream and Socket: Socket is a network file, and
+"a network file" is a noun phrase. lsof's whole sentence (eight kinds) still gives only Directory:
+"an executing text reference" is heard as a participle taking the rest of the list as its object.
+A kind in a bracket after the object of "is a" ("an X is a Y (Z)") gives nothing yet: inside
+"may be" the bridge turns an IsA around, so only a bracket after the subject of the IsA is read.

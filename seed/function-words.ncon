@@ -103,7 +103,7 @@ Concept(That(), Lemma("that"), Form("taht"), Form("tht"),
   Category(Thing(), Takes(side=Right(), category=Noun())),
   Category(Thing()),
   Category(Clause(), Takes(side=Right(), category=Clause())),
-  Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
 Concept(Many(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
 Concept(Few(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
 Concept(More(), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Manner(), Modifies(side=Left(), category=Act())),
@@ -120,7 +120,12 @@ Concept(Their(), Lemma("their"), Form("theirs"), Category(Thing(), Takes(side=Ri
 Concept(His(), Lemma("his"), Category(Thing(), Takes(side=Right(), category=Noun())))
 Concept(Her(), Lemma("her"), Category(Thing(), Takes(side=Right(), category=Noun())), Category(Thing()))
 Concept(Its(), Lemma("its"), Category(Thing(), Takes(side=Right(), category=Noun())))
-Concept(Whose(), Lemma("whose"), Category(Thing(), Takes(side=Right(), category=Noun()), FillsGap(category=Thing())))
+Concept(Whose(), Lemma("whose"), Category(Thing(), Takes(side=Right(), category=Noun()), FillsGap(category=Thing())),
+  // After a noun, what follows is said of that noun's own: "files whose address matches x".
+  Category(Manner(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun(), role=Where())))
+// "any of whose", "each of whose": the relative said of any of the noun's own.
+Concept(Any(), Category(Manner(), Takes(side=Right(), category=Relation(), head=Of()), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun(), role=Where())))
+Concept(Each(), Category(Manner(), Takes(side=Right(), category=Relation(), head=Of()), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun(), role=Where())))
 
 // Definite and possessive phrases are referents (logical-form.md section 4); the noun they were
 // said with is the kind they point at, until a reading that holds them wants something narrower.
@@ -140,6 +145,12 @@ Reading(on=Their(), pattern=Their($n), becomes=Ref(said=Their($n), kind=$n))
 Reading(on=His(), pattern=His($n), becomes=Ref(said=His($n), kind=$n))
 Reading(on=Her(), pattern=Her($n), becomes=Ref(said=Her($n), kind=$n))
 Reading(on=Its(), pattern=Its($n), becomes=Ref(said=Its($n), kind=$n))
+
+// A relative with "whose": the noun is each one whose own thing does the act ("files whose address
+// matches x"); "any of whose", "each of whose": some, or every, one of its own.
+Reading(on=Whose(), pattern=WithRoles($k, where=Whose($n, $a)), becomes=WithRoles($k, where=WithRoles($a, agent=WithRoles($n, of=$it))))
+Reading(on=Any(), pattern=WithRoles($k, where=Any(Of(Whose($n)), $a)), becomes=WithRoles($k, where=WithRoles($a, agent=Some(WithRoles($n, of=$it)))))
+Reading(on=Each(), pattern=WithRoles($k, where=Each(Of(Whose($n)), $a)), becomes=WithRoles($k, where=WithRoles($a, agent=Every(WithRoles($n, of=$it)))))
 
 // Quantifiers build Every and Some.
 Reading(on=A(), pattern=A($n), becomes=Some($n))
@@ -214,10 +225,10 @@ Concept(What(), Lemma("what"), Form("wat"), Form("wut"),
   Category(Clause(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())))
 Concept(Which(), Lemma("which"),
   Category(Clause(), Takes(side=Right(), category=Noun()), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
-  Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
 Concept(Who(), Lemma("who"), Form("whom"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Thing())),
-  Category(Noun(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
+  Category(Manner(), Takes(side=Right(), category=Act()), Modifies(side=Left(), category=Noun()), FillsGap(category=Thing())))
 Concept(Where(), Lemma("where"),
   Category(Clause(), Takes(side=Right(), category=Clause(), role=Topic()), FillsGap(category=Relation())))
 Concept(When(), Lemma("when"),
@@ -709,6 +720,7 @@ Fact(Our(), Deixis())
 Fact(This(), Deixis())
 Fact(These(), Deixis())
 Fact(Here(), Deixis())
+Fact(Current(), Deixis())
 Fact(Now(), Deixis())
 Fact(Today(), Deixis())
 Fact(Tomorrow(), Deixis())
@@ -1030,7 +1042,13 @@ Concept(Colon(), Lemma(":"), Category(Mark()),
 Concept(Ellipsis(), Lemma("..."), Form("…"), Form(".."), EndsClause(), Tone(Hedge()), Category(Mark()))
 Concept(Dash(), Lemma("-"), Form("--"), Form("—"), Form("–"), Category(Mark()))
 Concept(Slash(), Lemma("/"), Joins(category=Noun()), Joins(category=Thing()))
-Concept(OpenParen(), Lemma("("), Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=CloseParen()), heads=Aside()))
+// A bracket is an aside, never an argument (its category, Aside, is one no slot takes): a clause
+// in brackets is a clause said aside, and anything else in brackets after a noun says more of
+// that noun (apposition: "a network file (Internet socket, NFS file or UNIX domain socket)"), or
+// stands on its own.
+Concept(OpenParen(), Lemma("("), Category(Clause(), Takes(side=Right(), category=Clause()), Takes(side=Right(), category=Mark(), head=CloseParen()), heads=Aside()),
+  Category(Aside(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=CloseParen()), heads=Aside(),
+    Modifies(side=Left(), category=Noun(), role=Aside())))
 Concept(CloseParen(), Lemma(")"), Category(Mark()))
 Concept(OpenBracket(), Lemma("["), Category(Any(), Takes(side=Right(), category=Any()), Takes(side=Right(), category=Mark(), head=CloseBracket())))
 Concept(CloseBracket(), Lemma("]"), Category(Mark()))
