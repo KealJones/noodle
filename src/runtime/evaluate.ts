@@ -107,6 +107,9 @@ export class Evaluator {
     };
   }
 
+  /** Whether what is being run is one part of several said together (And, Then). */
+  private partOfMany = false;
+
   async run(lf: Expr): Promise<Outcome> {
     if (!isCall(lf)) return this.stuck(lf);
     switch (lf.head) {
@@ -127,7 +130,12 @@ export class Evaluator {
       case "And":
       case "Then": {
         let o = this.out();
+        // Each part is one of several said together: a question among them is looked up by its
+        // own words, not the whole turn's.
+        const was = this.partOfMany;
+        this.partOfMany = positional(lf).length > 1;
         for (const x of positional(lf)) o = this.merge(o, await this.run(x));
+        this.partOfMany = was;
         return o;
       }
     }
@@ -860,6 +868,13 @@ export class Evaluator {
 
   private async question(lf: Call): Promise<Outcome> {
     const [p] = positional(lf);
+    // The question's own words: where the turn holds more than this question ("what's 6 times 7
+    // and what's the capital of italy"), what is looked up is this one, not the whole turn.
+    // (Said back in the user's words, the question is its words where one span says it, or the
+    // words of its parts where it was said in pieces.)
+    const echoed = this.partOfMany && this.inWords ? positional(this.inWords(c("Echo", lf)) as Call)[0] : undefined;
+    const ownText = echoed?.kind === "string" ? echoed.value : echoed ? [...walk(echoed)].flatMap((y) => (y.kind === "string" ? [y.value] : [])).join(" ") : "";
+    const said = this.partOfMany && ownText.trim() && this.said && ownText.length < this.said.length ? ownText : this.said;
     const prim = this.primitiveCall(p);
     if (prim && this.pureFor(prim.p, p)) {
       const r = await this.call(prim.p, prim.args, p);
@@ -893,8 +908,8 @@ export class Evaluator {
     // nothing outside the conversation ("what's up"), or that asks about what a pointer ("it")
     // points at, has nothing to look up in the world.
     const know = this.world.know;
-    const words = this.topicText();
-    if (!know || !this.said || !words || this.asksOfPointer(p)) return this.stuck(lf);
+    const words = this.topicText(said);
+    if (!know || !said || !words || this.asksOfPointer(p)) return this.stuck(lf);
     // What the graph learned answers first (Know, step 1): facts on what the question names, from
     // the pages and claims they came from. Nothing goes out for it, so it counts in Suppose too;
     // a page kept about what it names is only words looked up before, and does not (below).
@@ -903,7 +918,7 @@ export class Evaluator {
     // What shape of answer the question's words ask for is a fact on them (seed: AnswerShape): an
     // explanation is found by the whole question, a description by the thing it is about.
     const about = this.asksExplanation() ? "reason" : "thing";
-    const cached = know.cached("answer", this.said);
+    const cached = know.cached("answer", said);
     // In Suppose nothing goes out, and an answer from outside does not count as reaching one: a
     // reading is chosen by what the graph can do with it, not by whether its words were looked up
     // before (a question once answered from Wikipedia is read anew once the graph can answer it,
@@ -913,25 +928,25 @@ export class Evaluator {
     // the world's to answer: no page about its words answers it. It is worked out locally or stuck.
     const here = this.aboutHere(lf);
     if (here) {
-      this.conversation.focus.log.push({ what: `focus: "${this.said}" is about here (${here}), not looked up in the world`, candidates: [], winner: -1 });
+      this.conversation.focus.log.push({ what: `focus: "${said}" is about here (${here}), not looked up in the world`, candidates: [], winner: -1 });
       return this.stuck(lf);
     }
     // A page kept about what the question names answers it before anything goes out.
     if (!cached && recalled) return { ...this.out(), said: [this.recalled(lf, recalled)], reachedAct: true };
     if (!cached && !know.opts.offline && GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))
-      return { ...this.out(), said: [c("Offer", c("Know", s(this.said)))], reachedAct: true };
+      return { ...this.out(), said: [c("Offer", c("Know", s(said)))], reachedAct: true };
     // The world has a budget of lookups per turn (runtime.md 11b); past it the need stays unmet,
     // and says so. What was asked, and what came back, goes in the reasons log.
     const focus = this.conversation.focus;
     const used = focus.lookups.get("World") ?? 0;
     if (!cached && used >= this.budget("World", "lookups")) {
-      focus.log.push({ what: `focus: "${this.said}" from the world, over the turn's budget of ${used}`, candidates: [], winner: -1 });
+      focus.log.push({ what: `focus: "${said}" from the world, over the turn's budget of ${used}`, candidates: [], winner: -1 });
       return this.stuck(lf, c("NeedUnmet", c("Budget", c("World"))));
     }
     if (!cached) focus.lookups.set("World", used + 1);
     let k: Awaited<ReturnType<typeof know.answer>>;
     try {
-      k = cached ?? (await know.answer(this.said, words, about));
+      k = cached ?? (await know.answer(said, words, about));
       // What was found was understood as it was kept: the graph may answer now. Where it does
       // not, and the question is about a thing, what the question names is learned about (its
       // own page and claims), and the graph asked again; failing that, the page is the answer.
@@ -956,13 +971,13 @@ export class Evaluator {
         if (learned) again = facts(["Relation"]);
       }
       if (again) {
-        focus.log.push({ what: `focus: "${this.said}" from the world, answered from what was learned`, candidates: [], winner: -1 });
+        focus.log.push({ what: `focus: "${said}" from the world, answered from what was learned`, candidates: [], winner: -1 });
         return { ...this.out(), said: [this.recalled(lf, again)], reachedAct: true };
       }
     } catch {
       // A source that fails is no answer, not an error to show.
     }
-    focus.log.push({ what: `focus: "${this.said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
+    focus.log.push({ what: `focus: "${said}" from the world${cached ? " (kept from before)" : ""}`, candidates: k ? [{ label: `${k.source}: ${k.title}`, features: [], score: 0 }] : [], winner: k ? 0 : -1 });
     // Where the page is the answer, what it says under a heading that names what was asked (the
     // question's own words its title does not have: "history" of a page titled "Git") answers
     // better than its opening. Reading the whole page is a lookup in the world, within the budget.
@@ -1036,8 +1051,8 @@ export class Evaluator {
    * What a question is about, in its own words: the words of what was said that are not in the
    * function-word lexicon ("what is rayleigh scattering" is about "rayleigh scattering").
    */
-  private topicText(): string | undefined {
-    const words = this.said
+  private topicText(said = this.said): string | undefined {
+    const words = said
       .split(/[^\p{L}\p{N}'’.-]+/u)
       .filter(Boolean)
       .filter((w) => !this.store.lookup(w).some((h) => this.store.facts(h.concept).some((f) => key(f.meta.from) === key(c("Seed", s("function-words"))))));
