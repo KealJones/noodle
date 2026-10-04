@@ -115,8 +115,12 @@ if (source === "wordnet" && path) {
   const large: string[] = [];
   /** Bytes of a manual page's source (compressed or not) above which it is left out. */
   const BOOK = 64 * 1024;
-  for (const name of [...programs].sort()) {
+  // NOODLE_SHARD=i/n learns only every n-th program from the i-th, so n runs (each with its own
+  // store) can learn the machine's programs side by side.
+  const [shard, shards] = (process.env.NOODLE_SHARD ?? "0/1").split("/").map(Number);
+  for (const [index, name] of [...programs].sort().entries()) {
     if (learned >= limit) break;
+    if (index % shards !== shard) continue;
     if (have.has(name)) continue;
     let found;
     try {

@@ -300,6 +300,9 @@ interface Group {
   kind?: Expr;
 }
 
+/** Sentences of a manual's description heard when it is learned in bulk. */
+const BULK_SENTENCES = 6;
+
 export async function learnTool(
   program: string,
   read: Primitive,
@@ -572,10 +575,17 @@ export async function learnTool(
       const desc = descriptionOf(doc);
       const texts: { text: string; from: Expr }[] = [];
       if (desc) for (const p of positional(desc).filter((x) => isHead(x, "Paragraph"))) texts.push({ text: blockText(world.store, positional(p as Call)[0]), from: c("ToolDoc", s(path.join("-")), s("DESCRIPTION")) });
-      for (const o of optionsOf(world.store, doc)) {
-        const rest = sentences(o.text).slice(1).join(" ");
-        if (rest) texts.push({ text: rest, from: c("ToolDoc", s(path.join("-")), s(o.flag)) });
-      }
+      // Learned in bulk, only the opening of the description is heard (where a page says what its
+      // things are, when it does): each sentence costs about half a second, and hearing every
+      // sentence of every manual on the machine takes a day for a handful of facts.
+      if (bulk) {
+        const opening = sentences(texts.map((t) => t.text).join(" ")).slice(0, BULK_SENTENCES).join(" ");
+        texts.splice(0, texts.length, ...(opening ? [{ text: opening, from: c("ToolDoc", s(path.join("-")), s("DESCRIPTION")) }] : []));
+      } else
+        for (const o of optionsOf(world.store, doc)) {
+          const rest = sentences(o.text).slice(1).join(" ");
+          if (rest) texts.push({ text: rest, from: c("ToolDoc", s(path.join("-")), s(o.flag)) });
+        }
       const kept = new Set<string>();
       for (const { text, from: f } of texts)
         for (const st of learner.statements(text, MAX_WORDS)) {
