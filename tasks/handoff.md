@@ -121,3 +121,16 @@ seed-only Noodle and run Keal's two passes; if the second pass matches the insta
 right, the lazy lexicon is proven and carries over. New safety bug found: a negated statement or a
 "without" becomes a stored rule with no confirmation ("you didnt pull it down" stored "I won't run
 git pull it"). Waiting on Keal's decision.
+
+### Keal's call on concept architecture (2026-10-04)
+
+Keal prefers Noodle's score with senses and readings over Napkin's context facets (mode,
+situation): "it just might be weighted incorrectly right now". Keep it. Context in Napkin's sense
+(Walking(Dog())) becomes evidence the score uses: kind fit of a reading's arguments. The "fetch"
+case ("im going to go play fetch with my dog" read as git fetch) needs: (1) wants on tool readings
+from what their docs say they act on (git fetch: a repository or remote), so a dog costs WantedKind;
+(2) the game sense of fetch, from the lazily learned dictionary entry, reaching play's slot (VerbNet
+play frames want a game); (3) weights: reaching an act is rewarded, so command readings beat
+everyday senses; tune with corrections and the trainer, not by hand. Napkin designed a lazy lexicon
+too but never built it. Worth carrying from Napkin: Pursue (try candidates hypothetically, keep the
+route that worked), recall and consolidation of past conversation, the agenda of things to learn.
