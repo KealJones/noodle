@@ -89,6 +89,23 @@ test("asking what is in a file reads it and shows its content", async () => {
   }
 });
 
+// A what-clause after a verb's recipient is what the verb gives: being shown or told the answer to
+// a question is asking it. "show" in VerbNet's transfer_mesg frame (recipient, topic).
+test("show me what's in a file is one act, the question it opens asked", async () => {
+  const root = mkdtempSync(join(tmpdir(), "noodle-turn-"));
+  writeFileSync(join(root, "README.md"), "# Hello\n");
+  const store = seededStore();
+  store.load(`Pack(name="test-show", version="0", from=Seed("test"))
+Concept(Show(), Lemma("show"), Category(Act(), Takes(side=Right(), category=Thing(), role=Recipient()), Takes(side=Right(), category=Thing(), role=Topic())))
+Reading(on=Show(), pattern=Show(agent=$agent, recipient=$recipient, topic=$topic), becomes=Cause(result=Become(HasInformation($recipient, $topic))))
+`);
+  const s = createSession(store, root);
+  for (const ask of ["show me what's in the readme", "show me what is in README.md"]) {
+    const r = await s.turn(ask);
+    assert.equal(r.text, "`README.md`:\n\n```\n# Hello\n```", ask);
+  }
+});
+
 test("two readings that tie exactly and do different things are asked about", async () => {
   const store = seededStore();
   store.load(`Pack(name="test-zap0", version="0", from=Seed("test"))

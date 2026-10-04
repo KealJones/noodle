@@ -211,7 +211,10 @@ Reading(on=Operate(), pattern=Operate(agent=$a, theme=$t), becomes=Work(theme=$t
   const r = await learnTool("zap", PRIMITIVES.get("Read")!, world, store, words, "help", true);
   // A concept of its own, named as a program ("the zap command"), not the word "zap".
   assert.match(r.text, /ZapProgram\(\),\s*IsA\(Tool\(\)\),\s*Name\("zap"\),\s*Words\(Zap\(\), Command\(\)\)/);
-  assert.doesNotMatch(r.text, /Concept\(\s*Zap\(\)/);
+  // The word gets only one more sense, the program, a noun: which is meant is the score's.
+  assert.match(r.text, /Concept\(Zap\(\), Sense\(ZapProgram\(\)\), from=ToolDoc\("zap", "NAME"\)\)/);
+  assert.match(r.text, /ZapProgram\(\),[^)]*\)[^]*?PartOfSpeech\(PartOfSpeechNoun\(\)\)/);
+  assert.doesNotMatch(r.text, /Concept\(\s*Zap\(\),\s*(Lemma|Category|IsA|Name)/);
   // "view a ticket" is not read as running it; named with the tool, it is.
   assert.doesNotMatch(r.text, /pattern=View\(theme=(?:(?!instrument|modifier)[^\n])*\),\s*becomes=Run\("zap"/);
   assert.match(r.text, /pattern=View\(theme=[^\n]*instrument=ZapProgram\(\)\)/);

@@ -85,13 +85,27 @@
   the old importer) and re-import git, gh, jq, pwd and tldr. Open: "run X" with X a bare English
   word is not reached (only "the X command" and backticks), and `run \`date\`` does not use the
   program's documented effects.
-- **Plain requests and questions still mostly fail at hearing**, not at matching (2026-10-03, fresh
-  prompts with every tool loaded): "show disk usage of this folder" splits into `git show` plus a
-  fragment; "display ..." is heard as a noun; "port 3000" as the verb port; "how much disk space is
-  left" is not a question; "what branch am i on" is a question whose proposition already holds `git
-  branch` inside a referent; "this folder" is never the workspace (the graph does not connect a
-  folder to what reading "." gives); "find" in a summary still comes out as Store (its get frame and
-  its discover frame tie, and the first wins).
+- **Plain requests and questions: what is left** (2026-10-04). Done: "show me what's in the readme"
+  is one act ("what's" has the after-a-verb entries "what" has; being shown or told the answer to a
+  question is asking it); "add 45 and 38" adds (VerbNet's plural members, Patient_I and Patient_J,
+  are read as And of the two, so mix-22.1's together reaches the arithmetic reading); "what does
+  tar do" answers from tar's page (a program named by an English word is that word's newest sense,
+  a noun, chosen by the score; an answer uses a word's senses only when it has one); "display the
+  readme" reads it; "how many X <clause>" is a question (how many of a kind fills the clause's
+  gap). Left: "port 3000" in "what is listening on port 3000" is still the verb port, and in
+  "what's using port 3000" a reading that drops the port leaves fewer unworked expressions and wins
+  (a dropped word should cost what Unworked:Dropped costs); "this folder" and "the current folder"
+  are never the workspace (WordNet's folder has no computing sense, and nothing connects Folder to
+  the Directory that reading "." gives); "find X" ties between finding (Read) and getting (Store
+  into the addressee) and the order decides, and VerbNet's encounter frame for find is never
+  matched (its subject is an Experiencer, and the chart names every subject agent); "how many grams
+  are in a pound" and "how many minutes are in 3 hours" are now questions whose lookups find wrong
+  pages (versus 27 and 28, HONEST before); "how much disk space is left" is a question but reaches
+  no command; "what does date do" (date is Day's form) and "what does which do" (a function word)
+  do not reach their programs; "find files bigger than 100MB", "show disk usage of this folder" and
+  "extract this tar.gz" reach no command. Installing needs VerbNet, tldr and the bulk tools
+  re-imported. "what branch am i on" is a question whose proposition already holds `git branch`
+  inside a referent.
 - **Speed with every tool loaded** (blocks installing tools-all and the new tldr pack, both in
   ~/.noodle/packs-pending). Done in part: versus and `--why` time each turn by stage; the scored
   match's index, SameAs classes and kind distances are kept until what they come from changes (a
@@ -100,10 +114,4 @@
   3.0 s and 1.15 s), its slowest 7.8 s (Know); "what does jq do" and "what does the tar command
   do" answer from the man page. Left: some sub-second turns are still 2 to 3 times slower with
   everything loaded (the scored match's pool grows with the descriptions that share a common
-  concept: an index of which heads are kin would make it sublinear); "what does tar do" is still
-  the substance (the word "tar" has no program sense, only "tar command" names it); the chart's
-  ties kept for jq turned versus 76 into a numbered question (git show me / git show).
-- **"show me what's in the readme" as one act.** Since 0.44 keeps tied readings, versus #76 asks
-  between `git show` readings: "show me [what's in the readme]" is heard as two fragments (git show,
-  and a question about the readme), not show with a what-clause as its theme, which would reach
-  Read through the bridge. Fix how a what-clause fills a verb's theme after its recipient.
+  concept: an index of which heads are kin would make it sublinear).
