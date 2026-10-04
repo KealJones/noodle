@@ -532,6 +532,9 @@ export class Evaluator {
       if (y.head === "Rewrite" || y.head === "Quote" || y.head === "Output") return false;
       if (y.head === "Ref") return !makes;
       if (y.head === "Gap") return true;
+      // A participant is not something a primitive is given: "show me" says who is shown, not an
+      // argument for the command (git show <me>).
+      if (y.head === "Speaker" || y.head === "Addressee") return true;
       const data = DATA.has(y.head) || isThing(this.store, y) || this.pureCall(y) || (time && (TIME.has(y.head) || this.store.facts(y.head, "Lasts").length > 0));
       if (!concepts && !data) return true;
       return y.args.some((x) => unready(x.value, concepts, makes, time));

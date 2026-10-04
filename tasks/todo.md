@@ -101,3 +101,7 @@
   concept: an index of which heads are kin would make it sublinear); "what does tar do" is still
   the substance (the word "tar" has no program sense, only "tar command" names it); the chart's
   ties kept for jq turned versus 76 into a numbered question (git show me / git show).
+- **"show me what's in the readme" as one act.** Since 0.44 keeps tied readings, versus #76 asks
+  between `git show` readings: "show me [what's in the readme]" is heard as two fragments (git show,
+  and a question about the readme), not show with a what-clause as its theme, which would reach
+  Read through the bridge. Fix how a what-clause fills a verb's theme after its recipient.
