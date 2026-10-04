@@ -71,6 +71,13 @@ Reading(on=Zap(), pattern=Zap(), becomes=Run("echo", Args("frobs")), effects=Unk
 `);
   const s = createSession(store, root(), {});
   assert.match((await s.turn("zorch the frob")).text, /I can run `echo frobs`/);
+  // Described alike by another command, the same fit is a guess between them (Match:Ambiguity):
+  // neither is offered on it.
+  store.load(`Pack(name="test-loop-2", version="0", from=Seed("test"))
+Concept(Frob#Cmd2(), SenseOf(Blip()), Describes(Frob#Cmd2(), Zorch(agent=Addressee(), theme=Some(Frob()))), from=ToolDoc("frobtool2", "NAME"))
+Reading(on=Blip(), pattern=Blip(), becomes=Run("echo", Args("other frobs")), effects=UnknownEffects(), from=ToolDoc("frobtool2", "NAME"))
+`);
+  assert.doesNotMatch((await createSession(store, root(), {}).turn("zorch the frob")).text, /I can run/);
 });
 
 test("\"when I say X, Y\" teaches the same as \"X means Y\"", async () => {

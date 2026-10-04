@@ -55,6 +55,16 @@ export type Fills = (e: Expr) => boolean;
 /** A value said (a name, a number), what a command line's argument can be. */
 export const isValue: Fills = (e) => e.kind === "string" || e.kind === "number";
 
+/**
+ * What a reduction's referents were before they were taken at their kind (gist, below): a slot
+ * said as one of its kind is filled by the referent itself ("this folder" for a task's
+ * directory), and what it points at is found when the act runs.
+ */
+const referents = new WeakMap<Expr, Expr>();
+
+/** What a command line's slot takes: a value said, or a referent, found when the act runs. */
+export const isArgument: Fills = (e) => isValue(e) || isHead(e, "Ref");
+
 function nodes(e: Expr, w: Weigh): number {
   return isCall(e) ? w(e) + e.args.reduce((n, a) => n + nodes(a.value, w), 0) : isVar(e) ? 0 : w(e);
 }
@@ -76,6 +86,12 @@ function align(store: Store, w: Weigh, fills: Fills, p: Expr, r: Expr): Aligned 
   // A pattern variable is an argument slot: anything fills it, or where only a value may (a
   // command line's slot), a value said.
   if (isVar(p)) return !fills(r) ? undefined : { covered: 0, matched: markAll(r), distance: 0, filled: 1, bindings: new Map([[p.text, r]]) };
+  // A slot said as one of its kind (a task's Directory($path)) takes a referent of that kind.
+  const ref = referents.get(r);
+  if (ref && isCall(p) && isCall(r) && p.args.length === 1 && isVar(p.args[0].value) && fills(ref)) {
+    const d = headDistance(store, p.head, r.head);
+    if (d !== undefined) return { covered: w(p) / (1 + d), matched: markAll(r), distance: d, filled: 1, bindings: new Map([[(p.args[0].value as { text: string }).text, ref]]) };
+  }
   if (!isCall(p) || !isCall(r)) return p.kind === r.kind && key(p) === key(r) ? { covered: w(p), matched: new Set([r]), distance: 0, filled: 0, bindings: new Map() } : undefined;
   const d = headDistance(store, p.head, r.head);
   if (d === undefined) return undefined;
@@ -181,7 +197,11 @@ export function gist(e: Expr): Expr {
   if (!isCall(e)) return e;
   if (e.head === "Ref") {
     const k = role(e, "kind");
-    if (k) return gist(k);
+    if (k) {
+      const g = gist(k);
+      if (isCall(g)) referents.set(g, e);
+      return g;
+    }
   }
   // How many of a kind ("some pull requests", "every branch") is not what kind it is.
   if ((e.head === "Some" || e.head === "Every") && e.args.length === 1 && isCall(e.args[0].value)) return gist(e.args[0].value);

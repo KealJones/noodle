@@ -249,9 +249,12 @@ roles.
   agent, a referent as its kind, no quantifier, not the words said); a node counts as its concept's
   inverse document frequency over the store's readings (structure 0, a value said as the rarest
   concept); the features are costs, `Match:Uncovered`, `Match:Unexplained`, `Match:Distance`, with
-  seed weights 1, 1 and 0.25 and the threshold `Threshold(-0.9)` on Match (seed weights, not yet
-  set on a development set). Candidates are the best four, for a directive's act or each step of a
-  plan, against Describes facts and the user's readings that come to an act.
+  seed weights 1, 1 and 0.25 and the threshold `Threshold(-1.8)` on Match (seed weights, not yet
+  set on a development set), and `Match:Ambiguity` (weight 0.5), the log of how many different
+  acts fit at least as well, so a fit shared by many descriptions is a guess among them.
+  Candidates are the best four, for a directive's act, each step of a plan, or what a question
+  asks of (the question becomes a directive to do the act), against Describes facts (a command's
+  summary, each option's description, a task's) and the user's readings that come to an act.
 
 The alignment is exact search for trees under 30 nodes (requests and descriptions are small) and
 beam search above that.

@@ -79,6 +79,14 @@ CC BY-SA 4.0 (it includes Wikipedia and other ShareAlike text counts), so it is 
   overview pages' terms (one-word glossary terms no other pack has a noun for become its nouns),
   and understands each summary over the other packs' words (import WordNet and VerbNet first) to
   decide whether the command only shows something (design section 15).
+- **Every program with a manual page** (`pnpm run import tools`) is learned in bulk, so it must
+  not crowd English: a program whose name the other packs already have as a word ("yes", "date",
+  "file", "open") is a concept of its own (`DateProgram`), not that word, named as a program
+  ("the date command", `Words(Date(), Command())`) or as code (`` `date` ``); and what its pages
+  say it does is only a description for the scored match, never a reading of ordinary words
+  ("create a file" does not run `cvmkfile`; "create a file with cvmkfile" does). Each option's
+  description is a description of the command run with that option (an option whose value is
+  optional, "-i [i]", is a command line on its own).
 
 ## What the importers do, and do not
 

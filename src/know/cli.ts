@@ -140,7 +140,7 @@ if (source === "wordnet" && path) {
     }
     const t1 = Date.now();
     try {
-      const r = await learnTool(name, read, world, store, words, "manual");
+      const r = await learnTool(name, read, world, store, words, "manual", true);
       if (!r.commands.length) {
         failed.push(name);
         continue;

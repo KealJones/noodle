@@ -594,7 +594,17 @@ Week 1 tests exactly this, by hand, before a parser exists (section 29).
   drops it fails). The features are costs (Match:Uncovered, Match:Unexplained, Match:Distance),
   weighed one by one in the seed's weights, with the threshold a fact on Match. A plan (And,
   Then) is matched step by step. The best four above the threshold are candidates for a
-  directive's act.
+  directive's act, and for a question whose answer is what a command prints ("what branch am i
+  on"): the question becomes a directive to do the act matched, and whether it is answered that
+  way, from the graph or from a page is the score's and the dry run's. A match costs
+  Match:Ambiguity, the log of how many different acts fit at least as well: one guess in n. The
+  more descriptions there are, the more fit loosely, so the same fit counts for less as the pool
+  grows, by what the pool holds and not a number set for it. An option's description ("-A:
+  Display the apparent size") is a description of the command run with that option. A slot said
+  as one of its kind (a task's directory) is filled by a referent of that kind ("this folder"), as
+  a referent: what it points at is found when the act runs, or the act is stuck on it. (Open: the
+  workspace itself is not yet a candidate for "this folder"; the graph does not say a folder is
+  the kind of thing reading "." gives.)
 - **Confidence** (asking, below): the top reading's probability is the softmax of the final scores
   over the readings that do something different, each counted once at its best. Below the
   config's `askBelow` (0.5 by default, uncalibrated for now) the act is offered whatever its
@@ -1313,7 +1323,8 @@ is tracked alongside accuracy.
   the slot takes that thing's place, both as the value said there and as one of that kind named by
   its value ("port 3000"; the noun is given a chart entry that takes the value after it). The
   scored match (runtime.md 6.2) reaches a task by its description; a slot binds only a value said
-  (a name, a number), and a match that leaves one unfilled is not a candidate, never guessed. Effects are
+  (a name, a number) or a referent of the slot's kind, and a match that leaves one unfilled is
+  not a candidate, never guessed. Effects are
   those the tool packs give the command and each option used (reads only where all of them only
   read); otherwise unknown, so offered first. The source is `Tldr`, level 3 in the trust table;
   the pack records the license (CC BY 4.0). Command lines that need a shell (pipes, globs,

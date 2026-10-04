@@ -187,3 +187,39 @@ Concept(Message(), Lemma("message"), IsA(Text()), Category(Noun()))
   await u.turn("note ticket 14");
   assert.match((await u.turn("no, `nt ticket note 14 --body done`")).text, /Got it: for that I'll run `nt ticket note 14 --body done`/);
 });
+
+// A program learned in bulk whose name English has as a word (invented: "zap", here a verb).
+const ZAP = `#!/bin/sh
+case "$*" in
+  "--help") printf 'zap - view a ticket\\n\\nUsage: zap [flags] <number>\\n\\nOptions:\\n  -a, --all   View every ticket\\n' ;;
+  *) echo "zap: $*" ;;
+esac
+`;
+
+test("a program learned in bulk is not its English word, and what it does is only a description", { skip: !confined && "no confinement here" }, async () => {
+  const bin = fakeProgram();
+  writeFileSync(join(bin, "zap"), ZAP);
+  chmodSync(join(bin, "zap"), 0o755);
+  const zapWords = `${WORDS}\nConcept(Zap(), Lemma("zap"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Concept(Operate(), Lemma("run"), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme())))
+Reading(on=Operate(), pattern=Operate(agent=$a, theme=$t), becomes=Work(theme=$t))\n`;
+  const words = seededStore();
+  words.load(zapWords);
+  const store = seededStore();
+  store.load(zapWords);
+  const world = { root: tmpdir(), store, now: () => new Date(), say() {}, ask() {} };
+  const r = await learnTool("zap", PRIMITIVES.get("Read")!, world, store, words, "help", true);
+  // A concept of its own, named as a program ("the zap command"), not the word "zap".
+  assert.match(r.text, /ZapProgram\(\),\s*IsA\(Tool\(\)\),\s*Name\("zap"\),\s*Words\(Zap\(\), Command\(\)\)/);
+  assert.doesNotMatch(r.text, /Concept\(\s*Zap\(\)/);
+  // "view a ticket" is not read as running it; named with the tool, it is.
+  assert.doesNotMatch(r.text, /pattern=View\(theme=(?:(?!instrument|modifier)[^\n])*\),\s*becomes=Run\("zap"/);
+  assert.match(r.text, /pattern=View\(theme=[^\n]*instrument=ZapProgram\(\)\)/);
+  // The option's description describes the command run with it, for the scored match.
+  assert.match(r.text, /Describes\(\w+Option\(\), Read\(/);
+  assert.match(r.text, /becomes=Run\("zap", Args\("--all", Gap\("number"\)\)\)/);
+  store.load(r.text);
+  // Said as a word, "zap" is the word; named as a program, it is the program.
+  assert.doesNotMatch((await createSession(store, tmpdir()).turn("zap")).text, /`zap/);
+  assert.match((await createSession(store, tmpdir()).turn("run the zap command")).text, /`zap/);
+});

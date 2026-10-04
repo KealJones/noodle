@@ -286,11 +286,20 @@ export async function learnTldr(
     const pageFrom = c("Tldr", s(pageName));
     const title = page.name.split(/\s+/);
     const program = title[0];
-    const toolWord = names.word(program);
+    // A program whose name English already has as a word ("leave", "date") is not that word,
+    // unless the tool packs made the word the tool (a tool learned because it was asked for): it
+    // is a concept of its own, named as a program ("the date command"), as tooldocs names one
+    // learned in bulk.
+    const word = names.word(program);
+    const asked = (known ?? lex).facts(word, "IsA").some((f) => isHead(f.meta.from, "ToolDoc") && isHead(positional(f.claim as Call)[0], "Tool"));
+    const english = !asked && lex.facts(word).some((f) => !isHead(f.meta.from, "ToolDoc") && !isHead(f.meta.from, "Tldr"));
+    const toolWord = english ? names.other(`program:${program}`, `${encodeLemma(program) ?? "Tool"}Program`) : word;
     // A tool, called by its name (as tooldocs names one), where no other page has said so.
-    if (!tools.has(toolWord) && !(known ?? lex).facts(toolWord, "IsA").some((f) => isHead(positional(f.claim as Call)[0], "Tool")) && !lex.lookup(program).some((h) => functionWord(h.concept))) {
+    if (!tools.has(toolWord) && !(known ?? lex).facts(toolWord, "IsA").some((f) => isHead(positional(f.claim as Call)[0], "Tool")) && (english || !lex.lookup(program).some((h) => functionWord(h.concept)))) {
       const claims: Expr[] = [c("IsA", c("Tool")), c("Name", s(program))];
-      if (!lex.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
+      const command = english ? lex.lookup("command").find((h) => lex.facts(h.concept, "IsA").some((f) => isHead(positional(f.claim as Call)[0], "Program")))?.concept : undefined;
+      if (command) claims.push(c("Words", c(word), c(command)), c("Category", c("Noun")));
+      if (!english && !lex.facts(toolWord, "Lemma").length) claims.unshift(c("Lemma", s(program)));
       if (!lex.facts(toolWord, "Category").length)
         claims.push(c("Category", c("Thing")), c("Category", c("Manner"), c("Modifies", ["side", c("Right")], ["category", c("Act")], ["role", c("Instrument")])));
       forms.push(c("Concept", c(toolWord), ...claims, ["from", pageFrom]));
