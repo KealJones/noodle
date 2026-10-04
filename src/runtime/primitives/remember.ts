@@ -124,9 +124,12 @@ export const Remember: Primitive = {
       if (!o || !to) throw new Error("a rewrite needs something to start from and something it means");
       // What it wants of its variables, where the user's own wording said it (a number).
       const wants = role(item, "wants") ?? (general?.slots.length ? general.wants : undefined);
-      const r = world.store.addReading({ owner: o.head, pattern: o.pattern, wants: wants ? [wants] : [], becomes: to, needs: [], effects: [], checks: [], direction: "Expand" }, USER);
+      // The effects the act is known to have, where the documentation of its command says it only
+      // reads: the act is held to them as it runs (a claim its primitive cannot hold is not used).
+      const effects = role(item, "effects");
+      const r = world.store.addReading({ owner: o.head, pattern: o.pattern, wants: wants ? [wants] : [], becomes: to, needs: [], effects: effects ? [effects] : [], checks: [], direction: "Expand" }, USER);
       for (const f of world.store.facts(o.head).filter((x) => x.meta.from === USER)) world.keep?.(c("Fact", c(o.head), f.claim, ["from", USER]));
-      world.keep?.(c("Reading", ["on", c(o.head)], ["pattern", o.pattern], ...(wants ? ([["wants", wants]] as [string, Expr][]) : []), ["becomes", to], ["from", USER]));
+      world.keep?.(c("Reading", ["on", c(o.head)], ["pattern", o.pattern], ...(wants ? ([["wants", wants]] as [string, Expr][]) : []), ["becomes", to], ...(effects ? ([["effects", effects]] as [string, Expr][]) : []), ["from", USER]));
       const slots = general?.slots ?? [];
       return c("Remembered", c("Reading", { kind: "number", value: r.meta.id, pos: { line: 0, column: 0 } }), ...(slots.length ? ([["slots", slots.length === 1 ? slots[0] : c("And", ...slots)]] as [string, Expr][]) : []));
     }

@@ -17,7 +17,7 @@ import type { EffectClass, World } from "../runtime/primitive.js";
 import type { Store } from "../runtime/store.js";
 import type { Assistant, ChatMessage } from "../serve/assistant.js";
 import { ReplayGate } from "./replay.js";
-import { Know } from "../runtime/know/know.js";
+import { type ChatMessage as GptMessage, Know } from "../runtime/know/know.js";
 import { learnTool } from "../know/tooldocs.js";
 import { FrozenSystem } from "./frozen.js";
 import { TUTOR, Weights } from "../runtime/score.js";
@@ -149,7 +149,7 @@ export interface Config {
  * ChatGPT: through gptb's local server first (`gptb serve`), when it is up; otherwise through Run of
  * the configured program with the question as its last argument, whose output is the reply.
  */
-function chatgptAsker(config: Config, world: World): ((question: string) => Promise<string | undefined>) | undefined {
+function chatgptAsker(config: Config, world: World): ((question: string | GptMessage[]) => Promise<string | undefined>) | undefined {
   if (config.chatgpt === false || !config.know || config.know === "offline") return undefined;
   const [program, ...args] = Array.isArray(config.chatgpt) && config.chatgpt.length ? config.chatgpt : ["gptb"];
   // A config that lists the programs Run may start, without this one, does not ask it at all.
@@ -161,7 +161,9 @@ function chatgptAsker(config: Config, world: World): ((question: string) => Prom
   return async (question) => {
     const served = port === false ? undefined : await chatgptServer(question, port, timeoutMs).catch(() => undefined);
     if (served?.trim()) return served;
-    const ran = await run.run([str(program), { kind: "call", head: "Args", args: [...args, question].map((x) => ({ value: str(x) })), pos: P0 }], { ...world, timeoutMs }).catch(() => undefined);
+    // The program takes one prompt: of a chat, its rules and its last message (which carries its own context).
+    const prompt = typeof question === "string" ? question : [question.find((m) => m.role === "system")?.content, question.at(-1)?.content].filter(Boolean).join("\n\n");
+    const ran = await run.run([str(program), { kind: "call", head: "Args", args: [...args, prompt].map((x) => ({ value: str(x) })), pos: P0 }], { ...world, timeoutMs }).catch(() => undefined);
     const exit = ran && isCall(ran) ? ran.args.find((a) => a.name === "exit")?.value : undefined;
     const out = ran && isCall(ran) ? ran.args.find((a) => a.name === "output")?.value : undefined;
     const id = isCall(out) ? out.args[0]?.value : undefined;
@@ -216,6 +218,8 @@ export function createSession(store: Store, root: string, config: Config = {}, o
   if (config.askBelow !== undefined) session.askBelow = config.askBelow;
   // The tutor, where ChatGPT is asked at all and the config does not turn it off.
   if (config.tutor !== false && world.know?.opts.chatgpt) session.tutor = tutorThrough(world.know);
+  // ChatGPT asked how a message nothing worked out is done or answered, where it is asked at all.
+  if (world.know?.opts.chatgpt) session.how = tutorThrough(world.know);
   if (config.tutorRate !== undefined) session.tutorRate = config.tutorRate;
   // A program a request names that the graph does not know is learned from its documentation
   // (design section 25), understood over the words the store has, and loaded. Where the channel
