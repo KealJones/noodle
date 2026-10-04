@@ -303,6 +303,20 @@ export function hear(store: Store, raw: string, surroundings: Surroundings = { n
   return { text, tokens, candidates, aside };
 }
 
+/**
+ * The words of a hearing nothing in the store hears: a token of letters heard only as itself (an
+ * Unknown candidate, which it gets when it has no candidate, or only spelling corrections or
+ * another case), and not inside a span a shape, a set-aside block or a name in play covers.
+ */
+export function unheard(h: Hearing): string[] {
+  const covered = new Set<number>();
+  for (const cs of h.candidates)
+    for (const x of cs) if (x.source === "Shape" || x.source === "SetAside" || x.source === "InPlay") for (let k = x.start; k < x.end; k++) covered.add(k);
+  return h.tokens.flatMap((tok, i) =>
+    !covered.has(i) && /^[\p{L}][\p{L}'-]*$/u.test(tok.text) && h.candidates[i].some((x) => x.source === "Unknown") ? [tok.text] : [],
+  );
+}
+
 /** The concepts said as words in order, by their first word (read once per store, then kept). */
 type Part = { concept: string; features: string[] };
 const sequences = new WeakMap<object, Map<string, { concept: string; parts: Part[] }[]>>();
