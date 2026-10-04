@@ -63,3 +63,42 @@ measuring "learned it live and kept it" (Keal's benchmark method in tasks/todo.m
   tool packs first to redo them. Bulk mode gives everyday verbs no readings, so git and gh must be
   learned alone (`pnpm run import tool git`), which reads every sentence and takes ~50 minutes.
 - Seed changes are logged in seed/CHANGES.md; the seed is no longer frozen in practice (dev copy).
+
+## Proposed direction, agreed with Keal 2026-10-04: learn the missing pieces at prompt time
+
+Keal: "instead of downloading the entirety of wordnet verbnet or whatever we figure out how to
+learn the missing pieces of a prompt in real time so that it goes and gets them right after the
+prompt is said? slower up front cost at prompt time the first time it uses new phrasings but once
+it knew it it stuck." And move man page learning and web understanding into N-Con, with the
+runtime connecting concepts to the environment where it can; some capabilities are missing in some
+hosts, and that is fine.
+
+1. **Lazy lexicon.** Hearing in two passes: before the chart, tokens with no entry (only Unknown or
+   spelling candidates; not shapes, code spans or workspace names) are looked up through Know, one
+   word at a time, and what comes back is imported for just that word (forms, part of speech and
+   so chart categories through the seed's mapping, senses with their glosses), kept with its source;
+   then the prompt is heard again. A word looked up and not found is remembered too. Sources: Kaikki's
+   per-word JSONL (kaikki.org/dictionary/English/meaning/<a>/<ab>/<word>.jsonl, rich; no CORS) in
+   Node; Wiktionary's REST API (/api/rest_v1/page/definition/<word>, CORS, POS and definitions) as
+   the fallback that works in a browser. Later: VerbNet frames and WordNet kinds per word, sliced
+   into small static files.
+2. **Understanding as N-Con.** How a man page, --help, a web page or a dictionary entry becomes
+   concepts is moved from TypeScript importers into readings over their structure; the runtime only
+   provides the primitives that read them (Read(ManPage), Know's fetches), and a host without one
+   lacks that route and says so.
+3. **Store behind an interface** (node:sqlite now; sqlite-wasm in OPFS for a browser) once it is
+   small.
+4. **Measure** with Keal's two passes: a store with only the seed, the versus prompts with learning
+   on (timed, counting lookups), then again: as good, fast, nothing new fetched. Plus cold-start
+   size and time.
+
+### Progress (keep this current)
+
+- [ ] 1a. Know.word(lemma): fetch one word (Kaikki, then Wiktionary REST), return its entry.
+- [ ] 1b. Importer for one word's entry into N-Con forms (src/know/word.ts), reusing the seed's
+      part-of-speech to category mapping (categoriesFor in src/know/wordnet.ts) and Names.
+- [ ] 1c. Session.turn pre-pass: unknown tokens looked up and imported before the chart; budgeted
+      (Focus), never in Suppose, only with SendsOutside granted and Know online.
+- [ ] 1d. Test on a seed-only store (no packs): two-pass versus, timings, lookups; unit test with a
+      fake fetch.
+- [ ] 2, 3, 4 as above.
