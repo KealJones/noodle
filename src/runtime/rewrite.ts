@@ -3,11 +3,12 @@
 // more than one candidate is a choice point; the alternatives are kept in a beam and scored. Opaque
 // nodes are not rewritten. An expression no reading applies to stays as it is: unworked is a value.
 
+import { stopwatch } from "./stopwatch.js";
 import { type Call, type Expr, c, isCall, isHead, isVar, key, positional, role, walk } from "./expr.js";
 import { carry, instantiate, match, type Bindings } from "./match.js";
 import { type Features, addFeature, mergeFeatures, scoreOf } from "./score.js";
 import { type ReadingItem, type Store, readingKey } from "./store.js";
-import { contentHeads, type Described, describedActs, isArgument, matchFeatures, softMatch } from "./softmatch.js";
+import { contentHeads, type Described, describedActs, explainable, isArgument, matchFeatures, softMatch } from "./softmatch.js";
 import { STRUCTURAL, STRUCTURAL_NAMES } from "../structural.js";
 
 export type Mode = "Doing" | "Speaking" | "Supposing";
@@ -180,6 +181,10 @@ export class Rewriter {
     const k = key(x);
     const have = this.softMemo.get(k);
     if (have) return have;
+    return stopwatch.time("scored match", () => this.softMatches(x, k));
+  }
+
+  private softMatches(x: Expr, k: string): { result: Expr; d: Described; f: Features }[] {
     const index = describedActs(this.store, STRUCTURAL_NAMES, isAct);
     const heads = contentHeads(this.store, x, STRUCTURAL_NAMES);
     // An act alone ("delete") does not say which of the things that do it is meant: its exact
@@ -191,8 +196,19 @@ export class Rewriter {
     const pool = new Set<Described>();
     for (const h of heads) for (const d of index.byHead.get(h) ?? []) pool.add(d);
     const threshold = this.threshold();
+    // What a description cannot explain of the request bounds its score from above: where every
+    // cost the match can add only lowers it (no weight on them is negative), one that cannot reach
+    // the threshold even explaining all it can is not aligned.
+    const bounded = ["Match:Uncovered", "Match:Unexplained", "Match:Distance", "Match:Ambiguity", "WantedKind"].every((f) => this.weights(f) >= 0);
+    const ofSlots = explainable(this.store, x, index.weigh, isArgument);
+    const ofAny = explainable(this.store, x, index.weigh);
     const all: { d: Described; f: Features; s: number; result: Expr }[] = [];
     for (const d of pool) {
+      if (bounded) {
+        const most = (d.slots ? ofSlots : ofAny)(d.pattern);
+        const ceiling = new Map([["Match:Scored", -1], ["Match:Unexplained", most - 1]]);
+        if (scoreOf(ceiling, this.weights) < threshold) continue;
+      }
       const m = softMatch(this.store, d.pattern, x, index.weigh, d.slots ? isArgument : undefined);
       if (!m) continue;
       // What the reading wants of what fills it counts as it does for an exact match.
@@ -327,12 +343,13 @@ export class Rewriter {
   /**
    * Expressions left that have readings of their own, none of which applied: a word that should
    * have been read and was not ("yet" left inside a rule). Unworked, by the definition of section
-   * 7; structural heads and opaque nodes do not count.
+   * 7; structural heads and opaque nodes do not count. A concept said again inside itself is one
+   * thing left unread, not two (an auxiliary says its verb again: "what does jq do").
    */
   unread(e: Expr): number {
     if (!isCall(e) || OPAQUE.has(e.head)) return 0;
     const own = !STRUCTURAL_NAMES.has(e.head) && this.store.readingsOn(e.head).some((r) => !r.mode && r.owner !== "Segment" && r.meta.status !== "Pending") ? 1 : 0;
-    return own + e.args.reduce((n, a) => n + this.unread(a.value), 0);
+    return own + e.args.reduce((n, a) => n + (isCall(a.value) && a.value.head === e.head && own ? this.unread(a.value) - 1 : this.unread(a.value)), 0);
   }
 
   private norm(e: Expr, depth: number, seen: Set<string>): Omit<Derivation, "score">[] {

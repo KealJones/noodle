@@ -3,6 +3,7 @@
 // run with Suppose), the winner evaluated, and what it says realized and printed. Every choice is
 // recorded with its candidates and features.
 
+import { stopwatch } from "./stopwatch.js";
 import { type Call, type Expr, c, isCall, isHead, key, n, positional, rewrite as mapExpr, role, s, v } from "./expr.js";
 import { STRUCTURAL_NAMES } from "../structural.js";
 import { alike } from "./canonical.js";
@@ -223,6 +224,23 @@ export class Session {
    * section 29: asking is off where there is no calibration).
    */
   async turn(text: string, opts: { dry?: boolean; ask?: boolean } = {}): Promise<TurnResult> {
+    // Where the turn's time went, by stage, kept with its record (a turn read again inside this
+    // one counts in this one).
+    const outer = !this.timing;
+    if (outer) stopwatch.reset();
+    this.timing = true;
+    try {
+      const r = await this.turnOnce(text, opts);
+      if (outer) r.record.times = stopwatch.read();
+      return r;
+    } finally {
+      if (outer) this.timing = false;
+    }
+  }
+
+  private timing = false;
+
+  private async turnOnce(text: string, opts: { dry?: boolean; ask?: boolean } = {}): Promise<TurnResult> {
     // A dry run works on a copy of the conversation, so nothing of it is kept.
     const conv = opts.dry ? this.conversation.clone() : this.conversation;
     conv.decay();
@@ -235,7 +253,7 @@ export class Session {
     // page (reading documentation), or offered to be learned from its help (which runs it).
     const learning = opts.dry || !this.tools ? undefined : await this.learnPrograms(text, conv);
     const names = await this.surroundings(conv);
-    const hearing = hear(this.store, text, { names });
+    const hearing = stopwatch.time("hearing", () => hear(this.store, text, { names }));
     record.tone = toneOf(this.store, hearing);
     // What the last turn asked is answered in this one, or lapses.
     const waiting = this.waiting && this.waiting.turn === record.index - 2 ? this.waiting : undefined;
@@ -244,11 +262,13 @@ export class Session {
     const typed = !opts.dry && waiting ? await this.typed(text, waiting, conv) : undefined;
 
     // Segmentations: at most two, ranked by the score of their best covers (runtime.md 3.2).
-    const segs = segmentations(this.store, hearing).map((ss) =>
-      ss.map(([a, b2]) => {
-        const chart = new Chart(this.store, hearing, a, b2, this.weights.get).build();
-        return { a, b2, chart, covers: chart.covers() };
-      }),
+    const segs = stopwatch.time("chart", () =>
+      segmentations(this.store, hearing).map((ss) =>
+        ss.map(([a, b2]) => {
+          const chart = new Chart(this.store, hearing, a, b2, this.weights.get).build();
+          return { a, b2, chart, covers: chart.covers() };
+        }),
+      ),
     );
     const segScore = (ss: typeof segs[number]) => ss.reduce((n, x) => n + (x.covers[0]?.score ?? 0), 0);
     segs.sort((x, y) => segScore(y) - segScore(x));
@@ -375,7 +395,7 @@ export class Session {
       const segSaid: Expr[] = [];
       let reached = false;
       for (const lf of win.lfs) {
-        const o = await ev.run(lf);
+        const o = await stopwatch.time("evaluation", () => ev.run(lf));
         segSaid.push(...o.said);
         acts.push(...o.acts);
         if (o.reachedAct) reached = anything = true;
@@ -1109,7 +1129,8 @@ export class Session {
         let alts: Alt[] | undefined = perEdge.get(k);
         if (!alts) {
           alts = [] as Alt[];
-          for (const d of chart.variants(e).flatMap((v) => rewriter.normalize(v.expr).slice(0, this.opts.derivations))) {
+          const ds = stopwatch.time("rewriting", () => chart.variants(e).flatMap((v) => rewriter.normalize(v.expr).slice(0, this.opts.derivations)));
+          for (const d of ds) {
             const o = await this.suppose({ lfs: [d.expr], steps: d.steps, features: d.features, score: 0, cover: cv }, segText, conv);
             const f2: Features = new Map(o.focus);
             addFeature(f2, "Unworked", -o.unworked);
@@ -1152,7 +1173,11 @@ export class Session {
       });
   }
 
-  private async suppose(r: Reading, segText: string, conv: Conversation = this.conversation): Promise<Outcome & { focus: Features }> {
+  private suppose(r: Reading, segText: string, conv: Conversation = this.conversation): Promise<Outcome & { focus: Features }> {
+    return stopwatch.time("dry runs", () => this.supposeOnce(r, segText, conv));
+  }
+
+  private async supposeOnce(r: Reading, segText: string, conv: Conversation): Promise<Outcome & { focus: Features }> {
     const ev = new Evaluator(this.store, this.primitives, this.world, conv, "Supposing", r.steps, segText, (x) => this.canSay(x));
     let o: Outcome = { said: [], acts: [], reachedAct: false, unworked: 0, blocked: 0, checksPassed: 0 };
     for (const lf of r.lfs) {

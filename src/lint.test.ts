@@ -63,6 +63,7 @@ const WORLD_ACCESS: Record<string, string> = {
   "check.ts": "the seed checks read the seed's files",
   "count.ts": "prints the seed counts",
   "store.ts": "the store is SQLite (node:sqlite), the record itself, not the world",
+  "stopwatch.ts": "times a turn's stages for the reasons log; nothing reads what it measures",
 };
 
 test("only primitives touch the world from runtime code", () => {

@@ -59,6 +59,8 @@ export interface TurnRecord {
   reasons: ChoicePoint[];
   tone: string[];
   asides: Expr[];
+  /** Where the turn's time went, in milliseconds by stage (stopwatch.ts), with the total. */
+  times?: Map<string, number>;
 }
 
 export class Conversation {

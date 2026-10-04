@@ -1267,7 +1267,12 @@ is tracked alongside accuracy.
   summaries are understood ("Show commit logs" needs "commit" as a noun). Asked what a command does
   ("what does git commit do"), the answer is what its own page says, not a page from the web: a
   question about a command reached through a documentation reading is answered from that page's
-  summary, as a question about the user is answered from the graph (section 14b).
+  summary, as a question about the user is answered from the graph (section 14b). So is a question
+  about a program named as one ("what does jq do", "what does the tar command do", the auxiliary's
+  repeated verb and a question inside a question being the same question): the summary its own
+  page gave its sense, not its options; a program with no page of its own says what its other
+  documentation gave it (tldr's summary). A word that only names a program among other senses
+  ("tar") is the word: no program sense of it is guessed.
 - **Any CLI, from its manual page or its `--help`.** A program with no manual page is read from its
   help (`Read(Help(program, ...subcommands))`, the program run held to reading), whose layout
   (usage lines that start with the program's name, headings, indented items) is parsed into the

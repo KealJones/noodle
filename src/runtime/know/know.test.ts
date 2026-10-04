@@ -125,3 +125,22 @@ Fact(Use(), Category(Act(), Takes(side=Right(), category=Thing(), role=Theme(), 
   assert.match(sources, /- Wikipedia\n/);
   assert.deepEqual(asked, []);
 });
+
+test("what a program does is its own page's summary, not its parts, and not looked up", async () => {
+  const st = seededStore();
+  st.load(`Pack(name="tool-zorb", version="local", from=ToolDoc("zorb"))
+Block(id="b_zorb", media="text/plain", body="squeeze the widgets", from=ToolDoc("zorb", "NAME"))
+Block(id="b_zorb_frob", media="text/plain", body="Frob the widgets", from=ToolDoc("zorb-frob"))
+Concept(Zorb(), Lemma("zorb"), IsA(Tool()), Name("zorb"), Category(Thing()), Sense(Zorb#ZorbCommand()), from=ToolDoc("zorb", "NAME"))
+Concept(Zorb#ZorbCommand(), SenseOf(Zorb()), IsA(Command()), PartOf(Zorb()), Said(Block("b_zorb")), from=ToolDoc("zorb", "NAME"))
+Reading(on=Zorb(), pattern=Zorb(), becomes=Run("zorb", Args()), effects=UnknownEffects(), from=ToolDoc("zorb", "NAME"))
+Concept(Frob(), Lemma("frob"), Sense(Frob#ZorbCommand()), from=ToolDoc("zorb-frob"))
+Concept(Frob#ZorbCommand(), SenseOf(Frob()), IsA(Command()), PartOf(Zorb()), Name("zorb frob"), Said(Block("b_zorb_frob")), from=ToolDoc("zorb-frob"))
+`);
+  const s = createSession(st, mkdtempSync(join(tmpdir(), "noodle-doc-")), { know: "offline" });
+  const asked: string[] = [];
+  s.world.know = Object.assign(s.world.know!, { answer: async (q: string) => (asked.push(q), undefined) });
+  // "does ... do": the auxiliary says its verb again, and the question is about the program alone.
+  assert.match((await s.turn("what does zorb do")).text, /squeeze the widgets/);
+  assert.deepEqual(asked, []);
+});

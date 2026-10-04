@@ -64,6 +64,9 @@ export interface LemmaHit {
 }
 
 
+/** The facts a concept's kinds are worked out from (Store.kinds). */
+const KIND_HEADS = new Set(["IsA", "Sense", "SenseOf", "PartOfSpeech"]);
+
 type Item = FactItem | ReadingItem | BlockItem;
 
 /** Expressions as JSON, without the parse positions (only parse errors use them). */
@@ -83,6 +86,7 @@ export class Store {
     blocks: new Map<string, BlockItem | null>(),
     has: new Map<string, boolean>(),
     kinds: new Map<string, Map<string, number>>(),
+    distances: new Map<string, Map<string, number | undefined>>(),
   };
   private lemmaList?: string[];
 
@@ -137,9 +141,26 @@ export class Store {
 
   /** Changes with every write, so what is worked out over the whole store can be kept until it changes. */
   generation = 0;
+  /** The generation of the last change that may touch anything (a load, a retraction). */
+  private wholeAt = 0;
+  /** The generation each fact head and the readings last changed at, by a runtime addition. */
+  private headAt = new Map<string, number>();
+  private readingsAt = 0;
+
+  /**
+   * The generation of the last change to facts with these heads (or to readings): what is worked
+   * out from those alone is kept until it changes, however much else is written (the
+   * conversation's events, a command's output).
+   */
+  changedAt(heads: Iterable<string>, readings = false): number {
+    let at = Math.max(this.wholeAt, readings ? this.readingsAt : 0);
+    for (const h of heads) at = Math.max(at, this.headAt.get(h) ?? 0);
+    return at;
+  }
 
   private clearCaches() {
     this.generation++;
+    this.wholeAt = this.generation;
     for (const m of Object.values(this.cache)) m.clear();
     this.lemmaList = undefined;
   }
@@ -236,10 +257,16 @@ export class Store {
   private add<T extends Item>(item: T): T {
     this.write(item);
     this.generation++;
+    if (item.kind === "fact" && isCall(item.claim)) this.headAt.set(item.claim.head, this.generation);
+    if (item.kind === "reading") this.readingsAt = this.generation;
     if (item.kind === "fact") {
       this.cache.bySubject.delete(item.subject);
       this.cache.has.delete(item.subject);
-      this.cache.kinds.clear();
+      // Kinds are worked out from these facts alone (kinds, below).
+      if (isCall(item.claim) && KIND_HEADS.has(item.claim.head)) {
+        this.cache.kinds.clear();
+        this.cache.distances.clear();
+      }
       if (isCall(item.claim)) {
         this.cache.byHead.delete(item.claim.head);
         for (const h of heads(item.claim)) this.cache.byNamed.delete(h);
@@ -250,6 +277,9 @@ export class Store {
         }
       }
     } else if (item.kind === "reading") {
+      // A part of speech is read as a chart category by a reading (kinds, below).
+      this.cache.kinds.clear();
+      this.cache.distances.clear();
       this.cache.byOwner.delete(item.owner);
       this.cache.byPatternHead.delete(isCall(item.pattern) ? item.pattern.head : "");
       this.cache.has.delete(item.owner);
@@ -514,6 +544,15 @@ export class Store {
 
   /** Kind distance through the nearest common ancestor, or undefined if none. */
   kindDistance(a: string, b2: string): number | undefined {
+    let of = this.cache.distances.get(a);
+    if (!of) this.cache.distances.set(a, (of = new Map()));
+    if (of.has(b2)) return of.get(b2);
+    const d = this.distance(a, b2);
+    of.set(b2, d);
+    return d;
+  }
+
+  private distance(a: string, b2: string): number | undefined {
     const ka = this.kinds(a);
     const kb = this.kinds(b2);
     let best: number | undefined;

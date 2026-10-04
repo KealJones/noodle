@@ -14,6 +14,8 @@ for await (const line of rl) {
   if (line.trim()) {
     const { text, record } = await session.turn(line);
     console.log(text);
+    if (why && record.times)
+      console.log(`  time: ${[...record.times].filter(([, ms]) => ms >= 1).map(([stage, ms]) => `${stage} ${(ms / 1000).toFixed(2)} s`).join(", ")}`);
     if (why)
       for (const r of record.reasons) {
         console.log(`  ${r.what}`);

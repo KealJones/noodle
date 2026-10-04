@@ -234,7 +234,10 @@ async function noodle() {
       const tutor = TUTOR_MODE === undefined ? config.tutor : TUTOR_MODE !== "off";
       const s = createSession(store, root, { ...config, know: config.know ?? true, learn: false, tutor });
       if (TUTOR_MODE === "learned") s.tutor = undefined;
-      return async (p) => (await s.turn(p)).text;
+      return async (p) => {
+        const r = await s.turn(p);
+        return { text: r.text, times: r.record.times };
+      };
     },
     done: () => rmSync(dir, { recursive: true, force: true }),
   };
@@ -314,13 +317,14 @@ for (const [title, items] of SESSIONS) {
     n += items.length;
     continue;
   }
-  const out = items.map((item) => ({ n: ++n, item, title, replies: {}, verdicts: {} }));
+  const out = items.map((item) => ({ n: ++n, item, title, replies: {}, verdicts: {}, ms: {}, stages: {} }));
   for (const sys of systems) {
     if (sys.cached) {
       for (const row of out) {
         const was = sys.cached[row.n];
         row.replies[sys.name] = was?.reply;
         row.verdicts[sys.name] = was?.verdict ?? "ERROR";
+        row.ms[sys.name] = was?.ms;
       }
       continue;
     }
@@ -328,15 +332,22 @@ for (const [title, items] of SESSIONS) {
     const say = sys.session(root);
     for (const row of out) {
       let reply;
+      const t0 = performance.now();
       try {
         reply = await say(row.item.p);
+        // Noodle says where the turn's time went, by stage (pnpm chat --why).
+        if (reply && typeof reply === "object") {
+          row.stages[sys.name] = reply.times;
+          reply = reply.text;
+        }
       } catch (err) {
         reply = `(error: ${err instanceof Error ? err.message : String(err)})`;
         row.verdicts[sys.name] = "ERROR";
       }
+      row.ms[sys.name] = performance.now() - t0;
       row.replies[sys.name] = reply;
       row.verdicts[sys.name] ??= verdict(row.item, reply, root);
-      process.stderr.write(`${sys.name} ${row.n} ${row.verdicts[sys.name]}\n`);
+      process.stderr.write(`${sys.name} ${row.n} ${row.verdicts[sys.name]} ${(row.ms[sys.name] / 1000).toFixed(2)} s\n`);
     }
     rmSync(root, { recursive: true, force: true });
   }
@@ -358,6 +369,19 @@ md.push(`Run ${now.toISOString().slice(0, 16).replace("T", " ")} UTC with \`pnpm
 md.push("## Summary", "");
 md.push(`| | ${KINDS.join(" | ")} |`, `|---|${KINDS.map(() => "---").join("|")}|`);
 for (const name of names) md.push(`| ${name} | ${KINDS.map((k) => count(name)[k]).join(" | ")} |`);
+// Time per turn, wall clock, as the user waits for it (a cached Napkin run keeps its own times).
+const secs = (ms) => `${(ms / 1000).toFixed(2)} s`;
+const timed = (name) => rows.filter((r) => typeof r.ms[name] === "number");
+md.push("", "Time per turn:", "", "| | median | max | slowest |", "|---|---|---|---|");
+for (const name of names) {
+  const rs = timed(name).sort((a, b) => b.ms[name] - a.ms[name]);
+  if (!rs.length) continue;
+  const ms = rs.map((r) => r.ms[name]).sort((a, b) => a - b);
+  const median = ms.length % 2 ? ms[(ms.length - 1) / 2] : (ms[ms.length / 2 - 1] + ms[ms.length / 2]) / 2;
+  // The slowest, each with the stages that took most of it.
+  const stages = (r) => [...(r.stages[name] ?? [])].filter(([k]) => k !== "total").sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k} ${secs(v)}`);
+  md.push(`| ${name} | ${secs(median)} | ${secs(ms[ms.length - 1])} | ${rs.slice(0, 5).map((r) => `${r.n} ${cell(r.item.p)} (${[secs(r.ms[name]), ...stages(r)].join(", ")})`).join("; ")} |`);
+}
 md.push("", "By session (RIGHT / HONEST / WRONG / ERROR):", "");
 md.push(`| session | ${names.join(" | ")} |`, `|---|${names.map(() => "---").join("|")}|`);
 for (const title of new Set(rows.map((r) => r.title))) {
@@ -372,5 +396,5 @@ for (const title of new Set(rows.map((r) => r.title))) {
 const text = md.join("\n") + "\n";
 if (!only && save) writeFileSync(join(ROOT, "docs", "versus.md"), text);
 if (!only && save && systems.some((x) => x.name === "Napkin" && !x.cached))
-  writeFileSync(NAPKIN_CACHE, JSON.stringify(Object.fromEntries(rows.map((r) => [r.n, { prompt: r.item.p, reply: r.replies.Napkin, verdict: r.verdicts.Napkin }])), null, 1) + "\n");
+  writeFileSync(NAPKIN_CACHE, JSON.stringify(Object.fromEntries(rows.map((r) => [r.n, { prompt: r.item.p, reply: r.replies.Napkin, verdict: r.verdicts.Napkin, ms: r.ms.Napkin }])), null, 1) + "\n");
 console.log(text);
