@@ -219,7 +219,7 @@ export async function learnTldr(
     const id = "b_" + createHash("sha256").update(text).digest("hex").slice(0, 16);
     if (!blocks.has(id)) {
       blocks.add(id);
-      forms.push(c("Block", ["id", s(id)], ["media", s("text/plain")], ["body", s(text)], ["from", from]));
+      forms.push(c("Block", ["id", s(id)], ["media", s("text/markdown")], ["body", s(text)], ["from", from]));
     }
     return c("Block", s(id));
   };
@@ -317,7 +317,8 @@ export async function learnTldr(
       // ("E[x]tract"). Code spans stay: what they name is heard as a name ("Create a `package.json`
       // file" is about that file, not any file).
       const said = ex.description.replace(/\[([A-Za-z]+)\]/g, "$1");
-      const claims: Expr[] = [c("PartOf", c(owner)), c("Said", block(said, from))];
+      // Called by its command line, as the page writes it.
+      const claims: Expr[] = [c("PartOf", c(owner)), c("Name", s(ex.command)), c("Said", block(said, from))];
       // What is said in parentheses is an aside to what the example does ("(running and stopped)").
       const u: Understood | undefined = await understand?.(said.replace(/\s*\([^()]*\)/g, "").trim());
       const slots = [...new Set(parsed.args.flat().flatMap((p) => ("slot" in p ? [p.slot] : [])))];
