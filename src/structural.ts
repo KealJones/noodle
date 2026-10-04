@@ -84,6 +84,8 @@ export const STRUCTURAL = {
       // The CandidateSource template's keys (runtime.md 3.3), and a set-aside span's.
       "Exact", "Inflected", "CaseMatch", "SpellDistance", "SoundDistance", "Stretched", "InPlay", "Shape", "Unknown", "SetAside",
       "CurrentConversation", "PastConversation", "UserFacts", "Workspace", "World",
+      // The lexicon: a dictionary asked for one word (Focus's budget), and the words it lacked.
+      "Lexicon",
       // Focus's budget per turn, per source (runtime.md 11b), a policy fact on Focus.
       "Focus", "Budget", "Lookups", "Candidates",
       // The scored match's threshold (runtime.md 6.2), a fact on Match; and what a command's

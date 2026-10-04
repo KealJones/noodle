@@ -43,6 +43,13 @@ export class Stopwatch {
     return out;
   }
 
+  /** Runs `f` and says how long it took, in milliseconds (one lookup's time, for the reasons log). */
+  async took<T>(f: () => Promise<T>): Promise<{ value: T; ms: number }> {
+    const t0 = performance.now();
+    const value = await f();
+    return { value, ms: performance.now() - t0 };
+  }
+
   private since = 0;
 
   /** Starts over: a new turn. */

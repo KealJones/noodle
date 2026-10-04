@@ -35,6 +35,8 @@ export interface KnowOptions {
    * through the program the config names: Run, held as sending outside). Absent, it is not asked.
    */
   chatgpt?: (question: string | ChatMessage[]) => Promise<string | undefined>;
+  /** Where one word's dictionary entry comes from (Kaikki, then Wiktionary; a stand-in in tests). */
+  fetchWord?: (word: string) => Promise<WordEntry | undefined>;
 }
 
 /** A message of the chat with ChatGPT, as gptb's OpenAI-compatible server takes it. */
@@ -309,7 +311,7 @@ export class Know {
    * heard from now on; a word no dictionary has is remembered as missing. How many facts it
    * added, 0 when nothing was learned (offline, known missing, or not found).
    */
-  async word(word: string, fetchEntry: (w: string) => Promise<WordEntry | undefined> = wordEntry): Promise<number> {
+  async word(word: string, fetchEntry: (w: string) => Promise<WordEntry | undefined> = this.opts.fetchWord ?? wordEntry): Promise<number> {
     if (this.opts.offline || knownMissing(this.store, word)) return 0;
     const entry = await fetchEntry(word).catch(() => undefined);
     if (!entry) {

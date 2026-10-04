@@ -10,7 +10,8 @@ import { alike } from "./canonical.js";
 import { Chart, type Cover, type Edge } from "./chart.js";
 import { Conversation, type TurnRecord } from "./conversation.js";
 import { Evaluator, type Outcome } from "./evaluate.js";
-import { hear, segmentations, type Hearing } from "./hear.js";
+import { hear, segmentations, unheard, type Hearing } from "./hear.js";
+import { knownMissing } from "../know/word.js";
 import { GUARDED, type Primitive, type World } from "./primitive.js";
 import { type Derivation, Rewriter, type Step } from "./rewrite.js";
 import { type ChoicePoint, type Features, type LearnedBy, TUTOR, Weights, addFeature, mergeFeatures, scoreOf } from "./score.js";
@@ -253,7 +254,7 @@ export class Session {
     // page (reading documentation), or offered to be learned from its help (which runs it).
     const learning = opts.dry || !this.tools ? undefined : await this.learnPrograms(text, conv);
     const names = await this.surroundings(conv);
-    const hearing = stopwatch.time("hearing", () => hear(this.store, text, { names }));
+    const hearing = await this.hearLearning(text, names, conv, !!opts.dry);
     record.tone = toneOf(this.store, hearing);
     // What the last turn asked is answered in this one, or lapses.
     const waiting = this.waiting && this.waiting.turn === record.index - 2 ? this.waiting : undefined;
@@ -538,6 +539,41 @@ export class Session {
       return { text: [out, again.text].filter(Boolean).join("\n\n"), record, acts: [...acts, ...again.acts] };
     }
     return { text: out, record, acts };
+  }
+
+  /**
+   * Hearing, with the lazy lexicon (tasks/handoff.md, "learn the missing pieces at prompt time"):
+   * the words nothing in the store hears (heard only as themselves, or as a spelling correction or
+   * in another case; never a shape, a number, a code span, a quotation or a name in the
+   * workspace) are looked up in a dictionary through Know.word, all at once and within Focus's
+   * budget for the lexicon, and the prompt is heard again with what was learned. Not in a dry
+   * run, not offline, not without the SendsOutside grant. A word learned is heard from then on;
+   * one no dictionary has is remembered, and neither is asked for again.
+   */
+  private async hearLearning(text: string, names: string[], conv: Conversation, dry: boolean): Promise<Hearing> {
+    const heard = () => stopwatch.time("hearing", () => hear(this.store, text, { names }));
+    const first = heard();
+    const know = this.world.know;
+    if (dry || !know?.word || know.opts?.offline || (GUARDED.has("SendsOutside") && !this.world.grants?.has("SendsOutside"))) return first;
+    const words = [...new Set(unheard(first).map((w) => w.toLowerCase()))].filter((w) => !knownMissing(this.store, w));
+    if (!words.length) return first;
+    const budget = this.store.facts("Focus", "Budget").find((f) => isCall(f.claim) && isHead(positional(f.claim)[0], "Lexicon"));
+    const cap = budget && role(budget.claim, "lookups");
+    const asked = cap?.kind === "number" ? words.slice(0, cap.value) : words;
+    if (asked.length < words.length)
+      conv.focus.log.push({ what: `focus: words not looked up, over the turn's budget of ${asked.length}: ${words.slice(asked.length).join(", ")}`, candidates: [], winner: -1 });
+    conv.focus.lookups.set("Lexicon", (conv.focus.lookups.get("Lexicon") ?? 0) + asked.length);
+    const added = await stopwatch.time("words", () =>
+      Promise.all(
+        asked.map(async (w) => {
+          const { value: n, ms } = await stopwatch.took(() => know.word(w).catch(() => 0));
+          const secs = (ms / 1000).toFixed(2);
+          conv.focus.log.push({ what: `focus: the word "${w}" looked up in the lexicon: ${n ? `${n} facts` : "not found"} (${secs} s)`, candidates: [], winner: -1 });
+          return n;
+        }),
+      ),
+    );
+    return added.some((n) => n > 0) ? heard() : first;
   }
 
   /**
