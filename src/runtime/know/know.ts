@@ -11,7 +11,8 @@ import { createHash } from "node:crypto";
 import { type Call, type Expr, c, isCall, isHead, n, positional, role, s } from "../expr.js";
 import type { Store } from "../store.js";
 import { type Learned, Learner, type Recalled, sourceOf, topicName } from "./learn.js";
-import { type Found, type PageDoc, type SearchResult, page, pageDoc, webSearch, wikidata, wikidataClaims, wikipedia, wikipediaTopic, wiktionary } from "./sources.js";
+import { type Found, type PageDoc, type SearchResult, page, pageDoc, webSearch, wikidata, wikidataClaims, wikipedia, wikipediaTopic, wiktionary, wordEntry } from "./sources.js";
+import { type WordEntry, knownMissing, learnNoWord, learnWord } from "../../know/word.js";
 
 export interface Knowledge {
   block: string;
@@ -300,6 +301,22 @@ export class Know {
       if (p.anchor) roles.push(["anchor", s(p.anchor)]);
       this.store.addFact(topic, c("Section", s(p.heading), ...parts, ...roles), from);
     }
+  }
+
+  /**
+   * A word nobody imported, learned the first time a prompt needs it (tasks/handoff.md, the lazy
+   * lexicon): its dictionary entry kept as facts on the word, from the dictionary, so the word is
+   * heard from now on; a word no dictionary has is remembered as missing. How many facts it
+   * added, 0 when nothing was learned (offline, known missing, or not found).
+   */
+  async word(word: string, fetchEntry: (w: string) => Promise<WordEntry | undefined> = wordEntry): Promise<number> {
+    if (this.opts.offline || knownMissing(this.store, word)) return 0;
+    const entry = await fetchEntry(word).catch(() => undefined);
+    if (!entry) {
+      learnNoWord(this.store, word, c("Wiktionary", s(`https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`)));
+      return 0;
+    }
+    return learnWord(this.store, entry);
   }
 
   /** What a word means, from a dictionary. */

@@ -4,6 +4,7 @@
 // since the query leaves the machine. What comes back is content (kept as a block, with its source
 // and trust level 4, the web), never meaning decided by a string.
 
+import type { WordEntry } from "../../know/word.js";
 export interface Found {
   /** The source's own words, to keep as a content block. */
   text: string;
@@ -127,6 +128,42 @@ export async function wiktionary(word: string): Promise<Found | undefined> {
   const lines = en.slice(0, 3).flatMap((p) => p.definitions.slice(0, 2).map((x) => `(${p.partOfSpeech.toLowerCase()}) ${htmlText(x.definition)}`)).filter((x) => x.length > 4);
   if (!lines.length) return undefined;
   return { text: lines.join("\n"), title: word, url: `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`, source: "Wiktionary" };
+}
+
+/**
+ * One word's dictionary entry (tasks/handoff.md, the lazy lexicon): Kaikki's per-word extract of
+ * Wiktionary (parts of speech with forms and glosses), or, where that is unreachable (a browser:
+ * it sends no CORS header), Wiktionary's own definition API (parts of speech and glosses).
+ */
+export async function wordEntry(word: string): Promise<WordEntry | undefined> {
+  const w = word.toLowerCase();
+  if (!/^[\p{L}][\p{L}'-]*$/u.test(w)) return undefined;
+  const a = w.slice(0, 1);
+  const ab = w.slice(0, 2);
+  const url = `https://kaikki.org/dictionary/English/meaning/${encodeURIComponent(a)}/${encodeURIComponent(ab)}/${encodeURIComponent(w)}.jsonl`;
+  const text = await get(url, "application/jsonl, text/plain, */*");
+  if (text && !text.trimStart().startsWith("<")) {
+    const parts: WordEntry["parts"] = [];
+    for (const line of text.split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const o = JSON.parse(line) as { word?: string; pos?: string; forms?: { form: string; tags?: string[] }[]; senses?: { glosses?: string[] }[] };
+        if (o.word?.toLowerCase() !== w || !o.pos) continue;
+        parts.push({ pos: o.pos, forms: (o.forms ?? []).map((f) => ({ form: f.form, tags: f.tags ?? [] })), glosses: (o.senses ?? []).flatMap((x) => x.glosses?.slice(0, 1) ?? []) });
+      } catch {
+        continue;
+      }
+    }
+    if (parts.length) return { word: w, url, parts };
+  }
+  const d = await json(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(w)}`);
+  const en = d?.en as { partOfSpeech: string; definitions: { definition: string }[] }[] | undefined;
+  if (!en?.length) return undefined;
+  return {
+    word: w,
+    url: `https://en.wiktionary.org/wiki/${encodeURIComponent(w)}`,
+    parts: en.map((p) => ({ pos: p.partOfSpeech.toLowerCase(), forms: [], glosses: p.definitions.map((x) => htmlText(x.definition)).filter((x) => x.length > 2) })),
+  };
 }
 
 /** Wikidata's label and description of the best matching entity. */
