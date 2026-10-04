@@ -90,3 +90,11 @@
   branch` inside a referent; "this folder" is never the workspace (the graph does not connect a
   folder to what reading "." gives); "find" in a summary still comes out as Store (its get frame and
   its discover frame tie, and the first wins).
+- **Speed with every tool loaded** (blocks installing tools-all and the new tldr pack, both in
+  ~/.noodle/packs-pending). With all 1,857 tools and tldr loaded, versus was unchanged but turns
+  got slow: git status 5.4 s (was about 1), "what does jq do" 18 s and went to ChatGPT instead of
+  its man page, "what does the tar command do" 32 s and listed options instead of the summary.
+  versus does not measure time: add per-turn time to it, index Describes facts by their concepts
+  so the scored match looks only at descriptions that share one, and keep "what does X do"
+  answered from the program's own page when X is named as a program or only names one. Then
+  reinstall.
