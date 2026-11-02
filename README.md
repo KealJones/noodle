@@ -1,5 +1,4 @@
 # Noodle
-hello from sol!
 
 An assistant that understands and acts without a language model. Everything it knows is a graph of
 nested concepts, written in **N-Con** (`.ncon`). A message is heard into N-Con close to the words
@@ -15,9 +14,10 @@ The lineage: spoon, soup, napkin, and now noodle.
 - `PLAN.md`: the order of work.
 - `AGENTS.md`: the rules for anyone (or any agent) building it. Read it first.
 - `docs/specs/`: the phase 0 specs (data model, format, logical form, runtime, built-ins, testing).
+- `docs/results.md`: how it scores against a baseline on labelled prompts, and where it falls short.
 
 Status: specs reviewed (checkpoint 0), seed drafted (0.1.0, `seed/README.md`), and a first runtime
-running end to end: hearing, the chart, rewriting, the two-stage score, evaluation, Speaking, the
+(0.50.0) running end to end: hearing, the chart, rewriting, the two-stage score, evaluation, Speaking, the
 primitives, and the chat endpoints. It knows only the seed's function words and core meanings, plus
 what it learns from a tool's own man pages; content words wait on the imports (`docs/imports.md`).
 
@@ -47,6 +47,9 @@ pnpm chat
   (`docs/imports.md`).
 - `pnpm seed:count`: the seed's entries per part, and its checks.
 - `pnpm measure`: hearing and chart numbers on the local corpus (ids only).
+- `pnpm build`: compile the TypeScript. The other scripts in `package.json` (`label`, `baseline`,
+  `score:acts`, `versus`, `pilot`, `train` and friends) are the evaluation and training tools; see
+  `docs/results.md`, `docs/pilot.md` and the `docs/versus*.md` notes.
 
 What it can do today, with git's pages learned: "git status", "show me the diff", "add b.txt",
 "what's in README.md?", "whats in it?", "don't push yet" (and then refusing a "push"), "thanks",
@@ -101,3 +104,8 @@ and non-streaming requests work.
   or regenerated message starts fresh rather than running anything twice.
 
 Token counts in the usage fields are whitespace-separated words, since there is no tokenizer.
+
+## Editor support
+
+`editors/vscode-ncon/` adds VS Code support for `.ncon` files. To try it, symlink the folder into
+`~/.vscode/extensions/` (as `noodle.vscode-ncon-0.1.0`); `pnpm test:editor` runs its tests.
